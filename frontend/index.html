@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GodavariKrishna · Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #f0f2f5;
+        --surface: #ffffff;
+        --surface2: #f8f9fb;
+        --border: #e5e7eb;
+        --border-focus: #3b82f6;
+        --primary: #3b63f6;
+        --primary-hover: #2851e8;
+        --primary-light: #eff3ff;
+        --success: #10b981;
+        --danger: #ef4444;
+        --text: #111827;
+        --text-dim: #6b7280;
+        --text-muted: #9ca3af;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 8px 32px rgba(0, 0, 0, 0.06);
+        --shadow-lg:
+          0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 20px 60px rgba(0, 0, 0, 0.1);
+      }
+
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(59, 99, 246, 0.06) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(16, 185, 129, 0.05) 0%,
+            transparent 50%
+          );
+      }
+
+      .auth-wrapper {
+        width: 100%;
+        max-width: 440px;
+        animation: fadeUp 0.45s ease both;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Brand mark */
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 32px;
+      }
+
+      .brand-icon {
+        width: 38px;
+        height: 38px;
+        background: var(--primary);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .brand-icon svg {
+        color: white;
+      }
+
+      .brand-name {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.4px;
+      }
+
+      /* Card */
+      .auth-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 40px 36px;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .auth-heading {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.4px;
+        margin-bottom: 6px;
+      }
+
+      .auth-sub {
+        font-size: 14px;
+        color: var(--text-dim);
+        margin-bottom: 28px;
+      }
+
+      /* Form */
+      .form-group {
+        margin-bottom: 18px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 12px 16px;
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 14px;
+        font-family: inherit;
+        transition: all 0.2s;
+        outline: none;
+      }
+
+      .form-group input:focus {
+        border-color: var(--border-focus);
+        box-shadow: 0 0 0 3px rgba(59, 99, 246, 0.1);
+      }
+
+      .form-group input::placeholder {
+        color: var(--text-muted);
+      }
+
+      /* Button */
+      .btn-primary {
+        width: 100%;
+        padding: 13px 24px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      .btn-primary:hover {
+        background: var(--primary-hover);
+        box-shadow: 0 4px 16px rgba(59, 99, 246, 0.35);
+        transform: translateY(-1px);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      /* Alert */
+      .alert {
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        margin-bottom: 18px;
+        display: none;
+        font-weight: 500;
+      }
+
+      .alert.error {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+      }
+
+      .alert.success {
+        background: #f0fdf4;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+      }
+
+      /* Info box */
+      .info-box {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+        color: var(--text-dim);
+        text-align: center;
+      }
+
+      /* UNUSED — kept for layout compat */
+      .demo-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        margin-bottom: 8px;
+      }
+
+      .demo-creds {
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+
+      .demo-creds strong {
+        color: var(--primary);
+        font-weight: 600;
+      }
+
+      .demo-role {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 20px;
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+
+      .demo-role.hr {
+        background: #ecfdf5;
+        color: #059669;
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--surface);
+        padding: 14px 20px;
+        border-radius: 12px;
+        border-left: 4px solid var(--primary);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(80px);
+        opacity: 0;
+        transition: all 0.3s;
+        z-index: 1000;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text);
+        max-width: 340px;
+      }
+
+      .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      .toast.success {
+        border-color: var(--success);
+      }
+      .toast.error {
+        border-color: var(--danger);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="auth-wrapper">
+      <!-- Brand -->
+      <div class="brand">
+        <div class="brand-icon">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+        </div>
+        <span class="brand-name">GodavariKrishna</span>
+      </div>
+
+      <!-- Card -->
+      <div class="auth-card">
+        <h1 class="auth-heading">Welcome back</h1>
+        <p class="auth-sub">Sign in to access your attendance portal</p>
+
+        <div class="alert error" id="authError"></div>
+
+        <div class="form-group">
+          <label>Work Email</label>
+          <input
+            type="email"
+            id="loginEmail"
+            placeholder="you@company.com"
+            autocomplete="email"
+          />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input
+            type="password"
+            id="loginPassword"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+          />
+        </div>
+        <button class="btn-primary" onclick="login()" id="loginBtn">
+          Sign In
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        <div class="info-box">
+          New employees are added by HR. Contact your HR team if you don't have
+          access.
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API = "/api";
+
+      function showAlert(msg) {
+        const el = document.getElementById("authError");
+        el.textContent = msg;
+        el.style.display = "block";
+        setTimeout(() => (el.style.display = "none"), 5000);
+      }
+
+      async function login() {
+        const email = document.getElementById("loginEmail").value.trim();
+        const password = document.getElementById("loginPassword").value;
+        const btn = document.getElementById("loginBtn");
+
+        if (!email || !password) {
+          showAlert("Please enter email and password");
+          return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = "Signing in…";
+
+        try {
+          const res = await fetch(API + "/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Login failed");
+
+          localStorage.setItem("token", data.access_token);
+          window.location.href =
+            data.user.role === "hr" || data.user.role === "admin"
+              ? "/hr-manager"
+              : "/employee";
+        } catch (e) {
+          showAlert(e.message);
+          btn.disabled = false;
+          btn.innerHTML =
+            'Sign In <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+        }
+      }
+
+      document.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") login();
+      });
+
+      // Auto-redirect if already logged in
+      const token = localStorage.getItem("token");
+      if (token) {
+        fetch(API + "/auth/me", {
+          headers: { Authorization: "Bearer " + token },
+        })
+          .then((r) => r.json())
+          .then((u) => {
+            if (u && u.role)
+              window.location.href =
+                u.role === "hr" || u.role === "admin"
+                  ? "/hr-manager"
+                  : "/employee";
+          })
+          .catch(() => localStorage.removeItem("token"));
+      }
+    </script>
+  </body>
+</html>
