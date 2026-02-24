@@ -1213,6 +1213,181 @@
         border-color: var(--danger);
       }
 
+      /* EDIT MODAL */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+      }
+      .modal-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .modal {
+        background: var(--surface);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 680px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--shadow-lg);
+        transform: translateY(20px);
+        transition: transform 0.2s;
+      }
+      .modal-overlay.open .modal {
+        transform: translateY(0);
+      }
+      .modal-header {
+        padding: 22px 24px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+      .modal-header h3 {
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+      .modal-header p {
+        font-size: 13px;
+        color: var(--text-dim);
+        margin-top: 2px;
+      }
+      .modal-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+      .modal-close:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .modal-body {
+        overflow-y: auto;
+        padding: 20px 24px;
+        flex: 1;
+      }
+      .modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+        gap: 10px;
+      }
+      .modal-footer-left {
+        display: flex;
+        gap: 8px;
+      }
+      .modal-footer-right {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+      }
+      .btn-danger {
+        background: var(--danger-light);
+        color: var(--danger);
+        border: 1px solid var(--danger-border);
+      }
+      .btn-danger:hover {
+        background: #fecaca;
+      }
+      .modal-tabs {
+        display: flex;
+        gap: 4px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 4px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .modal-tab {
+        padding: 6px 14px;
+        border: none;
+        border-radius: 7px;
+        font-size: 12.5px;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: inherit;
+        color: var(--text-dim);
+        background: transparent;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .modal-tab.active {
+        background: var(--surface);
+        color: var(--text);
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.09);
+      }
+      .modal-panel {
+        display: none;
+      }
+      .modal-panel.active {
+        display: block;
+      }
+
+      /* PROGRESS BAR in add employee */
+      .ae-live-progress {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 18px;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .ae-live-progress-bar {
+        flex: 1;
+        height: 8px;
+        background: var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .ae-live-progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        background: var(--primary);
+        transition:
+          width 0.4s ease,
+          background 0.3s;
+      }
+      .ae-live-pct {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--primary);
+        white-space: nowrap;
+        min-width: 38px;
+        text-align: right;
+      }
+      .ae-live-label {
+        font-size: 13px;
+        color: var(--text-dim);
+        white-space: nowrap;
+      }
+
       @media (max-width: 900px) {
         .sidebar {
           display: none;
@@ -1829,6 +2004,19 @@
               Submit Enrollment
             </button>
           </div>
+        </div>
+
+        <!-- Live progress bar -->
+        <div class="ae-live-progress">
+          <span class="ae-live-label">Form completion</span>
+          <div class="ae-live-progress-bar">
+            <div
+              class="ae-live-progress-fill"
+              id="liveProgressFill"
+              style="width: 0%"
+            ></div>
+          </div>
+          <span class="ae-live-pct" id="liveProgressPct">0%</span>
         </div>
 
         <div class="ae-layout">
@@ -2622,6 +2810,382 @@
     </div>
     <!-- /main -->
 
+    <!-- EDIT EMPLOYEE MODAL -->
+    <div class="modal-overlay" id="editModal" onclick="closeEditModal(event)">
+      <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <h3>Edit Employee</h3>
+            <p id="editModalSubtitle">Update employee information</p>
+          </div>
+          <button class="modal-close" onclick="closeEditModal()">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-tabs">
+            <button
+              class="modal-tab active"
+              onclick="switchModalTab('personal', this)"
+            >
+              Personal
+            </button>
+            <button class="modal-tab" onclick="switchModalTab('job', this)">
+              Job
+            </button>
+            <button class="modal-tab" onclick="switchModalTab('terms', this)">
+              Terms
+            </button>
+            <button class="modal-tab" onclick="switchModalTab('work', this)">
+              Work
+            </button>
+            <button class="modal-tab" onclick="switchModalTab('comp', this)">
+              Compensation
+            </button>
+          </div>
+
+          <!-- Personal -->
+          <div class="modal-panel active" id="modalTab-personal">
+            <div class="form-grid-2" style="margin-bottom: 16px">
+              <div class="form-field">
+                <label class="form-label">Full Name</label>
+                <input class="form-input" type="text" id="e_full_name" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Date of Birth</label>
+                <input class="form-input" type="date" id="e_dob" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Gender</label>
+                <select class="form-select" id="e_gender">
+                  <option value="">Select</option>
+                  <option>Male</option>
+                  <option>Female</option>
+                  <option>Other</option>
+                  <option>Prefer not to say</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Blood Group</label>
+                <select class="form-select" id="e_blood_group">
+                  <option value="">Select</option>
+                  <option>A+</option>
+                  <option>A-</option>
+                  <option>B+</option>
+                  <option>B-</option>
+                  <option>O+</option>
+                  <option>O-</option>
+                  <option>AB+</option>
+                  <option>AB-</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Phone</label>
+                <input class="form-input" type="tel" id="e_phone" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Personal Email</label>
+                <input class="form-input" type="email" id="e_personal_email" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Nationality</label>
+                <input class="form-input" type="text" id="e_nationality" />
+              </div>
+            </div>
+            <div class="form-field" style="margin-bottom: 16px">
+              <label class="form-label">Home Address</label>
+              <textarea class="form-textarea" id="e_home_address"></textarea>
+            </div>
+            <div class="ae-section-title">Emergency Contact</div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label">Contact Name</label>
+                <input class="form-input" type="text" id="e_emg_name" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Contact Phone</label>
+                <input class="form-input" type="tel" id="e_emg_phone" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Relationship</label>
+                <select class="form-select" id="e_emg_rel">
+                  <option value="">Select</option>
+                  <option>Parent</option>
+                  <option>Spouse</option>
+                  <option>Sibling</option>
+                  <option>Friend</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Job -->
+          <div class="modal-panel" id="modalTab-job">
+            <div class="form-grid-2" style="margin-bottom: 16px">
+              <div class="form-field">
+                <label class="form-label">Job Title</label>
+                <input class="form-input" type="text" id="e_job_title" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Designation</label>
+                <input class="form-input" type="text" id="e_designation" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Department</label>
+                <select class="form-select" id="e_department">
+                  <option value="">Select</option>
+                  <option>Engineering</option>
+                  <option>Product Design</option>
+                  <option>People &amp; Culture</option>
+                  <option>Finance</option>
+                  <option>Marketing</option>
+                  <option>Sales</option>
+                  <option>Operations</option>
+                  <option>Legal</option>
+                  <option>Customer Support</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Sub-Department</label>
+                <input class="form-input" type="text" id="e_sub_department" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Grade</label>
+                <select class="form-select" id="e_grade">
+                  <option value="">Select</option>
+                  <option>L1 - Junior</option>
+                  <option>L2 - Mid</option>
+                  <option>L3 - Senior</option>
+                  <option>L4 - Lead</option>
+                  <option>L5 - Manager</option>
+                  <option>L6 - Director</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Date of Joining</label>
+                <input class="form-input" type="date" id="e_date_of_joining" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Branch</label>
+                <select class="form-select" id="e_branch_id">
+                  <option value="">Select Branch</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Role in System</label>
+                <select class="form-select" id="e_role">
+                  <option value="employee">Employee</option>
+                  <option value="hr">HR</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">L1 Manager</label>
+                <select class="form-select" id="e_l1_manager_id">
+                  <option value="">— None —</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">L2 Manager</label>
+                <select class="form-select" id="e_l2_manager_id">
+                  <option value="">— None —</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Cost Centre</label>
+                <input class="form-input" type="text" id="e_cost_centre" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Terms -->
+          <div class="modal-panel" id="modalTab-terms">
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label">Employment Type</label>
+                <select class="form-select" id="e_employment_type">
+                  <option value="">Select</option>
+                  <option>Full-Time</option>
+                  <option>Part-Time</option>
+                  <option>Contract</option>
+                  <option>Intern</option>
+                  <option>Consultant</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Notice Period</label>
+                <select class="form-select" id="e_notice_period">
+                  <option value="">Select</option>
+                  <option>15 Days</option>
+                  <option>30 Days</option>
+                  <option>60 Days</option>
+                  <option>90 Days</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Contract End Date</label>
+                <input class="form-input" type="date" id="e_contract_end" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Probation End Date</label>
+                <input class="form-input" type="date" id="e_probation_end" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Work -->
+          <div class="modal-panel" id="modalTab-work">
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label">Shift Start</label>
+                <input class="form-input" type="time" id="e_shift_start" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Shift End</label>
+                <input class="form-input" type="time" id="e_shift_end" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Work Mode</label>
+                <select class="form-select" id="e_work_mode">
+                  <option>On-Site</option>
+                  <option>Remote</option>
+                  <option>Hybrid</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Weekly Off</label>
+                <select class="form-select" id="e_weekly_off">
+                  <option>Saturday &amp; Sunday</option>
+                  <option>Sunday only</option>
+                  <option>Rotational</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Work Location / Desk</label>
+                <input class="form-input" type="text" id="e_work_location" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Asset ID</label>
+                <input class="form-input" type="text" id="e_asset_id" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Compensation -->
+          <div class="modal-panel" id="modalTab-comp">
+            <div class="form-grid-2" style="margin-bottom: 16px">
+              <div class="form-field">
+                <label class="form-label">Annual CTC (₹)</label>
+                <input
+                  class="form-input"
+                  type="number"
+                  id="e_annual_ctc"
+                  min="0"
+                />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Pay Frequency</label>
+                <select class="form-select" id="e_pay_frequency">
+                  <option>Monthly</option>
+                  <option>Bi-Weekly</option>
+                  <option>Weekly</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">PF Enrolled</label>
+                <select class="form-select" id="e_pf_enrolled">
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label">ESIC Applicable</label>
+                <select class="form-select" id="e_esic_applicable">
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+            </div>
+            <div class="ae-section-title">Bank Details</div>
+            <div class="form-grid-2">
+              <div class="form-field">
+                <label class="form-label">Bank Name</label>
+                <input class="form-input" type="text" id="e_bank_name" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">Account Number</label>
+                <input class="form-input" type="text" id="e_bank_account" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">IFSC Code</label>
+                <input class="form-input" type="text" id="e_bank_ifsc" />
+              </div>
+              <div class="form-field">
+                <label class="form-label">PAN Number</label>
+                <input
+                  class="form-input"
+                  type="text"
+                  id="e_pan_number"
+                  style="text-transform: uppercase"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <div class="modal-footer-left">
+            <button
+              class="btn btn-danger"
+              id="editDeactivateBtn"
+              onclick="deactivateFromModal()"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Deactivate
+            </button>
+          </div>
+          <div class="modal-footer-right">
+            <button class="btn btn-secondary" onclick="closeEditModal()">
+              Cancel
+            </button>
+            <button class="btn btn-primary" onclick="saveEdit()">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="toast" id="toast"></div>
 
     <script>
@@ -3083,13 +3647,16 @@
           <div class="progress-bar"><div class="progress-fill ${barCls(pct)}" style="width:${pct}%"></div></div>
           <span class="progress-pct">${pct}%</span>
         </div></td>
-        <td>
+        <td style="display:flex;gap:6px;align-items:center">
           <select class="form-select" style="padding:5px 28px 5px 8px;font-size:12px;border-radius:8px"
             onchange="updateObStatus(${r.id}, this.value, this)">
             <option value="awaiting"    ${r.onboarding_status === "awaiting" ? "selected" : ""}>Awaiting</option>
             <option value="in-progress" ${r.onboarding_status === "in-progress" ? "selected" : ""}>In Progress</option>
             <option value="completed"   ${r.onboarding_status === "completed" ? "selected" : ""}>Completed</option>
           </select>
+          <button class="action-btn" title="Edit employee" onclick="openEditModal(${r.id})" style="flex-shrink:0">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
         </td>
       </tr>`;
           })
@@ -3302,7 +3869,281 @@
         }
       }
 
+      // ── Edit Modal ────────────────────────────────────────────────
+      let editingEmpId = null;
+
+      function switchModalTab(name, el) {
+        document
+          .querySelectorAll(".modal-tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".modal-panel")
+          .forEach((p) => p.classList.remove("active"));
+        el.classList.add("active");
+        document.getElementById("modalTab-" + name).classList.add("active");
+      }
+
+      function closeEditModal(e) {
+        if (e && e.target !== document.getElementById("editModal")) return;
+        document.getElementById("editModal").classList.remove("open");
+        editingEmpId = null;
+      }
+
+      async function openEditModal(empId) {
+        editingEmpId = empId;
+        // Reset to first tab
+        document.querySelectorAll(".modal-tab")[0].click();
+
+        try {
+          const emp = await apiFetch("/hr/employees/" + empId);
+          document.getElementById("editModalSubtitle").textContent =
+            emp.full_name + " · " + (emp.emp_id || "");
+
+          // Populate fields
+          const set = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val ?? "";
+          };
+
+          set("e_full_name", emp.full_name);
+          set("e_dob", emp.dob);
+          set("e_gender", emp.gender);
+          set("e_blood_group", emp.blood_group);
+          set("e_phone", emp.phone);
+          set("e_personal_email", emp.personal_email);
+          set("e_nationality", emp.nationality);
+          set("e_home_address", emp.home_address);
+          set("e_emg_name", emp.emg_name);
+          set("e_emg_phone", emp.emg_phone);
+          set("e_emg_rel", emp.emg_rel);
+          set("e_job_title", emp.job_title);
+          set("e_designation", emp.designation);
+          set("e_department", emp.department);
+          set("e_sub_department", emp.sub_department);
+          set("e_grade", emp.grade);
+          set("e_date_of_joining", emp.date_of_joining);
+          set("e_branch_id", emp.branch_id);
+          set("e_role", emp.role);
+          set("e_l1_manager_id", emp.l1_manager_id);
+          set("e_l2_manager_id", emp.l2_manager_id);
+          set("e_cost_centre", emp.cost_centre);
+          set("e_employment_type", emp.employment_type);
+          set("e_notice_period", emp.notice_period);
+          set("e_contract_end", emp.contract_end);
+          set("e_probation_end", emp.probation_end);
+          set("e_shift_start", emp.shift_start);
+          set("e_shift_end", emp.shift_end);
+          set("e_work_mode", emp.work_mode);
+          set("e_weekly_off", emp.weekly_off);
+          set("e_work_location", emp.work_location);
+          set("e_asset_id", emp.asset_id);
+          set("e_annual_ctc", emp.annual_ctc);
+          set("e_pay_frequency", emp.pay_frequency);
+          set("e_pf_enrolled", emp.pf_enrolled ? "true" : "false");
+          set("e_esic_applicable", emp.esic_applicable ? "true" : "false");
+          set("e_bank_name", emp.bank_name);
+          set("e_bank_account", emp.bank_account);
+          set("e_bank_ifsc", emp.bank_ifsc);
+          set("e_pan_number", emp.pan_number);
+
+          // Populate branch and manager dropdowns in modal
+          const bSel = document.getElementById("e_branch_id");
+          bSel.innerHTML =
+            '<option value="">Select Branch</option>' +
+            branchList
+              .map(
+                (b) => `<option value="${b.id}">${b.name} · ${b.city}</option>`,
+              )
+              .join("");
+          bSel.value = emp.branch_id || "";
+
+          const mOpts =
+            '<option value="">— None —</option>' +
+            managerList
+              .map((m) => {
+                const title = m.job_title ? ` · ${m.job_title}` : "";
+                const dept = m.department ? ` (${m.department})` : "";
+                const role = m.role.charAt(0).toUpperCase() + m.role.slice(1);
+                return `<option value="${m.id}">${m.full_name}${title}${dept} [${role}]</option>`;
+              })
+              .join("");
+          document.getElementById("e_l1_manager_id").innerHTML = mOpts;
+          document.getElementById("e_l2_manager_id").innerHTML = mOpts;
+          set("e_l1_manager_id", emp.l1_manager_id);
+          set("e_l2_manager_id", emp.l2_manager_id);
+
+          document.getElementById("editModal").classList.add("open");
+        } catch (e) {
+          toast("Failed to load employee: " + e.message, "error");
+        }
+      }
+
+      async function saveEdit() {
+        if (!editingEmpId) return;
+        const v = (id) => {
+          const el = document.getElementById(id);
+          return el ? el.value.trim() : "";
+        };
+        const payload = {
+          full_name: v("e_full_name") || null,
+          dob: v("e_dob") || null,
+          gender: v("e_gender") || null,
+          blood_group: v("e_blood_group") || null,
+          phone: v("e_phone") || null,
+          personal_email: v("e_personal_email") || null,
+          nationality: v("e_nationality") || null,
+          home_address: v("e_home_address") || null,
+          emg_name: v("e_emg_name") || null,
+          emg_phone: v("e_emg_phone") || null,
+          emg_rel: v("e_emg_rel") || null,
+          job_title: v("e_job_title") || null,
+          designation: v("e_designation") || null,
+          department: v("e_department") || null,
+          sub_department: v("e_sub_department") || null,
+          grade: v("e_grade") || null,
+          date_of_joining: v("e_date_of_joining") || null,
+          branch_id: parseInt(v("e_branch_id")) || null,
+          role: v("e_role") || null,
+          l1_manager_id: parseInt(v("e_l1_manager_id")) || null,
+          l2_manager_id: parseInt(v("e_l2_manager_id")) || null,
+          cost_centre: v("e_cost_centre") || null,
+          employment_type: v("e_employment_type") || null,
+          notice_period: v("e_notice_period") || null,
+          contract_end: v("e_contract_end") || null,
+          probation_end: v("e_probation_end") || null,
+          shift_start: v("e_shift_start") || null,
+          shift_end: v("e_shift_end") || null,
+          work_mode: v("e_work_mode") || null,
+          weekly_off: v("e_weekly_off") || null,
+          work_location: v("e_work_location") || null,
+          asset_id: v("e_asset_id") || null,
+          annual_ctc: parseFloat(v("e_annual_ctc")) || null,
+          pay_frequency: v("e_pay_frequency") || null,
+          pf_enrolled:
+            document.getElementById("e_pf_enrolled")?.value === "true",
+          esic_applicable:
+            document.getElementById("e_esic_applicable")?.value === "true",
+          bank_name: v("e_bank_name") || null,
+          bank_account: v("e_bank_account") || null,
+          bank_ifsc: v("e_bank_ifsc") || null,
+          pan_number: v("e_pan_number") || null,
+        };
+
+        try {
+          await apiFetch("/hr/employees/" + editingEmpId, "PUT", payload);
+          toast("Employee updated successfully", "success");
+          document.getElementById("editModal").classList.remove("open");
+          editingEmpId = null;
+          loadOnboarding();
+          loadManagers();
+        } catch (e) {
+          toast("Update failed: " + e.message, "error");
+        }
+      }
+
+      async function deactivateFromModal() {
+        if (!editingEmpId) return;
+        if (!confirm("Deactivate this employee? They will lose login access."))
+          return;
+        try {
+          await apiFetch(
+            "/hr/employees/" + editingEmpId + "/deactivate",
+            "PATCH",
+          );
+          toast("Employee deactivated", "success");
+          document.getElementById("editModal").classList.remove("open");
+          editingEmpId = null;
+          loadOnboarding();
+        } catch (e) {
+          toast("Deactivation failed: " + e.message, "error");
+        }
+      }
+
+      // ── Live Progress Bar ─────────────────────────────────────────
+      // All tracked field IDs across all 5 steps
+      const PROGRESS_FIELDS = [
+        // Step 1 — required
+        "f_full_name",
+        "f_work_email",
+        "f_phone",
+        // Step 1 — optional but tracked
+        "f_personal_email",
+        "f_dob",
+        "f_gender",
+        "f_blood",
+        "f_nationality",
+        "f_address",
+        "f_emg_name",
+        "f_emg_phone",
+        // Step 2
+        "f_job_title",
+        "f_department",
+        "f_doj",
+        "f_branch",
+        "f_designation",
+        "f_grade",
+        // Step 3
+        "f_emp_type",
+        "f_notice",
+        // Step 4
+        "f_shift_start",
+        "f_shift_end",
+        "f_work_mode",
+        // Step 5
+        "f_ctc",
+        "f_bank_name",
+        "f_account_no",
+        "f_ifsc",
+      ];
+
+      function updateLiveProgress() {
+        const filled = PROGRESS_FIELDS.filter((id) => {
+          const el = document.getElementById(id);
+          return el && el.value && el.value.trim() !== "";
+        }).length;
+        const pct = Math.round((filled / PROGRESS_FIELDS.length) * 100);
+        const fill = document.getElementById("liveProgressFill");
+        const pctEl = document.getElementById("liveProgressPct");
+        if (fill) {
+          fill.style.width = pct + "%";
+          fill.style.background =
+            pct >= 80
+              ? "var(--success)"
+              : pct >= 40
+                ? "var(--primary)"
+                : "var(--warning)";
+        }
+        if (pctEl) pctEl.textContent = pct + "%";
+      }
+
+      function attachProgressListeners() {
+        PROGRESS_FIELDS.forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.addEventListener("input", updateLiveProgress);
+            el.addEventListener("change", updateLiveProgress);
+          }
+        });
+        updateLiveProgress();
+      }
+
+      // Patch goToStep to update progress on every step change
+      const _origGoToStep = goToStep;
+      goToStep = function (step) {
+        _origGoToStep(step);
+        updateLiveProgress();
+      };
+
       document.addEventListener("DOMContentLoaded", initHR);
+
+      // Attach progress listeners after addEmployee view loads
+      const _origSwitchView = switchView;
+      switchView = function (name) {
+        _origSwitchView(name);
+        if (name === "addEmployee") {
+          setTimeout(attachProgressListeners, 50);
+        }
+      };
     </script>
   </body>
 </html>
