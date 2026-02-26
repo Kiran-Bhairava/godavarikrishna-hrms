@@ -1,14 +1,22 @@
 """
-models.py — SQLAlchemy ORM definitions
-Alembic reads this to autogenerate migrations.
-The app itself uses asyncpg for all queries.
+models.py — SQLAlchemy ORM definitions (Enhanced)
+
+IMPROVEMENTS:
+─────────────
+1. Credential Audit Table — Track password generation, resets, and changes
+2. Login Audit Table — Track successful/failed login attempts for security
+3. Unique Constraint on Employee.user_id — Enforce 1-to-1 relationship
+4. Credential Status — Track temporary vs permanent passwords
+5. Onboarding Blocking — Mark when employee must reset password
 
 Tables:
-  users            — auth only (email, password, role, active)
-  branches         — office locations with geofence
-  employees        — HR profile: one per user, all people-data lives here
-  attendance_logs  — every punch-in / punch-out
-  daily_summary    — aggregated per-user per-day rollup
+  users                 — auth only (email, password, role, active)
+  branches              — office locations with geofence
+  employees             — HR profile: one per user, all people-data
+  credential_audits     — NEW: password generation/reset history
+  login_audits          — NEW: login attempt tracking
+  attendance_logs       — every punch-in / punch-out
+  daily_summary         — aggregated per-user per-day rollup
 """
 from __future__ import annotations
 
@@ -61,12 +69,18 @@ class User(Base):
     full_name     = Column(String(120), nullable=False)
     role          = Column(String(20),  nullable=False, server_default="employee")
     is_active     = Column(Boolean, server_default="true")
+    
+    # NEW: Credential status tracking
+    must_reset_password = Column(Boolean, server_default="false")  # Force reset on next login
+    
     created_at    = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
     last_login    = Column(TIMESTAMP(timezone=True))
 
-    employee        = relationship("Employee", back_populates="user", uselist=False)
-    attendance_logs = relationship("AttendanceLog", back_populates="user")
-    daily_summaries = relationship("DailySummary", back_populates="user")
+    employee            = relationship("Employee", back_populates="user", uselist=False)
+    attendance_logs     = relationship("AttendanceLog", back_populates="user")
+    daily_summaries     = relationship("DailySummary", back_populates="user")
+    credential_audits   = relationship("CredentialAudit", back_populates="user")
+    login_audits        = relationship("LoginAudit", back_populates="user")
 
     __table_args__ = (
         CheckConstraint("role IN ('employee','hr','admin')", name="role_values"),
@@ -75,6 +89,7 @@ class User(Base):
 
 Index("idx_users_email",  User.email)
 Index("idx_users_active", User.is_active)
+Index("idx_users_must_reset", User.must_reset_password)
 
 
 # ── employees  (HR profile — one row per user) ─────────────────
@@ -90,7 +105,8 @@ class Employee(Base):
 
     id      = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),
-                     nullable=False, unique=True)
+                     nullable=False, unique=True)  # FIXED: explicit unique constraint
+    is_active = Column(Boolean, server_default="true")
 
     # ── Identity ──────────────────────────────────────────────
     emp_id         = Column(String(20), unique=True)          # EMP-00042
@@ -175,6 +191,71 @@ Index("idx_employees_dept",   Employee.department)
 Index("idx_employees_l1",     Employee.l1_manager_id)
 Index("idx_employees_l2",     Employee.l2_manager_id)
 Index("idx_employees_ob",     Employee.onboarding_status)
+Index("idx_employees_active", Employee.is_active)
+
+
+# ── credential_audits (NEW) ───────────────────────────────────
+class CredentialAudit(Base):
+    """
+    Audit trail for password generation, resets, and changes.
+    
+    action can be:
+    - "generated"  — Initial credential generation by HR
+    - "reset"      — Password reset by user or admin
+    - "regenerated" — New credentials generated after lost password
+    - "changed"    — User-initiated password change
+    """
+    __tablename__ = "credential_audits"
+
+    id              = Column(Integer, primary_key=True)
+    user_id         = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    action          = Column(String(20), nullable=False)  # generated | reset | regenerated | changed
+    performed_by    = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))  # HR/Admin who did it
+    is_temporary    = Column(Boolean, server_default="false")  # True = must reset on first login
+    notes           = Column(Text)  # e.g., "Generated during onboarding"
+    created_at      = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+
+    user         = relationship("User", foreign_keys=[user_id], back_populates="credential_audits")
+    performed_by_user = relationship("User", foreign_keys=[performed_by])
+
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('generated','reset','regenerated','changed')",
+            name="credential_action_values"
+        ),
+    )
+
+
+Index("idx_credential_audits_user", CredentialAudit.user_id)
+Index("idx_credential_audits_created", CredentialAudit.created_at)
+
+
+# ── login_audits (NEW) ────────────────────────────────────────
+class LoginAudit(Base):
+    """
+    Track login attempts (success/failure) for security monitoring.
+    """
+    __tablename__ = "login_audits"
+
+    id              = Column(Integer, primary_key=True)
+    user_id         = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    email           = Column(String(180), nullable=False)  # Email used in attempt
+    attempt_at      = Column(TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now())
+    success         = Column(Boolean, nullable=False)  # True = success, False = failed attempt
+    failure_reason  = Column(String(100))  # "invalid_password" | "user_not_found" | "account_deactivated"
+    ip_address      = Column(String(45))  # IPv4 or IPv6
+    user_agent      = Column(Text)
+
+    user = relationship("User", back_populates="login_audits")
+
+    __table_args__ = (
+        CheckConstraint("success IN (true, false)", name="login_success_values"),
+    )
+
+
+Index("idx_login_audits_user", LoginAudit.user_id)
+Index("idx_login_audits_email", LoginAudit.email)
+Index("idx_login_audits_attempt", LoginAudit.attempt_at)
 
 
 # ── attendance_logs ───────────────────────────────────────────

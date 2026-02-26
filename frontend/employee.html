@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GodavariKrishna · Employee Dashboard</title>
+    <title>GodavariKrishna · Staff Portal</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,33 +16,34 @@
     />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-      *,
-      *::before,
-      *::after {
+      * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
+
       :root {
-        --bg: #f0f2f5;
-        --surface: #fff;
-        --surface2: #f8f9fb;
-        --border: #e5e7eb;
-        --primary: #3b63f6;
-        --primary-h: #2851e8;
-        --primary-light: #eff3ff;
+        --primary: #1e5ed8;
+        --primary-dark: #1447b5;
+        --bg: #f5f5f5;
+        --surface: #ffffff;
+        --border: #e0e0e0;
+        --text: #000;
+        --text-secondary: #666;
+        --text-muted: #999;
         --success: #10b981;
         --success-light: #ecfdf5;
         --danger: #ef4444;
-        --danger-light: #fef2f2;
         --warning: #f59e0b;
-        --warning-light: #fffbeb;
-        --text: #111827;
-        --dim: #6b7280;
-        --muted: #9ca3af;
-        --shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 4px 16px rgba(0, 0, 0, 0.05);
-        --r: 16px;
+        --info-bg: #f0f9ff;
+        --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
       body {
         font-family:
           "Inter",
@@ -52,620 +53,443 @@
         background: var(--bg);
         color: var(--text);
         min-height: 100vh;
-        background-image:
-          radial-gradient(
-            circle at 15% 10%,
-            rgba(59, 99, 246, 0.05) 0%,
-            transparent 45%
-          ),
-          radial-gradient(
-            circle at 85% 90%,
-            rgba(16, 185, 129, 0.04) 0%,
-            transparent 45%
-          );
       }
 
-      /* Topbar */
-      .topbar {
+      /* ── HEADER ── */
+      .header {
         background: var(--surface);
+        padding: 16px 16px;
         border-bottom: 1px solid var(--border);
-        padding: 0 28px;
-        height: 64px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         position: sticky;
         top: 0;
-        z-index: 300;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-      }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        text-decoration: none;
-      }
-      .brand-icon {
-        width: 34px;
-        height: 34px;
-        background: var(--primary);
-        border-radius: 9px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .brand-icon svg {
-        color: #fff;
-      }
-      .brand-name {
-        font-size: 18px;
-        font-weight: 700;
-        color: var(--text);
-        letter-spacing: -0.4px;
-      }
-      .topbar-right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .icon-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 9px;
-        border: 1px solid var(--border);
-        background: var(--surface);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        color: var(--dim);
-        transition: all 0.2s;
-      }
-      .icon-btn:hover {
-        background: var(--surface2);
-        color: var(--text);
-      }
-      .user-pill {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        padding: 5px 12px 5px 5px;
-        border-radius: 40px;
-        border: 1px solid var(--border);
-        background: var(--surface);
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-      .user-pill:hover {
-        background: var(--surface2);
-      }
-      .avatar {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--primary), #6366f1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-weight: 700;
-        font-size: 12px;
-        flex-shrink: 0;
-      }
-      .u-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        line-height: 1.2;
-      }
-      .u-role {
-        font-size: 11px;
-        color: var(--dim);
-      }
-
-      /* Page */
-      .page {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 28px 20px 60px;
-      }
-
-      /* Greeting */
-      .greet {
-        text-align: center;
-        margin-bottom: 20px;
-      }
-      .greet h1 {
-        font-size: 26px;
-        font-weight: 700;
-        letter-spacing: -0.4px;
-        margin-bottom: 4px;
-      }
-      .greet p {
-        font-size: 14px;
-        color: var(--primary);
-        font-weight: 500;
-      }
-
-      /* Shift banner */
-      .shift-banner {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 6px 20px;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 10px 18px;
-        margin-bottom: 18px;
+        z-index: 100;
         box-shadow: var(--shadow);
-        font-size: 13px;
       }
-      .sb-item {
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .header-icon {
+        width: 32px;
+        height: 32px;
+        background: var(--primary);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      .header-title {
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--text);
+      }
+
+      .header-subtitle {
+        font-weight: 500;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .header-right {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .header-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+        transition: all 0.2s;
+      }
+
+      .header-btn:hover {
+        background: var(--info-bg);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+
+      .header-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* ── CONTAINER ── */
+      .container {
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 16px;
+        padding-bottom: 80px;
+      }
+
+      /* ── CARD ── */
+      .card {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+      }
+
+      .card-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
         display: flex;
         align-items: center;
         gap: 6px;
-        color: var(--dim);
-      }
-      .sb-item svg {
-        color: var(--muted);
-        flex-shrink: 0;
-      }
-      .sb-item strong {
-        color: var(--text);
-      }
-      .sb-div {
-        width: 1px;
-        height: 18px;
-        background: var(--border);
       }
 
-      /* Card */
-      .card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--r);
-        box-shadow: var(--shadow);
-        overflow: hidden;
+      .card-label svg {
+        width: 14px;
+        height: 14px;
       }
-      .card-body {
-        padding: 18px 20px;
+
+      /* ── INFO CARDS ── */
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
       }
-      .sec-title {
+
+      .info-card {
+        background: var(--info-bg);
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 12px;
+        text-align: center;
+      }
+
+      .info-card-icon {
+        font-size: 20px;
+        margin-bottom: 6px;
+      }
+
+      .info-card-label {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+
+      .info-card-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      /* ── CLOCK CARD ── */
+      .clock-card {
+        background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 100%);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 16px;
+        border: 1px solid #bfdbfe;
+      }
+
+      .clock-label {
         font-size: 11px;
         font-weight: 700;
-        letter-spacing: 0.6px;
         text-transform: uppercase;
-        color: var(--muted);
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+
+      .clock-display {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 4px;
         margin-bottom: 12px;
       }
 
-      /* Clock */
-      .clock-wrap {
-        text-align: center;
-        padding: 26px 24px;
-        margin-bottom: 18px;
-      }
-      .clock-lbl {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.8px;
-        text-transform: uppercase;
-        color: var(--muted);
-        margin-bottom: 8px;
-      }
       .clock-time {
-        font-size: 52px;
+        font-size: 48px;
         font-weight: 800;
         color: var(--primary);
+        font-family: "Courier New", monospace;
         letter-spacing: -1px;
-        line-height: 1;
-        font-variant-numeric: tabular-nums;
-      }
-      .clock-period {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--dim);
-        margin-left: 5px;
-        vertical-align: middle;
       }
 
-      /* Summary card */
-      .summary-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--r);
-        box-shadow: var(--shadow);
-        padding: 16px 20px;
-        margin-bottom: 18px;
-        display: none;
+      .clock-period {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
       }
-      .summary-card.show {
-        display: block;
-      }
-      .summary-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
-      }
-      @media (max-width: 500px) {
-        .summary-grid {
-          grid-template-columns: repeat(2, 1fr);
-        }
-      }
-      .sum-item {
-        text-align: center;
-        padding: 10px 6px;
-        background: var(--surface2);
-        border-radius: 10px;
-        border: 1px solid var(--border);
-      }
-      .sum-val {
-        font-size: 16px;
-        font-weight: 800;
-        letter-spacing: -0.3px;
-      }
-      .sum-lbl {
-        font-size: 11px;
-        color: var(--muted);
-        margin-top: 3px;
-        font-weight: 500;
-      }
-      .c-green {
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: var(--success-light);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
         color: var(--success);
       }
-      .c-amber {
-        color: var(--warning);
-      }
-      .c-red {
+
+      .status-badge.outside {
+        background: #fee2e2;
+        border-color: rgba(239, 68, 68, 0.2);
         color: var(--danger);
       }
-      .c-blue {
-        color: var(--primary);
-      }
-      .c-dim {
-        color: var(--dim);
+
+      .status-badge.pending {
+        background: #f3f4f6;
+        border-color: var(--border);
+        color: var(--text-secondary);
       }
 
-      /* Done banner */
-      .done-banner {
-        background: var(--success-light);
-        border: 1px solid rgba(16, 185, 129, 0.25);
-        border-radius: var(--r);
-        padding: 16px 20px;
-        margin-bottom: 18px;
-        display: none;
-        align-items: center;
-        gap: 14px;
-      }
-      .done-banner.show {
-        display: flex;
-      }
-      .done-icon {
-        width: 42px;
-        height: 42px;
+      .status-dot {
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
-        background: #d1fae5;
+        background: currentColor;
+        display: inline-block;
+      }
+
+      /* ── ACTION BUTTONS ── */
+      .action-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .action-btn {
+        padding: 14px 12px;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
         display: flex;
         align-items: center;
         justify-content: center;
-        flex-shrink: 0;
+        gap: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
-      .done-icon svg {
-        color: var(--success);
+
+      .action-btn svg {
+        width: 16px;
+        height: 16px;
       }
-      .done-text h3 {
-        font-size: 14px;
+
+      .punch-in {
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 4px 12px rgba(30, 94, 216, 0.3);
+      }
+
+      .punch-in:hover:not(:disabled) {
+        background: var(--primary-dark);
+        box-shadow: 0 6px 16px rgba(30, 94, 216, 0.4);
+        transform: translateY(-2px);
+      }
+
+      .punch-out {
+        background: var(--surface);
+        color: var(--text-secondary);
+        border: 2px solid var(--border);
+      }
+
+      .punch-out:hover:not(:disabled) {
+        border-color: var(--text-secondary);
+        background: #fafafa;
+      }
+
+      .action-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* ── RECENT ACTIVITY ── */
+      .activity-section {
+        margin-bottom: 16px;
+      }
+
+      .activity-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding: 0 0 8px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .activity-title {
+        font-size: 12px;
         font-weight: 700;
-        color: #065f46;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 0.5px;
+      }
+
+      .activity-link {
+        font-size: 11px;
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .activity-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid #f0f0f0;
+      }
+
+      .activity-item:last-child {
+        border-bottom: none;
+      }
+
+      .activity-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--success-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--success);
+        flex-shrink: 0;
+        font-weight: 700;
+      }
+
+      .activity-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .activity-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
         margin-bottom: 2px;
       }
-      .done-text p {
-        font-size: 13px;
-        color: #047857;
+
+      .activity-time {
+        font-size: 11px;
+        color: var(--text-muted);
       }
 
-      /* Loc row */
-      .loc-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 18px;
-      }
-      @media (max-width: 560px) {
-        .loc-row {
-          grid-template-columns: 1fr;
-        }
+      /* ── MAP CARD ── */
+      .map-card {
+        margin-bottom: 16px;
       }
 
-      /* Map */
-      #leafletMap {
-        height: 172px;
-        border-radius: 11px;
+      .map-container {
+        height: 240px;
+        border-radius: 10px;
         overflow: hidden;
-        border: 1px solid var(--border);
-        margin-bottom: 10px;
-        display: none;
+        background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 100%);
+        position: relative;
+        border: 1px solid #bfdbfe;
+        margin-bottom: 8px;
       }
+
       .map-placeholder {
-        height: 172px;
-        border-radius: 11px;
-        border: 1px solid var(--border);
-        background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 100%);
+        height: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 6px;
-        margin-bottom: 10px;
+        gap: 8px;
+        color: var(--primary);
       }
+
       .map-placeholder svg {
-        color: #3b63f6;
+        width: 40px;
+        height: 40px;
       }
+
       .map-placeholder span {
         font-size: 12px;
         font-weight: 600;
-        color: #3b63f6;
+        color: var(--primary);
       }
+
+      #leafletMap {
+        height: 100%;
+        width: 100%;
+      }
+
       .map-footer {
         display: flex;
         justify-content: space-between;
         font-size: 11px;
         font-weight: 600;
-        color: var(--muted);
+        color: var(--text-muted);
+        padding: 0 4px;
       }
 
-      /* Status badge */
-      .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 6px 13px;
-        border-radius: 30px;
-        font-weight: 600;
-        font-size: 13.5px;
-        margin-bottom: 12px;
-        background: var(--success-light);
-        color: var(--success);
-        border: 1px solid rgba(16, 185, 129, 0.2);
-      }
-      .status-badge.outside {
-        background: var(--danger-light);
-        color: var(--danger);
-        border-color: rgba(239, 68, 68, 0.2);
-      }
-      .status-badge.pending {
-        background: #f3f4f6;
-        color: var(--muted);
-        border-color: var(--border);
-      }
-      .status-badge.no-gps {
-        background: #f3f4f6;
-        color: var(--dim);
-        border-color: var(--border);
-      }
-      .s-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: currentColor;
-        flex-shrink: 0;
-      }
-
-      /* Telemetry */
-      .tele-box {
-        background: var(--surface2);
-        border: 1px solid var(--border);
-        border-radius: 11px;
+      /* ── LOCATION DETAILS ── */
+      .location-details {
+        background: var(--info-bg);
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
         padding: 12px;
-      }
-      .tele-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-      }
-      .tele-lbl {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-      .tele-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        background: var(--success-light);
-        color: var(--success);
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-      }
-      .tele-chip.off {
-        background: #f3f4f6;
-        color: var(--muted);
-      }
-      .a-dot {
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background: currentColor;
-        flex-shrink: 0;
-      }
-      .tele-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 7px 0;
-        border-bottom: 1px solid var(--border);
-        font-size: 13px;
-      }
-      .tele-row:last-child {
-        border-bottom: none;
-      }
-      .tele-k {
-        color: var(--dim);
-        font-weight: 500;
-      }
-      .tele-v {
-        font-weight: 600;
-        color: var(--text);
-        font-variant-numeric: tabular-nums;
-      }
-
-      /* Network row */
-      .net-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-top: 14px;
-        padding-top: 12px;
-        border-top: 1px solid var(--border);
-      }
-      .ssid-lbl {
-        display: flex;
-        align-items: center;
-        gap: 6px;
         font-size: 12px;
-        font-weight: 600;
-        color: var(--dim);
-      }
-      .resync-btn {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        padding: 6px 12px;
-        border: 1.5px solid var(--border);
-        background: var(--surface);
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--dim);
-        cursor: pointer;
-        font-family: inherit;
-        transition: all 0.2s;
-      }
-      .resync-btn:hover {
-        border-color: var(--primary);
-        color: var(--primary);
-        background: var(--primary-light);
+        color: var(--text-secondary);
+        line-height: 1.5;
       }
 
-      /* Punch buttons */
-      .punch-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-bottom: 18px;
-      }
-      @media (max-width: 460px) {
-        .punch-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-      .punch-btn {
-        padding: 26px 18px;
-        border: 1.5px solid var(--border);
-        border-radius: var(--r);
-        background: var(--surface);
-        cursor: pointer;
-        transition: all 0.22s;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 9px;
-        font-family: inherit;
-      }
-      .punch-btn:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-      }
-      .punch-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        transform: none !important;
-        box-shadow: none !important;
-      }
-      .punch-btn.in {
-        background: var(--primary);
-        border-color: var(--primary);
-        color: #fff;
-        box-shadow: 0 4px 16px rgba(59, 99, 246, 0.3);
-      }
-      .punch-btn.in:hover:not(:disabled) {
-        background: var(--primary-h);
-        box-shadow: 0 8px 28px rgba(59, 99, 246, 0.4);
-      }
-      .punch-btn.out {
-        background: var(--surface);
-        border-color: var(--border);
-        color: var(--dim);
-      }
-      .punch-btn.out:hover:not(:disabled) {
-        color: var(--primary);
-        border-color: var(--primary);
-      }
-      .punch-btn.done-state {
-        background: #f3f4f6 !important;
-        border-color: var(--border) !important;
-        color: var(--muted) !important;
-        opacity: 1 !important;
-        cursor: not-allowed !important;
-        box-shadow: none !important;
-        transform: none !important;
-      }
-      .p-icon {
-        width: 46px;
-        height: 46px;
-        border-radius: 13px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .punch-btn.in .p-icon {
-        background: rgba(255, 255, 255, 0.2);
-      }
-      .punch-btn.out .p-icon {
-        background: var(--surface2);
-      }
-      .punch-btn.done-state .p-icon {
-        background: #e5e7eb;
-      }
-      .p-title {
-        font-size: 14px;
-        font-weight: 700;
-        letter-spacing: 0.4px;
-        text-transform: uppercase;
-      }
-      .p-sub {
-        font-size: 11px;
-        opacity: 0.7;
-      }
-
-      /* Confirm modal */
+      /* ── MODAL ── */
       .modal-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        z-index: 500;
+        background: rgba(0, 0, 0, 0.5);
         display: none;
         align-items: flex-end;
         justify-content: center;
+        z-index: 500;
       }
+
       .modal-overlay.open {
         display: flex;
       }
+
       .modal-sheet {
         background: var(--surface);
-        border-radius: 24px 24px 0 0;
+        border-radius: 20px 20px 0 0;
         width: 100%;
-        max-width: 500px;
-        padding: 0 0 32px;
-        animation: slideUp 0.28s ease;
+        max-width: 100%;
+        padding: 0;
+        animation: slideUp 0.3s ease;
+        box-shadow: var(--shadow-lg);
       }
+
       @keyframes slideUp {
         from {
           transform: translateY(100%);
@@ -674,6 +498,7 @@
           transform: translateY(0);
         }
       }
+
       .modal-handle {
         width: 40px;
         height: 4px;
@@ -681,184 +506,191 @@
         border-radius: 2px;
         margin: 12px auto 0;
       }
+
       .modal-header {
-        padding: 14px 24px 12px;
+        padding: 14px 20px 12px;
         border-bottom: 1px solid var(--border);
+        text-align: center;
       }
+
       .modal-title {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
         color: var(--text);
       }
-      .modal-map-wrap {
-        height: 220px;
-        overflow: hidden;
+
+      .modal-map {
+        height: 200px;
+        background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 100%);
         position: relative;
       }
+
       #confirmMap {
         height: 100%;
         width: 100%;
       }
+
       .modal-body {
-        padding: 16px 24px 0;
+        padding: 16px 20px;
       }
-      .modal-loc-lbl {
+
+      .modal-info {
+        margin-bottom: 16px;
+      }
+
+      .modal-label {
         font-size: 10px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--muted);
+        color: var(--text-muted);
         margin-bottom: 4px;
       }
+
       .modal-address {
-        font-size: 13.5px;
-        font-weight: 500;
+        font-size: 13px;
+        font-weight: 600;
         color: var(--text);
-        margin-bottom: 16px;
+        margin-bottom: 12px;
         line-height: 1.4;
       }
-      .modal-bottom-row {
+
+      .modal-time-row {
         display: flex;
-        align-items: flex-start;
         justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 16px;
       }
+
       .modal-time {
-        font-size: 22px;
+        font-size: 28px;
         font-weight: 800;
-        color: var(--text);
-        letter-spacing: -0.5px;
+        color: var(--primary);
+        font-family: "Courier New", monospace;
       }
+
       .modal-date {
-        font-size: 12px;
-        color: var(--dim);
+        font-size: 11px;
+        color: var(--text-secondary);
         margin-top: 2px;
       }
+
       .modal-meta {
         text-align: right;
-        font-size: 12px;
-        color: var(--dim);
+        font-size: 11px;
+        color: var(--text-secondary);
       }
-      .modal-late {
-        color: var(--warning);
-        font-weight: 700;
-        display: none;
-        margin-top: 3px;
-      }
+
       .modal-confirm-btn {
         width: 100%;
         padding: 14px;
         background: var(--primary);
-        color: #fff;
+        color: white;
         border: none;
-        border-radius: 12px;
-        font-size: 15px;
+        border-radius: 10px;
         font-weight: 700;
-        cursor: pointer;
-        font-family: inherit;
-        transition: all 0.2s;
-        margin-top: 16px;
-      }
-      .modal-confirm-btn:hover {
-        background: var(--primary-h);
-        box-shadow: 0 4px 14px rgba(59, 99, 246, 0.35);
-      }
-      .modal-confirm-btn.out-mode {
-        background: #ef4444;
-      }
-      .modal-confirm-btn.out-mode:hover {
-        background: #dc2626;
-        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
-      }
-      .modal-cancel {
-        width: 100%;
-        padding: 10px;
-        background: transparent;
-        color: var(--dim);
-        border: none;
         font-size: 14px;
-        font-weight: 600;
         cursor: pointer;
-        font-family: inherit;
-        margin-top: 6px;
-      }
-      .modal-cancel:hover {
-        color: var(--text);
+        margin-bottom: 8px;
+        transition: all 0.2s;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
-      /* Toast */
+      .modal-confirm-btn:hover {
+        background: var(--primary-dark);
+        box-shadow: 0 4px 12px rgba(30, 94, 216, 0.3);
+      }
+
+      .modal-confirm-btn.out {
+        background: var(--danger);
+      }
+
+      .modal-confirm-btn.out:hover {
+        background: #dc2626;
+      }
+
+      .modal-cancel {
+        width: 100%;
+        padding: 12px;
+        background: transparent;
+        color: var(--text-secondary);
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 13px;
+      }
+
+      /* ── TOAST ── */
       .toast {
         position: fixed;
-        bottom: 24px;
-        right: 24px;
+        bottom: 20px;
+        left: 16px;
+        right: 16px;
         background: var(--surface);
-        padding: 13px 18px;
-        border-radius: 12px;
+        padding: 14px 16px;
+        border-radius: 10px;
         border-left: 4px solid var(--primary);
-        box-shadow:
-          0 4px 6px -1px rgba(0, 0, 0, 0.1),
-          0 20px 40px rgba(0, 0, 0, 0.15);
-        transform: translateY(80px);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(120px);
         opacity: 0;
         transition: all 0.3s;
         z-index: 1000;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 500;
-        color: var(--text);
-        max-width: 310px;
       }
+
       .toast.show {
         transform: translateY(0);
         opacity: 1;
       }
+
       .toast.success {
         border-color: var(--success);
       }
+
       .toast.error {
         border-color: var(--danger);
       }
-      .toast.warn {
-        border-color: var(--warning);
+
+      /* ── UTILITY ── */
+      .hidden {
+        display: none !important;
       }
 
-      /* No office location warning */
-      .no-office-warning {
-        background: #fff3cd;
-        border: 1px solid #ffeeba;
-        color: #856404;
-        padding: 12px 16px;
-        border-radius: 10px;
-        margin-bottom: 18px;
-        font-size: 13px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+      @media (max-width: 480px) {
+        .container {
+          padding: 12px;
+        }
+
+        .card {
+          border-radius: 10px;
+          padding: 14px;
+          margin-bottom: 12px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
       }
     </style>
   </head>
   <body>
-    <!-- Topbar -->
-    <nav class="topbar">
-      <a class="brand" href="#">
-        <div class="brand-icon">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-            <circle cx="12" cy="10" r="3" />
-          </svg>
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-left">
+        <div class="header-icon">C</div>
+        <div>
+          <div class="header-title">SDPL</div>
+          <div class="header-subtitle">EMPLOYEE PORTAL</div>
         </div>
-        <span class="brand-name">GodavariKrishna</span>
-      </a>
-      <div class="topbar-right">
-        <button class="icon-btn" title="Notifications">
+      </div>
+      <div class="header-right">
+        <button class="header-btn" title="Notifications">
           <svg
-            width="17"
-            height="17"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -868,63 +700,116 @@
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
         </button>
-        <div class="user-pill" onclick="logout()">
-          <div class="avatar" id="userAvatar">A</div>
-          <div>
-            <div class="u-name" id="userDisplayName">Loading…</div>
-            <div class="u-role" id="userBranch">—</div>
-          </div>
-        </div>
-      </div>
-    </nav>
-
-    <!-- Page -->
-    <div class="page">
-      <div class="greet">
-        <h1 id="greetHeading">Good morning, <span id="userName">—</span></h1>
-        <p id="shiftMessage">Loading your shift…</p>
-      </div>
-
-      <!-- No office warning (hidden by default) -->
-      <div class="no-office-warning" id="noOfficeWarning" style="display: none">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-        <span id="officeWarningText"
-          >No office location configured. Punch in enabled.</span
-        >
-      </div>
-
-      <!-- Shift info banner -->
-      <div class="shift-banner">
-        <div class="sb-item">
+        <button class="header-btn" title="Menu" onclick="logout()">
           <svg
-            width="14"
-            height="14"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
           >
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="12" cy="5" r="1" />
+            <circle cx="12" cy="19" r="1" />
           </svg>
-          <span>Shift: <strong id="shiftTimes">—</strong></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- CONTAINER -->
+    <div class="container">
+      <!-- INFO CARDS -->
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-card-icon"></div>
+          <div class="info-card-label">Shift</div>
+          <div class="info-card-value" id="shiftInfo">Regular</div>
         </div>
-        <div class="sb-div"></div>
-        <div class="sb-item">
+        <div class="info-card">
+          <div class="info-card-icon"></div>
+          <div class="info-card-label">Branch</div>
+          <div class="info-card-value" id="branchInfo">—</div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon"></div>
+          <div class="info-card-label">Date</div>
+          <div class="info-card-value" id="dateInfo">—</div>
+        </div>
+      </div>
+
+      <!-- CLOCK CARD -->
+      <div class="clock-card">
+        <div class="clock-label">LIVE ATTENDANCE TRACKING</div>
+        <div class="clock-display">
+          <span class="clock-time" id="currentTime">00:00:00</span>
+          <span class="clock-period" id="timePeriod">AM</span>
+        </div>
+        <div class="status-badge" id="statusBadge">
+          <span class="status-dot"></span>
+          <span id="statusText">Acquiring GPS…</span>
+        </div>
+      </div>
+
+      <!-- ACTION BUTTONS -->
+      <div class="action-grid">
+        <button
+          class="action-btn punch-in"
+          id="punchInBtn"
+          onclick="openConfirm('in')"
+          disabled
+        >
           <svg
-            width="14"
-            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5m0 0l-5-5"
+            />
+          </svg>
+          Punch In
+        </button>
+        <button
+          class="action-btn punch-out"
+          id="punchOutBtn"
+          onclick="openConfirm('out')"
+          disabled
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m0 18l5-5m0 0l-5-5"
+            />
+          </svg>
+          Punch Out
+        </button>
+      </div>
+
+      <!-- RECENT ACTIVITY -->
+      <!-- <div class="activity-section card">
+        <div class="activity-header">
+          <span class="activity-title">Recent Activity</span>
+          <a class="activity-link" href="#">View All</a>
+        </div>
+        <div id="activityList">
+          <div class="activity-item">
+            <div class="activity-icon">✓</div>
+            <div class="activity-content">
+              <div class="activity-name">Loading activity…</div>
+              <div class="activity-time">—</div>
+            </div>
+          </div>
+        </div>
+      </div> -->
+
+      <!-- LIVE LOCATION -->
+      <div class="card map-card">
+        <div class="card-label">
+          <svg
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -933,230 +818,38 @@
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
           </svg>
-          <span>Branch: <strong id="branchName">—</strong></span>
+          LIVE LOCATION
         </div>
-        <div class="sb-div"></div>
-        <div class="sb-item">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          <span id="todayDate">—</span>
-        </div>
-      </div>
-
-      <!-- Clock -->
-      <div class="card" style="margin-bottom: 18px">
-        <div class="clock-wrap">
-          <div class="clock-lbl">Current System Time</div>
-          <div>
-            <span class="clock-time" id="currentTime">--:--:--</span
-            ><span class="clock-period" id="timePeriod">AM</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Today's summary (shown after any punch) -->
-      <div class="summary-card" id="summaryCard">
-        <div class="sec-title">Today's Attendance</div>
-        <div class="summary-grid">
-          <div class="sum-item">
-            <div class="sum-val c-blue" id="sumPunchIn">—</div>
-            <div class="sum-lbl">Punch In</div>
-          </div>
-          <div class="sum-item">
-            <div class="sum-val c-dim" id="sumPunchOut">—</div>
-            <div class="sum-lbl">Punch Out</div>
-          </div>
-          <div class="sum-item">
-            <div class="sum-val c-green" id="sumHours">0h 0m</div>
-            <div class="sum-lbl">Hours Worked</div>
-          </div>
-          <div class="sum-item">
-            <div class="sum-val c-green" id="sumStatus">—</div>
-            <div class="sum-lbl">Status</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Done-for-today banner -->
-      <div class="done-banner" id="doneBanner">
-        <div class="done-icon">
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <div class="done-text">
-          <h3>Attendance Complete ✓</h3>
-          <p id="doneSubtext">You've completed your attendance for today.</p>
-        </div>
-      </div>
-
-      <!-- Location + Telemetry -->
-      <div class="loc-row">
-        <div class="card">
-          <div class="card-body">
-            <div class="sec-title">Live Location</div>
-            <div class="map-placeholder" id="mapPlaceholder">
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              <span id="mapPlaceholderText">Acquiring GPS…</span>
-            </div>
-            <div id="leafletMap"></div>
-            <div class="map-footer">
-              <span id="locationLabel">—</span>
-              <span id="radiusLabel">OFFICE RADIUS: —</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-body">
-            <div class="sec-title">Live Status</div>
-            <div class="status-badge pending" id="statusBadge">
-              <span class="s-dot"></span>
-              <span id="liveStatus">Acquiring GPS…</span>
-            </div>
-            <div class="tele-box">
-              <div class="tele-head">
-                <span class="tele-lbl">GPS Telemetry</span>
-                <span class="tele-chip off" id="gpsChip"
-                  ><span class="a-dot"></span> WAITING</span
-                >
-              </div>
-              <div class="tele-row">
-                <span class="tele-k">Lat:</span
-                ><span class="tele-v" id="latitude">—</span>
-              </div>
-              <div class="tele-row">
-                <span class="tele-k">Long:</span
-                ><span class="tele-v" id="longitude">—</span>
-              </div>
-              <div class="tele-row">
-                <span class="tele-k">Accuracy:</span
-                ><span class="tele-v c-blue" id="accuracy">—</span>
-              </div>
-            </div>
-            <div class="net-row">
-              <span class="ssid-lbl">
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M5 12.55a11 11 0 0 1 14.08 0" />
-                  <path d="M1.42 9a16 16 0 0 1 21.16 0" />
-                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
-                  <line x1="12" y1="20" x2="12.01" y2="20" />
-                </svg>
-                <span id="networkSSID">—</span>
-              </span>
-              <button class="resync-btn" onclick="forceResync()">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                >
-                  <path d="M23 4v6h-6M1 20v-6h6" />
-                  <path
-                    d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-                  />
-                </svg>
-                Force Re-Sync
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Punch Buttons -->
-      <div class="punch-grid">
-        <button
-          class="punch-btn in"
-          id="punchInBtn"
-          onclick="openConfirm('in')"
-          disabled
-        >
-          <div class="p-icon">
+        <div class="map-container">
+          <div class="map-placeholder" id="mapPlaceholder">
             <svg
-              width="22"
-              height="22"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2.5"
+              stroke-width="2"
             >
-              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-              <polyline points="10 17 15 12 10 7" />
-              <line x1="15" y1="12" x2="3" y2="12" />
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
             </svg>
+            <span>Acquiring GPS…</span>
           </div>
-          <div class="p-title" id="inBtnTitle">Punch In</div>
-          <div class="p-sub" id="inBtnSub">Start your shift session</div>
-        </button>
-        <button
-          class="punch-btn out"
-          id="punchOutBtn"
-          onclick="openConfirm('out')"
-          disabled
-        >
-          <div class="p-icon">
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              style="color: var(--dim)"
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-          </div>
-          <div class="p-title" id="outBtnTitle" style="color: var(--dim)">
-            Punch Out
-          </div>
-          <div class="p-sub" id="outBtnSub" style="color: var(--muted)">
-            End your shift session
-          </div>
-        </button>
+          <div id="leafletMap"></div>
+        </div>
+        <div class="map-footer">
+          <span id="locationInfo">—</span>
+          <span id="radiusInfo">OFFICE RADIUS: —</span>
+        </div>
+      </div>
+
+      <!-- LOCATION DETAILS -->
+      <div class="location-details" id="locationDetails" style="display: none">
+        <strong>ID:</strong> <span id="locationId">—</span><br />
+        <strong>Coordinates:</strong> <span id="locationCoords">—</span><br />
+        <strong>Accuracy:</strong> <span id="locationAccuracy">—</span>
       </div>
     </div>
 
-    <!-- Confirm Modal -->
+    <!-- CONFIRM MODAL -->
     <div
       class="modal-overlay"
       id="confirmModal"
@@ -1167,20 +860,25 @@
         <div class="modal-header">
           <div class="modal-title" id="modalTitle">Confirm Punch Location</div>
         </div>
-        <div class="modal-map-wrap">
+        <div class="modal-map" id="confirmMapContainer">
           <div id="confirmMap"></div>
         </div>
         <div class="modal-body">
-          <div class="modal-loc-lbl">Location</div>
-          <div class="modal-address" id="modalAddress">Fetching address…</div>
-          <div class="modal-bottom-row">
+          <div class="modal-info">
+            <div class="modal-label">Location</div>
+            <div class="modal-address" id="modalAddress">Fetching address…</div>
+          </div>
+          <div class="modal-time-row">
             <div>
-              <div class="modal-time" id="modalTime">--:-- --</div>
+              <div class="modal-time" id="modalTime">00:00 AM</div>
               <div class="modal-date" id="modalDate">—</div>
             </div>
             <div class="modal-meta">
               <div id="modalDist">—</div>
-              <div class="modal-late" id="modalLate"></div>
+              <div
+                id="modalLate"
+                style="color: var(--warning); font-weight: 700; margin-top: 3px"
+              ></div>
             </div>
           </div>
           <button
@@ -1188,7 +886,7 @@
             id="modalConfirmBtn"
             onclick="confirmPunch()"
           >
-            Continue
+            Punch In
           </button>
           <button class="modal-cancel" onclick="closeConfirm()">Cancel</button>
         </div>
@@ -1202,7 +900,7 @@
       let token = localStorage.getItem("token");
       let user = null;
 
-      // Map instances
+      // Maps
       let leafMap = null;
       let confirmMap = null;
       let userMarker = null;
@@ -1212,14 +910,12 @@
       let locationWatcher = null;
       let userLat = null,
         userLng = null;
-      let isInsideRange = null; // null=pending | true | false
-      let hasOfficeLocation = false; // Flag for office coordinates
+      let isInsideRange = null;
+      let hasOfficeLocation = false;
 
-      // Attendance state
+      // Attendance
       let isPunchedIn = false;
-      let isCompleted = false; // full in→out cycle done today
-
-      // Modal
+      let isCompleted = false;
       let pendingType = null;
       let modalTimer = null;
 
@@ -1243,23 +939,6 @@
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       }
 
-      function fmtTime(d = new Date()) {
-        const h = d.getHours(),
-          m = d.getMinutes().toString().padStart(2, "0"),
-          s = d.getSeconds().toString().padStart(2, "0"),
-          ap = h >= 12 ? "PM" : "AM";
-        return `${(h % 12 || 12).toString().padStart(2, "0")}:${m}:${s} ${ap}`;
-      }
-
-      function fmtDate(d = new Date()) {
-        return d.toLocaleDateString("en-IN", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-          weekday: "long",
-        });
-      }
-
       async function apiFetch(url, method = "GET", body = null) {
         const opts = {
           method,
@@ -1267,15 +946,10 @@
         };
         if (token) opts.headers["Authorization"] = `Bearer ${token}`;
         if (body) opts.body = JSON.stringify(body);
-        try {
-          const res = await fetch(API + url, opts);
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "Request failed");
-          return data;
-        } catch (e) {
-          console.error("API Error:", e);
-          throw e;
-        }
+        const res = await fetch(API + url, opts);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Request failed");
+        return data;
       }
 
       /* ── Auth ── */
@@ -1313,76 +987,41 @@
       }
 
       /* ── Init ── */
-      async function initEmployee() {
+      async function initDashboard() {
         try {
           const ok = await checkAuth();
           if (!ok) return;
-          if (user.role === "hr" || user.role === "admin") {
-            window.location.href = "/hr-manager";
-            return;
-          }
 
-          const firstName = user.full_name.split(" ")[0];
-          document.getElementById("userName").textContent = firstName;
-          document.getElementById("userDisplayName").textContent =
-            user.full_name;
-          document.getElementById("userAvatar").textContent =
-            user.full_name[0].toUpperCase();
-          document.getElementById("userBranch").textContent =
-            user.branch_name || "No branch assigned";
-          document.getElementById("branchName").textContent =
-            user.branch_name || "—";
+          document.querySelector(".header-title").textContent =
+            user.company_name || "SDPL";
 
-          // Check if office location exists
-          hasOfficeLocation = user.branch_lat && user.branch_lng;
+          const fmt = (t) => {
+            const [h, m] = t.split(":");
+            const hN = parseInt(h, 10);
+            const ap = hN >= 12 ? "PM" : "AM";
+            return `${hN % 12 || 12}:${m} ${ap}`;
+          };
 
-          if (!hasOfficeLocation) {
-            document.getElementById("noOfficeWarning").style.display = "flex";
-            document.getElementById("officeWarningText").innerHTML =
-              "No office location configured. You can punch in from anywhere.";
-            // Allow punching without geofence
-            isInsideRange = true;
-          }
-
-          // Shift times — convert "09:00" to "9:00 AM"
           if (user.shift_start && user.shift_end) {
-            const fmt = (t) => {
-              const [h, m] = t.split(":");
-              const hN = parseInt(h, 10);
-              const ap = hN >= 12 ? "PM" : "AM";
-              return `${hN % 12 || 12}:${m} ${ap}`;
-            };
-            document.getElementById("shiftTimes").textContent =
-              `${fmt(user.shift_start)} – ${fmt(user.shift_end)}`;
+            document.getElementById("shiftInfo").textContent =
+              `${fmt(user.shift_start).split(" ")[0].substring(0, 5)}-${fmt(user.shift_end)}`;
           }
 
-          document.getElementById("todayDate").textContent =
+          document.getElementById("branchInfo").textContent = (
+            user.branch_name || "N/A"
+          ).substring(0, 12);
+
+          document.getElementById("dateInfo").textContent =
             new Date().toLocaleDateString("en-IN", {
-              day: "numeric",
+              day: "2-digit",
               month: "short",
-              year: "numeric",
+              year: "2-digit",
             });
 
-          const hour = new Date().getHours();
-          const greet =
-            hour < 12
-              ? "Good morning"
-              : hour < 17
-                ? "Good afternoon"
-                : "Good evening";
-          document.getElementById("greetHeading").innerHTML =
-            `${greet}, <strong>${firstName}</strong>`;
-
-          if (user.branch_name) {
-            document.getElementById("shiftMessage").textContent =
-              `Ready for your shift? ${user.branch_name} is active.`;
-            const code = user.branch_name.split(" ")[0].toUpperCase();
-            document.getElementById("networkSSID").textContent =
-              `${code}_GUEST`;
-          }
+          hasOfficeLocation = user.branch_lat && user.branch_lng;
 
           if (user.radius_meters) {
-            document.getElementById("radiusLabel").textContent =
+            document.getElementById("radiusInfo").textContent =
               `OFFICE RADIUS: ${user.radius_meters}M`;
           }
 
@@ -1392,126 +1031,67 @@
           detectLocation();
         } catch (e) {
           console.error("Init error:", e);
-          toast("Error loading dashboard: " + e.message, "error");
+          toast("Error loading dashboard", "error");
         }
       }
 
-      /* ── Load today's status from server ── */
       async function loadStatus() {
         try {
           const data = await apiFetch("/attendance/status");
           isPunchedIn = data.is_punched_in;
           isCompleted = data.state === "completed";
-
-          if (data.summary) showSummary(data.summary);
-
-          if (isCompleted) {
-            document.getElementById("doneBanner").classList.add("show");
-            if (data.summary) {
-              const h = Math.floor((data.summary.total_minutes || 0) / 60),
-                m = (data.summary.total_minutes || 0) % 60;
-              document.getElementById("doneSubtext").textContent =
-                `Total hours today: ${h}h ${m}m. See you tomorrow!`;
-            }
-          }
-
           updatePunchButtons();
         } catch (e) {
           console.error("Status error:", e);
         }
       }
 
-      function showSummary(s) {
-        document.getElementById("sumPunchIn").textContent =
-          s.first_punch_in || "—";
-        document.getElementById("sumPunchOut").textContent =
-          s.last_punch_out || "—";
-        const h = Math.floor((s.total_minutes || 0) / 60),
-          m = (s.total_minutes || 0) % 60;
-        document.getElementById("sumHours").textContent = `${h}h ${m}m`;
-        if (s.is_late) {
-          document.getElementById("sumStatus").textContent =
-            `Late +${s.late_by_minutes}m`;
-          document.getElementById("sumStatus").className = "sum-val c-amber";
-        } else {
-          document.getElementById("sumStatus").textContent = "On Time ✓";
-          document.getElementById("sumStatus").className = "sum-val c-green";
-        }
-        document.getElementById("summaryCard").classList.add("show");
-      }
-
-      /* ── Punch button state — SINGLE source of truth ── */
       function updatePunchButtons() {
         const inBtn = document.getElementById("punchInBtn");
         const outBtn = document.getElementById("punchOutBtn");
-        const inT = document.getElementById("inBtnTitle");
-        const outT = document.getElementById("outBtnTitle");
-        const inS = document.getElementById("inBtnSub");
-        const outS = document.getElementById("outBtnSub");
 
         if (isCompleted) {
-          // Full cycle done — both locked with "Done" styling
-          [inBtn, outBtn].forEach((b) => {
-            b.disabled = true;
-            b.classList.add("done-state");
-            b.classList.remove("in", "out");
-            b.style.opacity = "1";
-          });
-          inT.textContent = "Done ✓";
-          inS.textContent = "Completed today";
-          outT.textContent = "Done ✓";
-          outT.style.color = "var(--muted)";
-          outS.textContent = "Completed today";
-          outS.style.color = "var(--muted)";
+          inBtn.disabled = true;
+          outBtn.disabled = true;
+          inBtn.textContent = "Done ✓";
+          outBtn.textContent = "Done ✓";
           return;
         }
 
-        // If no office location, location is always considered "inside"
         const locationOk = !hasOfficeLocation || isInsideRange === true;
 
         if (isPunchedIn) {
-          // Punched in → can only punch out (geofence not required for punch out)
           inBtn.disabled = true;
-          inBtn.style.opacity = ".4";
           outBtn.disabled = false;
-          outBtn.style.opacity = "1";
-          outT.style.color = "var(--dim)";
-          outS.style.color = "var(--muted)";
         } else {
-          // Not punched in → can only punch in, requires location if office exists
           inBtn.disabled = hasOfficeLocation ? !locationOk : false;
-          inBtn.style.opacity = locationOk ? "1" : ".4";
           outBtn.disabled = true;
-          outBtn.style.opacity = ".4";
         }
       }
 
-      /* ── Leaflet: main dashboard map ── */
+      /* ── Maps ── */
       function initMainMap(lat, lng) {
         try {
-          // Hide placeholder
-          document.getElementById("mapPlaceholder").style.display = "none";
-          document.getElementById("leafletMap").style.display = "block";
+          const placeholder = document.getElementById("mapPlaceholder");
+          placeholder.classList.add("hidden");
 
           if (!leafMap) {
             leafMap = L.map("leafletMap", {
               zoomControl: false,
               attributionControl: false,
             });
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-              maxZoom: 18,
-              attribution: "© OpenStreetMap",
-            }).addTo(leafMap);
+            L.tileLayer(
+              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ).addTo(leafMap);
             L.control.zoom({ position: "bottomright" }).addTo(leafMap);
           }
 
-          // User location — blue dot
           const userIcon = L.divIcon({
-            className: "",
-            html: `<div style="width:14px;height:14px;border-radius:50%;background:#3b63f6;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7],
+            html: `<div style="width:12px;height:12px;background:#1e5ed8;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
           });
+
           if (!userMarker) {
             userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(
               leafMap,
@@ -1520,66 +1100,59 @@
             userMarker.setLatLng([lat, lng]);
           }
 
-          // Office location + radius circle (if exists)
           if (hasOfficeLocation) {
             const offIcon = L.divIcon({
-              className: "",
-              html: `<div style="width:12px;height:12px;border-radius:50%;background:#ef4444;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
-              iconSize: [12, 12],
-              iconAnchor: [6, 6],
+              html: `<div style="width:10px;height:10px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
+              iconSize: [10, 10],
+              iconAnchor: [5, 5],
             });
 
-            // Only add office marker if it doesn't exist
-            let officeMarker = null;
+            let hasOffMarker = false;
             leafMap.eachLayer((layer) => {
               if (
-                layer.options &&
-                layer.options.pane === "markerPane" &&
                 layer._latlng &&
                 layer._latlng.lat === user.branch_lat &&
                 layer._latlng.lng === user.branch_lng
               ) {
-                officeMarker = layer;
+                hasOffMarker = true;
               }
             });
 
-            if (!officeMarker) {
-              L.marker([user.branch_lat, user.branch_lng], { icon: offIcon })
-                .bindPopup(`<b>${user.branch_name || "Office"}</b>`)
-                .addTo(leafMap);
+            if (!hasOffMarker) {
+              L.marker([user.branch_lat, user.branch_lng], {
+                icon: offIcon,
+              }).addTo(leafMap);
             }
 
-            // Add/update office circle
             if (!officeCir) {
               officeCir = L.circle([user.branch_lat, user.branch_lng], {
                 radius: user.radius_meters || 200,
                 color: "#10b981",
                 fillColor: "#10b981",
-                fillOpacity: 0.12,
+                fillOpacity: 0.1,
                 weight: 2,
               }).addTo(leafMap);
             }
 
-            // Fit bounds to show both user and office
-            const bounds = L.latLngBounds([
-              [lat, lng],
-              [user.branch_lat, user.branch_lng],
-            ]);
-            leafMap.fitBounds(bounds, { padding: [30, 30] });
+            leafMap.fitBounds(
+              L.latLngBounds([
+                [lat, lng],
+                [user.branch_lat, user.branch_lng],
+              ]),
+              { padding: [50, 50] },
+            );
           } else {
-            // Just center on user
             leafMap.setView([lat, lng], 16);
           }
+
+          setTimeout(() => {
+            if (leafMap) leafMap.invalidateSize();
+          }, 100);
         } catch (e) {
-          console.error("Map init error:", e);
-          document.getElementById("mapPlaceholder").style.display = "flex";
-          document.getElementById("mapPlaceholderText").textContent =
-            "Map unavailable - " + e.message;
-          document.getElementById("leafletMap").style.display = "none";
+          console.error("Map error:", e);
         }
       }
 
-      /* ── Leaflet: confirm modal map ── */
       function initConfirmMap(lat, lng) {
         try {
           if (!confirmMap) {
@@ -1587,13 +1160,12 @@
               zoomControl: false,
               attributionControl: false,
             });
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-              maxZoom: 18,
-            }).addTo(confirmMap);
+            L.tileLayer(
+              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ).addTo(confirmMap);
           }
-          confirmMap.setView([lat, lng], 16);
 
-          // Clear existing layers except base tile
+          confirmMap.setView([lat, lng], 16);
           confirmMap.eachLayer((layer) => {
             if (layer instanceof L.Marker || layer instanceof L.Circle) {
               confirmMap.removeLayer(layer);
@@ -1601,10 +1173,9 @@
           });
 
           const icon = L.divIcon({
-            className: "",
-            html: `<div style="width:16px;height:16px;border-radius:50%;background:#3b63f6;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"></div>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
+            html: `<div style="width:14px;height:14px;background:#1e5ed8;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35)"></div>`,
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
           });
           L.marker([lat, lng], { icon }).addTo(confirmMap);
 
@@ -1613,21 +1184,19 @@
               radius: user.radius_meters || 200,
               color: "#10b981",
               fillColor: "#10b981",
-              fillOpacity: 0.12,
+              fillOpacity: 0.1,
               weight: 2,
             }).addTo(confirmMap);
           }
 
-          // Ensure map renders properly
           setTimeout(() => {
             if (confirmMap) confirmMap.invalidateSize();
           }, 100);
         } catch (e) {
-          console.error("Confirm map init error:", e);
+          console.error("Confirm map error:", e);
         }
       }
 
-      /* ── Reverse geocode (free Nominatim, no API key) ── */
       async function getAddress(lat, lng) {
         try {
           const r = await fetch(
@@ -1641,31 +1210,24 @@
         }
       }
 
-      /* ── GPS detection ── */
+      /* ── GPS ── */
       function updateLocationUI(lat, lng, accuracy) {
         userLat = lat;
         userLng = lng;
-        document.getElementById("latitude").textContent = lat.toFixed(6);
-        document.getElementById("longitude").textContent = lng.toFixed(6);
-        document.getElementById("accuracy").textContent =
-          `${Math.round(accuracy)}m`;
-        document.getElementById("gpsChip").className = "tele-chip";
-        document.getElementById("gpsChip").innerHTML =
-          '<span class="a-dot"></span> ACTIVE';
 
-        try {
-          initMainMap(lat, lng);
-        } catch (e) {
-          console.error("Map update error:", e);
-        }
+        document.getElementById("locationCoords").textContent =
+          `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        document.getElementById("locationAccuracy").textContent =
+          `${Math.round(accuracy)}m`;
+
+        initMainMap(lat, lng);
 
         if (hasOfficeLocation) {
           checkDistance();
         } else {
           isInsideRange = true;
-          setBadge(true, "No geofence — Anywhere");
-          document.getElementById("locationLabel").textContent =
-            `📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+          setBadge(true, "Inside Geofence Range");
+          document.getElementById("locationInfo").textContent = `✓ In Range`;
           updatePunchButtons();
         }
       }
@@ -1673,31 +1235,19 @@
       function detectLocation() {
         if (!navigator.geolocation) {
           setBadge(false, "Location Unavailable");
-          isInsideRange = !hasOfficeLocation;
-          updatePunchButtons();
           return;
         }
 
-        // Set a timeout to show user we're waiting
-        const timeoutId = setTimeout(() => {
-          if (!userLat) {
-            setBadge(null, "Waiting for GPS signal...");
-          }
-        }, 5000);
-
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            clearTimeout(timeoutId);
             updateLocationUI(
               pos.coords.latitude,
               pos.coords.longitude,
               pos.coords.accuracy,
             );
 
-            // Start watching position
-            if (locationWatcher) {
+            if (locationWatcher)
               navigator.geolocation.clearWatch(locationWatcher);
-            }
 
             locationWatcher = navigator.geolocation.watchPosition(
               (p) => {
@@ -1707,34 +1257,20 @@
                   p.coords.accuracy,
                 );
               },
-              (err) => {
-                console.warn("Watch error:", err);
-              },
+              () => {},
               { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
             );
           },
           (err) => {
-            clearTimeout(timeoutId);
             const msgs = {
               1: "Location permission denied",
               2: "GPS unavailable",
               3: "GPS timed out",
             };
-            const msg = msgs[err.code] || "Location error";
-            setBadge(false, msg);
-            document.getElementById("accuracy").textContent = "No GPS";
-            document.getElementById("gpsChip").className = "tele-chip off";
-            document.getElementById("gpsChip").innerHTML =
-              '<span class="a-dot"></span> NO GPS';
-
+            setBadge(false, msgs[err.code] || "Location error");
             if (!hasOfficeLocation) {
               isInsideRange = true;
               updatePunchButtons();
-              toast("No GPS — punching allowed (no geofence)", "warn");
-            } else {
-              isInsideRange = false;
-              updatePunchButtons();
-              toast(msg + ". Allow location access to punch in.", "error");
             }
           },
           { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
@@ -1747,16 +1283,17 @@
         const dist = Math.round(
           haversine(userLat, userLng, user.branch_lat, user.branch_lng),
         );
-        const inside = dist <= (user.radius_meters || 200);
-        isInsideRange = inside;
+        isInsideRange = dist <= (user.radius_meters || 200);
 
         setBadge(
-          inside,
-          inside ? "Inside Office Range" : `Outside Range (${dist}m away)`,
+          isInsideRange,
+          isInsideRange
+            ? "Inside Geofence Range"
+            : `Outside Range (${dist}m away)`,
         );
-        document.getElementById("locationLabel").textContent = inside
-          ? `In Range ✓ (${dist}m)`
-          : `${dist}m from office`;
+        document.getElementById("locationInfo").textContent = isInsideRange
+          ? `✓ In Range (${dist}m)`
+          : `${dist}m away`;
         updatePunchButtons();
       }
 
@@ -1769,126 +1306,67 @@
         } else {
           b.className = "status-badge pending";
         }
-        document.getElementById("liveStatus").textContent = text;
+        document.getElementById("statusText").textContent = text;
       }
 
-      function forceResync() {
-        if (locationWatcher) {
-          navigator.geolocation.clearWatch(locationWatcher);
-          locationWatcher = null;
-        }
-        userLat = null;
-        userLng = null;
-        isInsideRange = null;
-        document.getElementById("latitude").textContent = "—";
-        document.getElementById("longitude").textContent = "—";
-        document.getElementById("accuracy").textContent = "—";
-        document.getElementById("gpsChip").className = "tele-chip off";
-        document.getElementById("gpsChip").innerHTML =
-          '<span class="a-dot"></span> WAITING';
-        setBadge(null, "Acquiring GPS…");
-
-        // Reset map
-        if (leafMap) {
-          leafMap.remove();
-          leafMap = null;
-          userMarker = null;
-          officeCir = null;
-        }
-        document.getElementById("leafletMap").style.display = "none";
-        document.getElementById("mapPlaceholder").style.display = "flex";
-        document.getElementById("mapPlaceholderText").textContent =
-          "Acquiring GPS…";
-
-        updatePunchButtons();
-        toast("Re-syncing GPS…", "success");
-        detectLocation();
-      }
-
-      /* ── Open confirm modal ── */
+      /* ── Modal ── */
       async function openConfirm(type) {
         if (!userLat || !userLng) {
-          toast("GPS not available yet. Please wait a moment.", "error");
+          toast("GPS not available yet", "error");
           return;
         }
 
         if (type === "in" && hasOfficeLocation && !isInsideRange) {
-          toast("You must be inside the office radius to punch in.", "error");
+          toast("You must be inside office radius", "error");
           return;
         }
 
         pendingType = type;
         document.getElementById("modalTitle").textContent =
           type === "in" ? "Confirm Punch In" : "Confirm Punch Out";
-        document.getElementById("modalConfirmBtn").className =
-          "modal-confirm-btn" + (type === "out" ? " out-mode" : "");
         document.getElementById("modalConfirmBtn").textContent =
           type === "in" ? "Punch In" : "Punch Out";
-        document.getElementById("modalConfirmBtn").disabled = false;
+        document.getElementById("modalConfirmBtn").className =
+          type === "out" ? "modal-confirm-btn out" : "modal-confirm-btn";
 
-        // Distance info
         if (hasOfficeLocation) {
           const dist = Math.round(
             haversine(userLat, userLng, user.branch_lat, user.branch_lng),
           );
           document.getElementById("modalDist").textContent =
             `${dist}m from office`;
-        } else {
-          document.getElementById("modalDist").textContent =
-            "No geofence configured";
         }
 
-        // Late warning — only for punch-in
-        const lateEl = document.getElementById("modalLate");
-        if (type === "in" && user.shift_start) {
-          const now = new Date();
-          const [sh, sm] = user.shift_start.split(":").map(Number);
-          const shiftMins = sh * 60 + sm;
-          const nowMins = now.getHours() * 60 + now.getMinutes();
-          if (nowMins > shiftMins) {
-            lateEl.textContent = `⚠ Late by ${nowMins - shiftMins} min`;
-            lateEl.style.display = "block";
-          } else {
-            lateEl.style.display = "none";
-          }
-        } else {
-          lateEl.style.display = "none";
-        }
-
-        // Live clock in modal
         if (modalTimer) clearInterval(modalTimer);
         const tick = () => {
-          document.getElementById("modalTime").textContent = fmtTime();
-          document.getElementById("modalDate").textContent = fmtDate();
+          const now = new Date();
+          const h = now.getHours(),
+            m = now.getMinutes().toString().padStart(2, "0"),
+            ap = h >= 12 ? "PM" : "AM";
+          document.getElementById("modalTime").textContent =
+            `${(h % 12 || 12).toString().padStart(2, "0")}:${m} ${ap}`;
+          document.getElementById("modalDate").textContent =
+            now.toLocaleDateString("en-IN");
         };
         tick();
         modalTimer = setInterval(tick, 1000);
 
-        // Address (async, non-blocking)
         document.getElementById("modalAddress").textContent =
           "Fetching address…";
         getAddress(userLat, userLng).then(
           (a) => (document.getElementById("modalAddress").textContent = a),
         );
 
-        // Open modal, then init confirm map (needs DOM to be visible for Leaflet)
         document.getElementById("confirmModal").classList.add("open");
         setTimeout(() => {
-          try {
-            initConfirmMap(userLat, userLng);
-            if (confirmMap) confirmMap.invalidateSize();
-          } catch (e) {
-            console.error("Confirm map error:", e);
-          }
+          initConfirmMap(userLat, userLng);
+          if (confirmMap) confirmMap.invalidateSize();
         }, 150);
       }
 
       function closeConfirm() {
         document.getElementById("confirmModal").classList.remove("open");
-        if (modalTimer) {
-          clearInterval(modalTimer);
-          modalTimer = null;
-        }
+        if (modalTimer) clearInterval(modalTimer);
         pendingType = null;
       }
 
@@ -1897,10 +1375,10 @@
           closeConfirm();
       }
 
-      /* ── Execute punch ── */
       async function confirmPunch() {
         const type = pendingType;
         if (!type) return;
+
         const btn = document.getElementById("modalConfirmBtn");
         btn.disabled = true;
         btn.textContent = "Processing…";
@@ -1913,39 +1391,13 @@
             longitude: userLng,
           });
 
-          toast(data.message, "success");
+          toast(data.message || "Success", "success");
           closeConfirm();
 
           if (type === "in") {
             isPunchedIn = true;
-            document.getElementById("sumPunchIn").textContent =
-              data.time || "—";
-            document.getElementById("sumPunchOut").textContent = "—";
-            document.getElementById("sumHours").textContent = "0h 0m";
-            if (data.is_late) {
-              document.getElementById("sumStatus").textContent =
-                `Late +${data.late_by_minutes}m`;
-              document.getElementById("sumStatus").className =
-                "sum-val c-amber";
-            } else {
-              document.getElementById("sumStatus").textContent = "On Time ✓";
-              document.getElementById("sumStatus").className =
-                "sum-val c-green";
-            }
-            document.getElementById("summaryCard").classList.add("show");
           } else {
-            isPunchedIn = false;
             isCompleted = true;
-            document.getElementById("sumPunchOut").textContent =
-              data.time || "—";
-            document.getElementById("sumHours").textContent =
-              data.total_hours || "—";
-            document.getElementById("summaryCard").classList.add("show");
-            document.getElementById("doneBanner").classList.add("show");
-            if (data.total_hours) {
-              document.getElementById("doneSubtext").textContent =
-                `Total hours today: ${data.total_hours}. See you tomorrow!`;
-            }
           }
 
           updatePunchButtons();
@@ -1956,21 +1408,15 @@
         }
       }
 
-      // Initialize on page load
-      document.addEventListener("DOMContentLoaded", initEmployee);
+      // Init
+      document.addEventListener("DOMContentLoaded", initDashboard);
 
-      // Clean up
       window.addEventListener("beforeunload", () => {
-        if (locationWatcher) {
-          navigator.geolocation.clearWatch(locationWatcher);
-        }
+        if (locationWatcher) navigator.geolocation.clearWatch(locationWatcher);
       });
 
-      // Handle map container visibility
       window.addEventListener("resize", () => {
-        if (leafMap) {
-          leafMap.invalidateSize();
-        }
+        if (leafMap) leafMap.invalidateSize();
         if (
           confirmMap &&
           document.getElementById("confirmModal").classList.contains("open")

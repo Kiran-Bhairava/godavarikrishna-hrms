@@ -23,8 +23,8 @@
         --surface: #fff;
         --surface2: #f8f9fb;
         --border: #e5e7eb;
-        --primary: #3b63f6;
-        --primary-hover: #2851e8;
+        --primary: #179ce3;
+        --primary-hover: #1137c0;
         --primary-light: #eff3ff;
         --success: #10b981;
         --success-light: #ecfdf5;
@@ -57,6 +57,27 @@
         line-height: 1.5;
         display: flex;
         min-height: 100vh;
+      }
+
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+
+      /* Fix action column width */
+      #obTable td:last-child,
+      #obTable th:last-child {
+        width: 150px;
+        min-width: 150px;
+      }
+
+      /* Ensure all table cells vertically center to row height */
+      #obTable td {
+        vertical-align: middle;
       }
 
       /* SIDEBAR */
@@ -279,7 +300,7 @@
       }
       .btn-primary:hover {
         background: var(--primary-hover);
-        box-shadow: 0 4px 14px rgba(59, 99, 246, 0.35);
+        box-shadow: 0 4px 14px rgba(4, 21, 83, 0.35);
         transform: translateY(-1px);
       }
       .btn-secondary {
@@ -769,6 +790,11 @@
         border: 1px solid var(--border);
         border-radius: 10px;
         padding: 4px;
+      }
+      .action-cell {
+        display: flex;
+        align-items: center; /* vertical center */
+        gap: 6px; /* space between dropdown & icon */
       }
       .ob-tab {
         padding: 7px 16px;
@@ -1435,7 +1461,7 @@
 
       <div class="sidebar-section-label">Main</div>
 
-      <button class="nav-item" onclick="switchView('attendance')">
+      <button class="nav-item">
         <svg
           width="16"
           height="16"
@@ -1470,7 +1496,7 @@
           <path d="M19 8v6M22 11h-6" />
         </svg>
         Onboarding
-        <span class="nav-badge">4</span>
+        <!-- <span class="nav-badge">4</span> -->
       </button>
 
       <button class="nav-item" onclick="switchView('attendance')">
@@ -1490,7 +1516,7 @@
         Attendance
       </button>
 
-      <div class="sidebar-section-label">Reports</div>
+      <!-- <div class="sidebar-section-label">Reports</div>
 
       <button class="nav-item" onclick="exportExcel()">
         <svg
@@ -1506,7 +1532,7 @@
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
         Export Excel
-      </button>
+      </button> -->
 
       <div class="sidebar-section-label">Admin</div>
 
@@ -1775,7 +1801,6 @@
         <div class="ob-header">
           <div>
             <h1>Onboarding Management</h1>
-            <p>Track and manage new employee onboarding across all branches.</p>
           </div>
           <button class="btn btn-primary" onclick="switchView('addEmployee')">
             <svg
@@ -2195,6 +2220,19 @@
                     />
                   </div>
                   <div class="form-field">
+                    <label class="form-label">Password</label>
+                    <input
+                      class="form-input"
+                      type="text"
+                      id="f_password"
+                      placeholder="Leave blank to auto-generate"
+                    />
+                    <div class="form-hint">
+                      If left empty, a secure password will be generated
+                      automatically.
+                    </div>
+                  </div>
+                  <div class="form-field">
                     <label class="form-label">Blood Group</label
                     ><select class="form-select" id="f_blood">
                       <option value="">Select</option>
@@ -2436,7 +2474,7 @@
                       ></label
                     >
                     <select class="form-select" id="f_l1_manager">
-                      <option value="">— None —</option>
+                      <option value="">Select</option>
                     </select>
                   </div>
                   <div class="form-field">
@@ -2452,7 +2490,7 @@
                       ></label
                     >
                     <select class="form-select" id="f_l2_manager">
-                      <option value="">— None —</option>
+                      <option value="">Select</option>
                     </select>
                   </div>
                   <div class="form-field">
@@ -2596,7 +2634,7 @@
                       class="form-input"
                       type="time"
                       id="f_shift_start"
-                      value="09:00"
+                      value="09:45"
                     />
                   </div>
                   <div class="form-field">
@@ -2606,7 +2644,7 @@
                       class="form-input"
                       type="time"
                       id="f_shift_end"
-                      value="18:00"
+                      value="18:30"
                     />
                   </div>
                   <div class="form-field">
@@ -2992,13 +3030,13 @@
               <div class="form-field">
                 <label class="form-label">L1 Manager</label>
                 <select class="form-select" id="e_l1_manager_id">
-                  <option value="">— None —</option>
+                  <option value="">Select</option>
                 </select>
               </div>
               <div class="form-field">
                 <label class="form-label">L2 Manager</label>
                 <select class="form-select" id="e_l2_manager_id">
-                  <option value="">— None —</option>
+                  <option value="">Select</option>
                 </select>
               </div>
               <div class="form-field">
@@ -3187,6 +3225,43 @@
     </div>
 
     <div class="toast" id="toast"></div>
+    <!-- Credentials Modal (MUST be at root level) -->
+    <div class="modal-overlay" id="credModal">
+      <div class="modal" style="max-width: 520px">
+        <div class="modal-header">
+          <h3>Employee Credentials</h3>
+          <button class="modal-close" onclick="closeCredModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <p style="margin-bottom: 14px; color: #6b7280">
+            Share these login credentials with the employee.
+          </p>
+
+          <div class="form-field">
+            <label class="form-label">Work Email</label>
+            <input class="form-input" id="cred_email" readonly />
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Temporary Password</label>
+            <input class="form-input" id="cred_password" readonly />
+          </div>
+
+          <div class="form-field">
+            <label class="form-label">Login URL</label>
+            <input class="form-input" id="cred_login_url" readonly />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="copyCreds()">Copy</button>
+          <button class="btn btn-primary" onclick="closeCredModal()">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
 
     <script>
       const API = "/api";
@@ -3355,7 +3430,7 @@
 
       function populateManagerDropdowns() {
         const opts =
-          '<option value="">— None —</option>' +
+          '<option value="">Select</option>' +
           managerList
             .map((m) => {
               const role = m.role.charAt(0).toUpperCase() + m.role.slice(1);
@@ -3607,6 +3682,7 @@
 
         tbody.innerHTML = rows
           .map((r) => {
+            const isDeactivated = r.is_active === false;
             const name = r.full_name || "";
             const bg = getColor(name);
             const ini = name
@@ -3625,13 +3701,22 @@
             // Completion % — completed=100, in-progress=50, awaiting=10, else 0
             const pctMap = { completed: 100, "in-progress": 50, awaiting: 10 };
             const pct = pctMap[r.onboarding_status] || 0;
-            const statusHtml =
-              sMap[r.onboarding_status] ||
-              `<span class="ob-status not-started"><span class="ob-status-dot"></span>${r.onboarding_status}</span>`;
+            let statusHtml;
+            if (isDeactivated) {
+              statusHtml = `
+                  <span class="ob-status not-started" style="background:#f3f4f6;color:#6b7280">
+                    <span class="ob-status-dot" style="background:#6b7280"></span>
+                    Deactivated
+                  </span>`;
+            } else {
+              statusHtml =
+                sMap[r.onboarding_status] ||
+                `<span class="ob-status not-started"><span class="ob-status-dot"></span>${r.onboarding_status}</span>`;
+            }
             const branch = r.branch_name
               ? `${r.branch_name}${r.branch_city ? ", " + r.branch_city : ""}`
               : "—";
-            return `<tr>
+            return `<tr ${isDeactivated ? 'style="opacity:0.6"' : ""}>
         <td><div class="emp-cell">
           <div class="emp-avatar" style="background:${bg}">${ini}</div>
           <div><div class="emp-name">${name}</div><div class="emp-role">${r.email || ""}</div></div>
@@ -3647,16 +3732,34 @@
           <div class="progress-bar"><div class="progress-fill ${barCls(pct)}" style="width:${pct}%"></div></div>
           <span class="progress-pct">${pct}%</span>
         </div></td>
-        <td style="display:flex;gap:6px;align-items:center">
-          <select class="form-select" style="padding:5px 28px 5px 8px;font-size:12px;border-radius:8px"
-            onchange="updateObStatus(${r.id}, this.value, this)">
-            <option value="awaiting"    ${r.onboarding_status === "awaiting" ? "selected" : ""}>Awaiting</option>
-            <option value="in-progress" ${r.onboarding_status === "in-progress" ? "selected" : ""}>In Progress</option>
-            <option value="completed"   ${r.onboarding_status === "completed" ? "selected" : ""}>Completed</option>
-          </select>
-          <button class="action-btn" title="Edit employee" onclick="openEditModal(${r.id})" style="flex-shrink:0">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
+        <td style="white-space:nowrap">
+          ${
+            isDeactivated
+              ? `
+                <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px"
+                  onclick="reactivateEmployee(${r.id})">
+                  Reactivate
+                </button>
+              `
+              : `
+                <span style="display:inline-flex;align-items:center;gap:6px">
+                  <select class="form-select"
+                    style="padding:5px 28px 5px 8px;font-size:12px;border-radius:8px"
+                    onchange="updateObStatus(${r.id}, this.value, this)">
+                    <option value="awaiting"    ${r.onboarding_status === "awaiting" ? "selected" : ""}>Awaiting</option>
+                    <option value="in-progress" ${r.onboarding_status === "in-progress" ? "selected" : ""}>In Progress</option>
+                    <option value="completed"   ${r.onboarding_status === "completed" ? "selected" : ""}>Completed</option>
+                  </select>
+
+                  <button class="action-btn" title="Edit employee" onclick="openEditModal(${r.id})">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                </span>
+              `
+          }
         </td>
       </tr>`;
           })
@@ -3803,7 +3906,7 @@
             // Step 1
             full_name: val("f_full_name"),
             work_email: val("f_work_email").toLowerCase(),
-            password: "Welcome@123",
+            password: val("f_password") || null,
             personal_email: val("f_personal_email") || null,
             phone: val("f_phone") || null,
             dob: val("f_dob") || null,
@@ -3832,8 +3935,8 @@
             probation_end: val("f_prob_end") || null,
             notice_period: val("f_notice") || null,
             // Step 4
-            shift_start: val("f_shift_start") || "09:00",
-            shift_end: val("f_shift_end") || "18:00",
+            shift_start: val("f_shift_start") || "09:45",
+            shift_end: val("f_shift_end") || "18:30",
             work_mode: val("f_work_mode") || "On-Site",
             weekly_off: val("f_weekly_off") || "Saturday & Sunday",
             work_location: val("f_work_loc") || null,
@@ -3851,10 +3954,12 @@
           };
 
           const result = await apiFetch("/hr/employees", "POST", payload);
-          toast(
-            `${payload.full_name} enrolled! Employee ID: ${result.emp_id}`,
-            "success",
-          );
+          // Show credentials modal FIRST
+          openCredModal(result);
+
+          toast("Employee onboarded successfully", "success");
+          loadManagers();
+          setTimeout(() => switchView("onboarding"), 1500);
 
           // Refresh manager list so new employee can be selected as L1/L2 next time
           loadManagers();
@@ -3958,7 +4063,7 @@
           bSel.value = emp.branch_id || "";
 
           const mOpts =
-            '<option value="">— None —</option>' +
+            '<option value="">Select</option>' +
             managerList
               .map((m) => {
                 const title = m.job_title ? ` · ${m.job_title}` : "";
@@ -4059,6 +4164,18 @@
         }
       }
 
+      async function reactivateEmployee(empId) {
+        if (!confirm("Reactivate this employee?")) return;
+        try {
+          await apiFetch(`/hr/employees/${empId}/reactivate`, "PATCH");
+          toast("Employee reactivated", "success");
+          loadOnboarding();
+          loadManagers();
+        } catch (e) {
+          toast("Reactivation failed: " + e.message, "error");
+        }
+      }
+
       // ── Live Progress Bar ─────────────────────────────────────────
       // All tracked field IDs across all 5 steps
       const PROGRESS_FIELDS = [
@@ -4095,6 +4212,28 @@
         "f_account_no",
         "f_ifsc",
       ];
+
+      function openCredModal(data) {
+        document.getElementById("cred_email").value = data.email || "";
+        document.getElementById("cred_password").value =
+          data.temporary_password || "";
+        document.getElementById("cred_login_url").value = data.login_url || "";
+
+        document.getElementById("credModal").classList.add("open");
+      }
+
+      function closeCredModal() {
+        document.getElementById("credModal").classList.remove("open");
+      }
+
+      function copyCreds() {
+        const text = `Email: ${document.getElementById("cred_email").value}
+      Password: ${document.getElementById("cred_password").value}
+      Login: ${document.getElementById("cred_login_url").value}`;
+
+        navigator.clipboard.writeText(text);
+        toast("Credentials copied!", "success");
+      }
 
       function updateLiveProgress() {
         const filled = PROGRESS_FIELDS.filter((id) => {

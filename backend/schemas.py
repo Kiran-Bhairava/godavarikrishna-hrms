@@ -65,6 +65,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserPublic
+    must_reset_password: bool = False
 
 
 class RegisterResponse(BaseModel):
@@ -72,6 +73,68 @@ class RegisterResponse(BaseModel):
     email: str
     full_name: str
     role: str
+
+
+# ══════════════════════════════════════════════════════════
+# CREDENTIALS & PASSWORD MANAGEMENT
+# ══════════════════════════════════════════════════════════
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
+class GenerateCredentialsRequest(BaseModel):
+    notes: Optional[str] = None
+
+
+class GenerateCredentialsResponse(BaseModel):
+    employee_id: int
+    email: str
+    full_name: str
+    temporary_password: str
+    must_reset_on_login: bool
+    generated_at: str
+    expires_in_days: int
+    message: str
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
+class CredentialAuditRow(BaseModel):
+    id: int
+    action: str
+    is_temporary: bool
+    performed_by_id: Optional[int] = None
+    performed_by_name: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class CredentialAuditResponse(BaseModel):
+    user_id: int
+    email: str
+    full_name: str
+    must_reset_password: bool
+    last_password_change: Optional[str] = None
+    last_login: Optional[str] = None
+    credential_history: list[CredentialAuditRow]
 
 
 # ══════════════════════════════════════════════════════════

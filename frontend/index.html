@@ -11,25 +11,19 @@
       rel="stylesheet"
     />
     <style>
-      *,
-      *::before,
-      *::after {
+      * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-
       :root {
         --bg: #f0f2f5;
         --surface: #ffffff;
-        --surface2: #f8f9fb;
         --border: #e5e7eb;
-        --border-focus: #3b82f6;
         --primary: #3b63f6;
         --primary-hover: #2851e8;
-        --primary-light: #eff3ff;
-        --success: #10b981;
         --danger: #ef4444;
+        --success: #10b981;
         --text: #111827;
         --text-dim: #6b7280;
         --text-muted: #9ca3af;
@@ -37,7 +31,6 @@
         --shadow-lg:
           0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 20px 60px rgba(0, 0, 0, 0.1);
       }
-
       body {
         font-family:
           "Inter",
@@ -51,25 +44,12 @@
         align-items: center;
         justify-content: center;
         padding: 24px;
-        background-image:
-          radial-gradient(
-            circle at 20% 20%,
-            rgba(59, 99, 246, 0.06) 0%,
-            transparent 50%
-          ),
-          radial-gradient(
-            circle at 80% 80%,
-            rgba(16, 185, 129, 0.05) 0%,
-            transparent 50%
-          );
       }
-
       .auth-wrapper {
         width: 100%;
         max-width: 440px;
         animation: fadeUp 0.45s ease both;
       }
-
       @keyframes fadeUp {
         from {
           opacity: 0;
@@ -80,8 +60,6 @@
           transform: translateY(0);
         }
       }
-
-      /* Brand mark */
       .brand {
         display: flex;
         align-items: center;
@@ -89,7 +67,6 @@
         justify-content: center;
         margin-bottom: 32px;
       }
-
       .brand-icon {
         width: 38px;
         height: 38px;
@@ -99,19 +76,15 @@
         align-items: center;
         justify-content: center;
       }
-
       .brand-icon svg {
         color: white;
       }
-
       .brand-name {
         font-size: 22px;
         font-weight: 700;
         color: var(--text);
         letter-spacing: -0.4px;
       }
-
-      /* Card */
       .auth-card {
         background: var(--surface);
         border: 1px solid var(--border);
@@ -119,7 +92,6 @@
         padding: 40px 36px;
         box-shadow: var(--shadow-lg);
       }
-
       .auth-heading {
         font-size: 24px;
         font-weight: 700;
@@ -127,18 +99,14 @@
         letter-spacing: -0.4px;
         margin-bottom: 6px;
       }
-
       .auth-sub {
         font-size: 14px;
         color: var(--text-dim);
         margin-bottom: 28px;
       }
-
-      /* Form */
       .form-group {
         margin-bottom: 18px;
       }
-
       .form-group label {
         display: block;
         margin-bottom: 7px;
@@ -146,7 +114,6 @@
         font-weight: 500;
         color: var(--text);
       }
-
       .form-group input {
         width: 100%;
         padding: 12px 16px;
@@ -159,17 +126,13 @@
         transition: all 0.2s;
         outline: none;
       }
-
       .form-group input:focus {
-        border-color: var(--border-focus);
+        border-color: var(--primary);
         box-shadow: 0 0 0 3px rgba(59, 99, 246, 0.1);
       }
-
       .form-group input::placeholder {
         color: var(--text-muted);
       }
-
-      /* Button */
       .btn-primary {
         width: 100%;
         padding: 13px 24px;
@@ -188,21 +151,14 @@
         gap: 8px;
         margin-top: 4px;
       }
-
       .btn-primary:hover {
         background: var(--primary-hover);
         box-shadow: 0 4px 16px rgba(59, 99, 246, 0.35);
-        transform: translateY(-1px);
       }
-
       .btn-primary:disabled {
         opacity: 0.55;
         cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
       }
-
-      /* Alert */
       .alert {
         padding: 12px 16px;
         border-radius: 10px;
@@ -210,21 +166,23 @@
         margin-bottom: 18px;
         display: none;
         font-weight: 500;
+        border: 1px solid;
       }
-
       .alert.error {
         background: #fef2f2;
         color: #b91c1c;
-        border: 1px solid #fecaca;
+        border-color: #fecaca;
       }
-
       .alert.success {
         background: #f0fdf4;
         color: #15803d;
-        border: 1px solid #bbf7d0;
+        border-color: #bbf7d0;
       }
-
-      /* Info box */
+      .alert.warning {
+        background: #fffbeb;
+        color: #b45309;
+        border-color: #fde68a;
+      }
       .info-box {
         margin-top: 24px;
         padding-top: 20px;
@@ -233,78 +191,54 @@
         color: var(--text-dim);
         text-align: center;
       }
-
-      /* UNUSED — kept for layout compat */
-      .demo-row {
-        display: flex;
+      .reset-password-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
         align-items: center;
-        justify-content: space-between;
-        padding: 10px 14px;
-        background: var(--surface2);
-        border: 1px solid var(--border);
-        border-radius: 9px;
+      }
+      .reset-password-modal.show {
+        display: flex;
+      }
+      .modal-content {
+        background: var(--surface);
+        padding: 40px 36px;
+        border-radius: 20px;
+        box-shadow: var(--shadow-lg);
+        max-width: 440px;
+        width: 90%;
+        animation: slideUp 0.3s ease;
+      }
+      @keyframes slideUp {
+        from {
+          transform: translateY(32px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+      .modal-heading {
+        font-size: 20px;
+        font-weight: 700;
         margin-bottom: 8px;
       }
-
-      .demo-creds {
+      .modal-sub {
         font-size: 13px;
         color: var(--text-dim);
-      }
-
-      .demo-creds strong {
-        color: var(--primary);
-        font-weight: 600;
-      }
-
-      .demo-role {
-        font-size: 11px;
-        font-weight: 600;
-        padding: 3px 9px;
-        border-radius: 20px;
-        background: var(--primary-light);
-        color: var(--primary);
-      }
-
-      .demo-role.hr {
-        background: #ecfdf5;
-        color: #059669;
-      }
-
-      /* Toast */
-      .toast {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        background: var(--surface);
-        padding: 14px 20px;
-        border-radius: 12px;
-        border-left: 4px solid var(--primary);
-        box-shadow: var(--shadow-lg);
-        transform: translateY(80px);
-        opacity: 0;
-        transition: all 0.3s;
-        z-index: 1000;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--text);
-        max-width: 340px;
-      }
-
-      .toast.show {
-        transform: translateY(0);
-        opacity: 1;
-      }
-      .toast.success {
-        border-color: var(--success);
-      }
-      .toast.error {
-        border-color: var(--danger);
+        margin-bottom: 24px;
       }
     </style>
   </head>
   <body>
     <div class="auth-wrapper">
-      <!-- Brand -->
       <div class="brand">
         <div class="brand-icon">
           <svg
@@ -322,44 +256,48 @@
         <span class="brand-name">GodavariKrishna</span>
       </div>
 
-      <!-- Card -->
       <div class="auth-card">
         <h1 class="auth-heading">Welcome back</h1>
         <p class="auth-sub">Sign in to access your attendance portal</p>
 
         <div class="alert error" id="authError"></div>
+        <div class="alert warning" id="authWarning"></div>
 
-        <div class="form-group">
-          <label>Work Email</label>
-          <input
-            type="email"
-            id="loginEmail"
-            placeholder="you@company.com"
-            autocomplete="email"
-          />
-        </div>
-        <div class="form-group">
-          <label>Password</label>
-          <input
-            type="password"
-            id="loginPassword"
-            placeholder="Enter your password"
-            autocomplete="current-password"
-          />
-        </div>
-        <button class="btn-primary" onclick="login()" id="loginBtn">
-          Sign In
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
+        <form onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label>Work Email</label>
+            <input
+              type="email"
+              id="loginEmail"
+              placeholder="you@company.com"
+              autocomplete="email"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              id="loginPassword"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+          <button type="submit" class="btn-primary" id="loginBtn">
+            Sign In
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        </form>
 
         <div class="info-box">
           New employees are added by HR. Contact your HR team if you don't have
@@ -368,17 +306,55 @@
       </div>
     </div>
 
+    <!-- Reset Password Modal -->
+    <div class="reset-password-modal" id="resetModal">
+      <div class="modal-content">
+        <h2 class="modal-heading">Reset Password</h2>
+        <p class="modal-sub">Your password must be reset before proceeding</p>
+        <div class="alert error" id="resetError"></div>
+        <form onsubmit="handlePasswordReset(event)">
+          <div class="form-group">
+            <label>New Password</label>
+            <input
+              type="password"
+              id="newPassword"
+              placeholder="Enter new password"
+              required
+              minlength="8"
+            />
+          </div>
+          <div class="form-group">
+            <label>Confirm Password</label>
+            <input
+              type="password"
+              id="confirmPassword"
+              placeholder="Confirm new password"
+              required
+              minlength="8"
+            />
+          </div>
+          <button type="submit" class="btn-primary" id="resetBtn">
+            Reset Password
+          </button>
+        </form>
+      </div>
+    </div>
+
     <script>
       const API = "/api";
+      let pendingResetToken = null;
 
-      function showAlert(msg) {
-        const el = document.getElementById("authError");
+      function showAlert(msg, type = "error") {
+        const errorEl = document.getElementById("authError");
+        const warningEl = document.getElementById("authWarning");
+        const el = type === "warning" ? warningEl : errorEl;
         el.textContent = msg;
         el.style.display = "block";
-        setTimeout(() => (el.style.display = "none"), 5000);
+        setTimeout(() => (el.style.display = "none"), 6000);
       }
 
-      async function login() {
+      async function handleLogin(event) {
+        event.preventDefault();
         const email = document.getElementById("loginEmail").value.trim();
         const password = document.getElementById("loginPassword").value;
         const btn = document.getElementById("loginBtn");
@@ -398,24 +374,92 @@
             body: JSON.stringify({ email, password }),
           });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "Login failed");
 
+          if (!res.ok) {
+            throw new Error(data.detail || "Login failed");
+          }
+
+          // Check if password reset is required
+          if (data.must_reset_password) {
+            pendingResetToken = data.access_token;
+            document.getElementById("loginEmail").value = "";
+            document.getElementById("loginPassword").value = "";
+            showAlert(
+              "Password reset required. Please create a new password.",
+              "warning",
+            );
+            document.getElementById("resetModal").classList.add("show");
+            return;
+          }
+
+          // Store token and redirect
           localStorage.setItem("token", data.access_token);
-          window.location.href =
+          const redirectUrl =
             data.user.role === "hr" || data.user.role === "admin"
               ? "/hr-manager"
               : "/employee";
+          window.location.href = redirectUrl;
         } catch (e) {
           showAlert(e.message);
+        } finally {
           btn.disabled = false;
           btn.innerHTML =
             'Sign In <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
         }
       }
 
-      document.addEventListener("keypress", (e) => {
-        if (e.key === "Enter") login();
-      });
+      async function handlePasswordReset(event) {
+        event.preventDefault();
+        const newPass = document.getElementById("newPassword").value;
+        const confirmPass = document.getElementById("confirmPassword").value;
+        const btn = document.getElementById("resetBtn");
+
+        if (newPass !== confirmPass) {
+          document.getElementById("resetError").textContent =
+            "Passwords do not match";
+          document.getElementById("resetError").style.display = "block";
+          return;
+        }
+
+        if (newPass.length < 8) {
+          document.getElementById("resetError").textContent =
+            "Password must be at least 8 characters";
+          document.getElementById("resetError").style.display = "block";
+          return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = "Resetting…";
+
+        try {
+          const res = await fetch(API + "/auth/change-password", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${pendingResetToken}`,
+            },
+            body: JSON.stringify({
+              old_password: document.getElementById("loginPassword").value,
+              new_password: newPass,
+            }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || "Password reset failed");
+          }
+
+          // Success - store token and redirect
+          localStorage.setItem("token", pendingResetToken);
+          window.location.href = "/employee";
+        } catch (e) {
+          document.getElementById("resetError").textContent = e.message;
+          document.getElementById("resetError").style.display = "block";
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = "Reset Password";
+        }
+      }
 
       // Auto-redirect if already logged in
       const token = localStorage.getItem("token");
@@ -425,14 +469,26 @@
         })
           .then((r) => r.json())
           .then((u) => {
-            if (u && u.role)
-              window.location.href =
+            if (u && u.role) {
+              const redirectUrl =
                 u.role === "hr" || u.role === "admin"
                   ? "/hr-manager"
                   : "/employee";
+              window.location.href = redirectUrl;
+            }
           })
           .catch(() => localStorage.removeItem("token"));
       }
+
+      // Enter key handling
+      document.addEventListener("keypress", (e) => {
+        if (
+          e.key === "Enter" &&
+          !document.getElementById("resetModal").classList.contains("show")
+        ) {
+          handleLogin(e);
+        }
+      });
     </script>
   </body>
 </html>

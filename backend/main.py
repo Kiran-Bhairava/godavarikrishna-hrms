@@ -1,24 +1,14 @@
 """
-Attendance System — FastAPI backend (optimised)
+Attendance System — FastAPI backend with Clean Role-Based Architecture
 
-Performance fixes applied
-─────────────────────────
-1. Single DB connection per request — auth dep now receives the connection
-   from the endpoint via a shared `get_db` context so every request acquires
-   exactly ONE pool connection instead of two.
-2. Lightweight HR auth fast-path — JWT claims are trusted for role checks on
-   HR/admin endpoints; the heavy 3-table JOIN is only done when the full user
-   profile (branch coords, shift times) is actually needed.
-3. Cached timezone object — _TZ is resolved once at startup; no repeated
-   pytz.timezone() dict lookups inside hot paths.
-4. attendance_status merged to a single query — previously two sequential
-   SELECTs; now one query returns both log tail and daily summary.
-5. punch_in collapsed to 2 DB round-trips (was 3).
-6. punch_out collapsed to 2 DB round-trips (was 4).
-7. deactivate / reactivate merged to single UPDATE…RETURNING (was SELECT + UPDATE).
-8. update_employee merged to single UPDATE…RETURNING (was SELECT + UPDATE).
-9. Removed duplicate UpdateEmployeeRequest class definition.
-10. Statement cache size bumped to 200 for better prepared-statement reuse.
+Architecture:
+  Admin (one-time setup)
+    ↓ (creates via /api/admin/register-first-admin or /api/admin/register-hr)
+  HR Users
+    ↓ (creates via /api/hr/employees)
+  Employees (full profiles)
+    ↓ (login via /api/auth/login)
+  Use System
 """
 import logging
 import math
@@ -32,7 +22,7 @@ from typing import Optional, Annotated
 
 import asyncpg
 import dotenv
-from fastapi import FastAPI, Depends, HTTPException, Query, Request
+from fastapi import FastAPI, Depends, HTTPException, Query, Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -43,6 +33,11 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, field_validator
 from pydantic_settings import BaseSettings
+from fastapi import Body
+from schemas import LoginResponse
+from api_credentials import generate_temp_password  # reuse helper
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 dotenv.load_dotenv()
 
@@ -78,9 +73,6 @@ settings = Settings()
 if not settings.secret_key:
     raise RuntimeError("SECRET_KEY must be set in .env")
 
-# FIX 3: Resolve timezone ONCE at startup — no per-call dict lookup.
-_TZ = pytz.timezone(settings.office_timezone)
-
 
 # ── App ───────────────────────────────────────────────────────
 @asynccontextmanager
@@ -90,16 +82,13 @@ async def lifespan(app: FastAPI):
         settings.database_url,
         min_size=settings.db_pool_min,
         max_size=settings.db_pool_max,
-        # FIX 10: larger prepared-statement cache for better reuse
-        statement_cache_size=200,
     )
-    logger.info("DB pool ready (statement_cache_size=200)")
+    logger.info("DB pool ready")
     yield
     await db_pool.close()
 
 
 app = FastAPI(title="Attendance System", docs_url=None, redoc_url=None, lifespan=lifespan)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 db_pool: Optional[asyncpg.Pool] = None
 
@@ -113,29 +102,11 @@ if settings.allowed_origins:
     )
 
 
-# ── DB dependency (FIX 1) ─────────────────────────────────────
-# ONE connection per request, stored on request.state so auth deps
-# and endpoint handlers share it without double-acquiring from the pool.
-
-async def get_db(request: Request) -> asyncpg.Connection:
+async def get_db():
     if db_pool is None:
         raise HTTPException(503, "Database not available")
-    if not hasattr(request.state, "_db"):
-        request.state._db_ctx = db_pool.acquire()
-        request.state._db = await request.state._db_ctx.__aenter__()
-    return request.state._db
-
-
-@app.middleware("http")
-async def _release_db_middleware(request: Request, call_next):
-    """Release the shared DB connection back to the pool after each request."""
-    response = await call_next(request)
-    if hasattr(request.state, "_db_ctx"):
-        try:
-            await request.state._db_ctx.__aexit__(None, None, None)
-        except Exception:
-            pass
-    return response
+    async with db_pool.acquire() as conn:
+        yield conn
 
 
 # ══════════════════════════════════════════════════════════════
@@ -153,6 +124,18 @@ class LoginRequest(BaseModel):
             raise ValueError("Password must not be empty")
         return v
 
+class RegisterRequest(BaseModel):
+    """For admin and HR registration"""
+    full_name: str
+    email: EmailStr
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_length(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
 
 class PunchRequest(BaseModel):
     latitude: float
@@ -172,61 +155,54 @@ class PunchRequest(BaseModel):
             raise ValueError("Invalid longitude")
         return v
 
-
 class OnboardRequest(BaseModel):
-    """Payload from the 5-step Add Employee form."""
-
-    # Step 1 — Basic
-    full_name:      str
-    work_email:     EmailStr
-    password:       str = "Welcome@123"
+    """For HR onboarding employees"""
+    full_name: str
+    work_email: EmailStr
+    password: Optional[str] = None
     personal_email: Optional[str] = None
-    phone:          Optional[str] = None
-    dob:            Optional[str] = None    # YYYY-MM-DD
-    gender:         Optional[str] = None
-    blood_group:    Optional[str] = None
-    nationality:    Optional[str] = None
-    home_address:   Optional[str] = None
-    emg_name:       Optional[str] = None
-    emg_phone:      Optional[str] = None
-    emg_rel:        Optional[str] = None
-
-    # Step 2 — Job
-    job_title:      Optional[str] = None
-    designation:    Optional[str] = None
-    department:     Optional[str] = None
+    phone: Optional[str] = None
+    dob: Optional[str] = None
+    gender: Optional[str] = None
+    blood_group: Optional[str] = None
+    nationality: Optional[str] = None
+    home_address: Optional[str] = None
+    emg_name: Optional[str] = None
+    emg_phone: Optional[str] = None
+    emg_rel: Optional[str] = None
+    
+    job_title: Optional[str] = None
+    designation: Optional[str] = None
+    department: Optional[str] = None
     sub_department: Optional[str] = None
-    grade:          Optional[str] = None
-    date_of_joining: Optional[str] = None  # YYYY-MM-DD
-    branch_id:      Optional[int] = None
-    l1_manager_id:  Optional[int] = None
-    l2_manager_id:  Optional[int] = None
-    role:           str = "employee"
-    cost_centre:    Optional[str] = None
-
-    # Step 3 — Terms
+    grade: Optional[str] = None
+    date_of_joining: Optional[str] = None
+    branch_id: Optional[int] = None
+    l1_manager_id: Optional[int] = None
+    l2_manager_id: Optional[int] = None
+    role: str = "employee"
+    cost_centre: Optional[str] = None
+    
     employment_type: Optional[str] = None
-    contract_end:    Optional[str] = None
-    probation_end:   Optional[str] = None
-    notice_period:   Optional[str] = None
-
-    # Step 4 — Work
+    contract_end: Optional[str] = None
+    probation_end: Optional[str] = None
+    notice_period: Optional[str] = None
+    
     shift_start: time = time(9, 0)
-    shift_end:   time = time(18, 0)
-    work_mode:     Optional[str] = "On-Site"
-    weekly_off:    Optional[str] = "Saturday & Sunday"
+    shift_end: time = time(18, 0)
+    work_mode: Optional[str] = "On-Site"
+    weekly_off: Optional[str] = "Saturday & Sunday"
     work_location: Optional[str] = None
-    asset_id:      Optional[str] = None
-
-    # Step 5 — Compensation
-    annual_ctc:      Optional[float] = None
-    pay_frequency:   Optional[str] = "Monthly"
-    pf_enrolled:     bool = True
+    asset_id: Optional[str] = None
+    
+    annual_ctc: Optional[float] = None
+    pay_frequency: Optional[str] = "Monthly"
+    pf_enrolled: bool = True
     esic_applicable: bool = True
-    bank_name:       Optional[str] = None
-    bank_account:    Optional[str] = None
-    bank_ifsc:       Optional[str] = None
-    pan_number:      Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_account: Optional[str] = None
+    bank_ifsc: Optional[str] = None
+    pan_number: Optional[str] = None
 
     @field_validator("role")
     @classmethod
@@ -238,10 +214,14 @@ class OnboardRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def min_length(cls, v):
+        # Allow empty password → will be auto-generated in endpoint
+        if v is None or v == "":
+            return None
+
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
-        return v
 
+        return v
 
 class UpdateOnboardingStatus(BaseModel):
     status: str
@@ -254,7 +234,6 @@ class UpdateOnboardingStatus(BaseModel):
         return v
 
 
-# FIX 9: Only ONE definition (was duplicated, causing the second to silently shadow the first).
 class UpdateEmployeeRequest(BaseModel):
     """Partial update — all fields optional."""
     full_name:       Optional[str] = None
@@ -336,15 +315,16 @@ def create_token(user_id: int, email: str, role: str) -> str:
 
 
 def local_now() -> datetime:
-    return datetime.now(_TZ)   # FIX 3: cached tz
+    return datetime.now(pytz.timezone(settings.office_timezone))
 
 
 def to_local(dt: Optional[datetime]) -> Optional[datetime]:
     if dt is None:
         return None
+    tz = pytz.timezone(settings.office_timezone)
     if dt.tzinfo is None:
         dt = pytz.utc.localize(dt)
-    return dt.astimezone(_TZ)  # FIX 3: cached tz
+    return dt.astimezone(tz)
 
 
 def parse_date(s: Optional[str]) -> Optional[date]:
@@ -365,115 +345,347 @@ def parse_date_param(s: Optional[str]) -> date:
         raise HTTPException(400, "Expected date format YYYY-MM-DD")
 
 
-# ── Auth dependencies ──────────────────────────────────────────
-
-def _decode_token(creds: HTTPAuthorizationCredentials) -> dict:
-    """Decode + verify JWT. Raises 401 on any failure."""
-    try:
-        return jwt.decode(
-            creds.credentials, settings.secret_key, algorithms=[settings.algorithm]
-        )
-    except (JWTError, KeyError, ValueError):
-        raise HTTPException(401, "Invalid or expired token")
-
+# ── Auth deps ─────────────────────────────────────────────────
 
 async def get_current_user(
-    creds: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: asyncpg.Connection = Depends(get_db),
 ) -> dict:
-    """
-    Full user profile with branch/shift data.
-    Uses the shared request connection (FIX 1).
-    Only used by endpoints that actually need branch/shift info (attendance).
-    """
-    payload = _decode_token(creds)
+    token = credentials.credentials
     try:
-        user_id = int(payload["sub"])
-    except (KeyError, ValueError):
-        raise HTTPException(401, "Invalid token payload")
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id = int(payload.get("sub"))
+    except (JWTError, ValueError):
+        raise HTTPException(401, "Invalid token")
 
     user = await db.fetchrow(
-        """SELECT u.id, u.email, u.full_name, u.role,
-                  e.branch_id, e.shift_start, e.shift_end,
-                  b.name        AS branch_name,
-                  b.latitude    AS branch_lat,
-                  b.longitude   AS branch_lng,
-                  b.radius_meters
-           FROM users u
-           LEFT JOIN employees e ON e.user_id = u.id
-           LEFT JOIN branches b  ON b.id = e.branch_id
-           WHERE u.id = $1 AND u.is_active = TRUE""",
+        """
+        SELECT u.id, u.email, u.full_name, u.role, u.is_active,
+               e.branch_id,
+               e.shift_start, e.shift_end,
+               b.name AS branch_name,
+               b.city AS branch_city,
+               b.latitude, b.longitude, b.radius_meters
+        FROM users u
+        LEFT JOIN employees e ON e.user_id = u.id
+        LEFT JOIN branches b ON b.id = e.branch_id
+        WHERE u.id = $1
+        """,
         user_id,
     )
-    if not user:
-        raise HTTPException(401, "User not found or deactivated")
+
+    if not user or not user["is_active"]:
+        raise HTTPException(401, "User not found or inactive")
+
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "branch_id": user["branch_id"],
+        "shift_start": user["shift_start"],
+        "shift_end": user["shift_end"],
+        "branch_name": user["branch_name"],
+        "branch_city": user["branch_city"],
+        "branch_lat": float(user["latitude"]) if user["latitude"] else None,
+        "branch_lng": float(user["longitude"]) if user["longitude"] else None,
+        "radius_meters": user["radius_meters"],
+    }
+
+async def require_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: asyncpg.Connection = Depends(get_db),
+) -> dict:
+    """Verify user is admin"""
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id = int(payload.get("sub"))
+    except (JWTError, ValueError):
+        raise HTTPException(401, "Invalid token")
+
+    user = await db.fetchrow(
+        "SELECT id, email, full_name, role, is_active FROM users WHERE id=$1",
+        user_id,
+    )
+
+    if not user or not user["is_active"]:
+        raise HTTPException(401, "User not found or inactive")
+
+    if user["role"] != "admin":
+        raise HTTPException(403, "Admin access required")
+
     return dict(user)
 
 
-async def require_hr_jwt(
-    creds: HTTPAuthorizationCredentials = Depends(security),
-) -> dict:
-    """
-    FIX 2: Zero-DB fast-path for HR/admin endpoints.
-    Role is read from the JWT claim — no DB query needed.
-    Returns {id, email, role}.
-    """
-    payload = _decode_token(creds)
-    role = payload.get("role", "")
-    if role not in ("hr", "admin"):
-        raise HTTPException(403, "HR/Admin access required")
-    try:
-        return {"id": int(payload["sub"]), "email": payload["email"], "role": role}
-    except (KeyError, ValueError):
-        raise HTTPException(401, "Invalid token payload")
-
+async def require_hr(user: dict = Depends(get_current_user)) -> dict:
+    """Verify user is HR or admin"""
+    if user["role"] not in ("hr", "admin"):
+        raise HTTPException(403, "HR access required")
+    return user
 
 # ══════════════════════════════════════════════════════════════
-# AUTH
+# AUTH ENDPOINTS
 # ══════════════════════════════════════════════════════════════
 
-@app.post("/api/auth/login")
-async def login(req: LoginRequest, db: asyncpg.Connection = Depends(get_db)):
-    user = await db.fetchrow(
-        "SELECT id, email, password_hash, full_name, role, is_active FROM users WHERE email = $1",
-        req.email.lower(),
+@app.post("/api/auth/register-first-admin")
+async def register_first_admin(
+    payload: RegisterRequest,
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """
+    One-time endpoint to create the first admin user.
+    ⚠️ Only works if NO admin users exist in the system.
+    
+    After first admin is created, this endpoint is disabled.
+    """
+    
+    # Check if any admin already exists
+    admin_exists = await db.fetchrow(
+        "SELECT id FROM users WHERE role='admin' LIMIT 1"
     )
-    if not user or not verify_password(req.password, user["password_hash"]):
-        raise HTTPException(401, "Invalid email or password")
-    if not user["is_active"]:
-        raise HTTPException(403, "Account deactivated. Contact HR.")
+    
+    if admin_exists:
+        raise HTTPException(403, "Admin user already exists. Use /api/admin/register-hr to create HR users.")
+    
+    # Check for duplicate email
+    existing = await db.fetchrow(
+        "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+        payload.email,
+    )
+    if existing:
+        raise HTTPException(409, "User with this email already exists")
+    
+    # Hash password
+    hashed = pwd_context.hash(payload.password)
+    
+    # Create first admin user
+    user = await db.fetchrow(
+        """
+        INSERT INTO users (email, password_hash, full_name, role, is_active, created_at)
+        VALUES ($1, $2, $3, 'admin', TRUE, NOW())
+        RETURNING id, email, full_name, role, created_at
+        """,
+        payload.email,
+        hashed,
+        payload.full_name,
+    )
+    
+    logger.info("First admin user created: user_id=%s email=%s", user["id"], user["email"])
+    
+    return {
+        "user_id": user["id"],
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "message": "First admin user created successfully",
+        "created_at": user["created_at"].isoformat(),
+    }
 
-    await db.execute("UPDATE users SET last_login = NOW() WHERE id = $1", user["id"])
-    logger.info("Login: id=%s role=%s", user["id"], user["role"])
+
+@app.post("/api/admin/register-hr")
+async def register_hr(
+    payload: RegisterRequest,
+    admin: dict = Depends(require_admin),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """
+    Admin-only endpoint to register new HR users.
+    
+    Requires: Admin authentication token
+    """
+    
+    # Check for duplicate email
+    existing = await db.fetchrow(
+        "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+        payload.email,
+    )
+    if existing:
+        raise HTTPException(409, "User with this email already exists")
+    
+    # Hash password
+    hashed = pwd_context.hash(payload.password)
+    
+    # Create HR user
+    user = await db.fetchrow(
+        """
+        INSERT INTO users (email, password_hash, full_name, role, is_active, created_at)
+        VALUES ($1, $2, $3, 'hr', TRUE, NOW())
+        RETURNING id, email, full_name, role, created_at
+        """,
+        payload.email,
+        hashed,
+        payload.full_name,
+    )
+    
+    logger.info(
+        "HR user created: user_id=%s email=%s by admin_id=%s",
+        user["id"], user["email"], admin["id"]
+    )
+    
+    return {
+        "user_id": user["id"],
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "message": "HR user created successfully",
+        "created_at": user["created_at"].isoformat(),
+    }
+
+
+@app.post("/api/auth/login", response_model=LoginResponse)
+async def login(
+    payload: LoginRequest,
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """
+    Login endpoint for all users (admin, HR, employees)
+    """
+    # 1. Fetch user with all needed fields
+    user = await db.fetchrow(
+        """
+        SELECT id, email, password_hash, full_name, role, is_active, must_reset_password
+        FROM users
+        WHERE LOWER(email) = LOWER($1)
+        """,
+        payload.email,
+    )
+
+    if not user:
+        raise HTTPException(401, "Invalid email or password")
+
+    if not user["is_active"]:
+        raise HTTPException(403, "Account is inactive. Contact HR.")
+
+    # 2. Verify password
+    if not pwd_context.verify(payload.password, user["password_hash"]):
+        raise HTTPException(401, "Invalid email or password")
+
+    user_id = user["id"]
+
+    # 3. Get employee profile (optional for non-employees)
+    employee = None
+    if user["role"] in ("employee", "hr"):
+        employee = await db.fetchrow(
+            """
+            SELECT e.id, e.branch_id, e.onboarding_status,
+                   b.name AS branch_name,
+                   b.city AS branch_city,
+                   b.latitude, b.longitude, b.radius_meters
+            FROM employees e
+            LEFT JOIN branches b ON b.id = e.branch_id
+            WHERE e.user_id = $1
+            """,
+            user_id,
+        )
+        
+        # Check onboarding status if employee exists
+        if employee and employee["onboarding_status"] != "completed":
+            raise HTTPException(
+                403,
+                f"Onboarding incomplete. Status: {employee['onboarding_status']}. Contact HR."
+            )
+
+    # 4. Create JWT token
+    expire = datetime.utcnow() + timedelta(hours=settings.access_token_expire_hours)
+    token_data = {
+        "sub": str(user_id),
+        "role": user["role"],
+        "exp": expire,
+    }
+    token = jwt.encode(token_data, settings.secret_key, algorithm=settings.algorithm)
+
+    # 5. Update last login
+    await db.execute(
+        "UPDATE users SET last_login=NOW() WHERE id=$1",
+        user_id,
+    )
+
+    # 6. Build response
+    user_public = {
+        "id": user_id,
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "branch_id": employee["branch_id"] if employee else None,
+        "shift_start": None,
+        "shift_end": None,
+        "branch_name": employee["branch_name"] if employee else None,
+        "branch_city": employee["branch_city"] if employee else None,
+        "branch_lat": float(employee["latitude"]) if employee and employee["latitude"] else None,
+        "branch_lng": float(employee["longitude"]) if employee and employee["longitude"] else None,
+        "radius_meters": employee["radius_meters"] if employee else None,
+    }
 
     return {
-        "access_token": create_token(user["id"], user["email"], user["role"]),
+        "access_token": token,
         "token_type": "bearer",
-        "user": {"id": user["id"], "email": user["email"],
-                 "full_name": user["full_name"], "role": user["role"]},
+        "user": user_public,
+        "must_reset_password": user["must_reset_password"] or False,
     }
 
 
 @app.post("/api/auth/logout")
 async def logout():
+    """Logout endpoint (token invalidation handled on client)"""
     return {"message": "Logged out"}
 
 
 @app.get("/api/auth/me")
-async def get_me(user: dict = Depends(get_current_user)):
-    result = dict(user)
-    for f in ("shift_start", "shift_end"):
-        if result.get(f):
-            result[f] = result[f].strftime("%H:%M")
-    for f in ("branch_lat", "branch_lng"):
-        if result.get(f) is not None:
-            result[f] = float(result[f])
-    return result
+async def get_me(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id = int(payload.get("sub"))
+    except:
+        raise HTTPException(401, "Invalid token")
 
+    user = await db.fetchrow("""
+        SELECT u.id, u.email, u.full_name, u.role, u.is_active,
+               e.branch_id,
+               b.name AS branch_name,
+               b.city AS branch_city,
+               b.latitude,
+               b.longitude,
+               b.radius_meters
+        FROM users u
+        LEFT JOIN employees e ON e.user_id = u.id
+        LEFT JOIN branches b ON b.id = e.branch_id
+        WHERE u.id = $1
+    """, user_id)
 
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "branch_id": user["branch_id"],
+        "branch_name": user["branch_name"],
+        "branch_city": user["branch_city"],
+        "branch_lat": float(user["latitude"]) if user["latitude"] else None,
+        "branch_lng": float(user["longitude"]) if user["longitude"] else None,
+        "radius_meters": user["radius_meters"],
+    }
 # ══════════════════════════════════════════════════════════════
 # ATTENDANCE
 # ══════════════════════════════════════════════════════════════
+
+async def _today_punches(db, user_id: int) -> list[str]:
+    rows = await db.fetch(
+        """SELECT punch_type FROM attendance_logs
+           WHERE user_id = $1
+             AND (punched_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
+           ORDER BY punched_at""",
+        user_id, settings.office_timezone,
+    )
+    return [r["punch_type"] for r in rows]
+
 
 @app.post("/api/attendance/punch-in")
 async def punch_in(
@@ -484,13 +696,24 @@ async def punch_in(
     if not user["branch_id"]:
         raise HTTPException(400, "No branch assigned. Contact HR.")
 
+    # Validate branch coordinates first
+    if user["branch_lat"] is None or user["branch_lng"] is None:
+        raise HTTPException(400, "Branch location not configured. Contact HR.")
+
     distance = haversine(
         req.latitude, req.longitude,
         float(user["branch_lat"]), float(user["branch_lng"]),
     )
+
     radius = user["radius_meters"] or 200
     if distance > radius:
         raise HTTPException(403, f"You are {int(distance)}m away. Must be within {radius}m.")
+
+    punches = await _today_punches(db, user["id"])
+    if punches and punches[-1] == "in":
+        raise HTTPException(409, "Already punched in.")
+    if "in" in punches and "out" in punches:
+        raise HTTPException(409, "Attendance already completed for today.")
 
     now = local_now()
     shift = user["shift_start"]
@@ -502,24 +725,7 @@ async def punch_in(
         if delta > grace:
             is_late, late_min = True, max(0, int((delta - grace) / 60))
 
-    # FIX 5: validate punch state + insert in one transaction (2 round-trips, was 3).
     async with db.transaction():
-        state = await db.fetchrow(
-            """SELECT
-                 COUNT(*) FILTER (WHERE punch_type='in')  AS ins,
-                 COUNT(*) FILTER (WHERE punch_type='out') AS outs
-               FROM attendance_logs
-               WHERE user_id = $1
-                 AND (punched_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date""",
-            user["id"], settings.office_timezone,
-        )
-        ins  = state["ins"]  or 0
-        outs = state["outs"] or 0
-        if ins > outs:
-            raise HTTPException(409, "Already punched in.")
-        if ins > 0 and outs > 0:
-            raise HTTPException(409, "Attendance already completed for today.")
-
         log = await db.fetchrow(
             """INSERT INTO attendance_logs
                (user_id, branch_id, punch_type, latitude, longitude, distance_meters, is_valid)
@@ -565,38 +771,25 @@ async def punch_out(
             float(user["branch_lat"]), float(user["branch_lng"]),
         )
 
-    # FIX 6: merge punch validation + first_punch_in lookup into one query (2 ops, was 4).
+    punches = await _today_punches(db, user["id"])
+    if not punches or punches[-1] != "in":
+        raise HTTPException(409, "Must punch in first.")
+
     async with db.transaction():
-        state = await db.fetchrow(
-            """SELECT
-                 COUNT(*) FILTER (WHERE al.punch_type='in')  AS ins,
-                 COUNT(*) FILTER (WHERE al.punch_type='out') AS outs,
-                 s.first_punch_in
-               FROM attendance_logs al
-               LEFT JOIN daily_summary s
-                 ON s.user_id = al.user_id
-                AND s.work_date = (NOW() AT TIME ZONE $2)::date
-               WHERE al.user_id = $1
-                 AND (al.punched_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
-               GROUP BY s.first_punch_in""",
-            user["id"], settings.office_timezone,
-        )
-
-        if not state or (state["ins"] or 0) == 0 or (state["ins"] or 0) <= (state["outs"] or 0):
-            raise HTTPException(409, "Must punch in first.")
-
         log = await db.fetchrow(
             """INSERT INTO attendance_logs
                (user_id, branch_id, punch_type, latitude, longitude, distance_meters, is_valid)
                VALUES ($1,$2,'out',$3,$4,$5,TRUE) RETURNING punched_at""",
             user["id"], user["branch_id"], req.latitude, req.longitude, int(distance),
         )
-
+        summary = await db.fetchrow(
+            """SELECT first_punch_in FROM daily_summary
+               WHERE user_id=$1 AND work_date=(NOW() AT TIME ZONE $2)::date""",
+            user["id"], settings.office_timezone,
+        )
         total_min = 0
-        if state["first_punch_in"]:
-            total_min = max(0, int(
-                (log["punched_at"] - state["first_punch_in"]).total_seconds() / 60
-            ))
+        if summary and summary["first_punch_in"]:
+            total_min = max(0, int((log["punched_at"] - summary["first_punch_in"]).total_seconds() / 60))
         await db.execute(
             """UPDATE daily_summary SET last_punch_out=$2, total_minutes=$3
                WHERE user_id=$1 AND work_date=(NOW() AT TIME ZONE $4)::date""",
@@ -617,63 +810,38 @@ async def attendance_status(
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ):
-    # FIX 4: single query replaces two sequential SELECTs.
-    row = await db.fetchrow(
-        """SELECT
-             al.punch_type   AS last_punch_type,
-             al.punched_at   AS last_punched_at,
-             s.user_id       AS s_user_id,
-             s.work_date,
-             s.first_punch_in,
-             s.last_punch_out,
-             s.total_minutes,
-             s.is_late,
-             s.late_by_minutes,
-             s.status
-           FROM (
-             SELECT punch_type, punched_at
-             FROM attendance_logs
-             WHERE user_id = $1
-               AND (punched_at AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
-             ORDER BY punched_at DESC
-             LIMIT 1
-           ) al
-           FULL OUTER JOIN (
-             SELECT *
-             FROM daily_summary
-             WHERE user_id = $1
-               AND work_date = (NOW() AT TIME ZONE $2)::date
-           ) s ON TRUE""",
+    logs = await db.fetch(
+        """SELECT punch_type, punched_at FROM attendance_logs
+           WHERE user_id=$1
+             AND (punched_at AT TIME ZONE $2)::date=(NOW() AT TIME ZONE $2)::date
+           ORDER BY punched_at""",
+        user["id"], settings.office_timezone,
+    )
+    summary = await db.fetchrow(
+        """SELECT * FROM daily_summary
+           WHERE user_id=$1 AND work_date=(NOW() AT TIME ZONE $2)::date""",
         user["id"], settings.office_timezone,
     )
 
-    last_punch_type = row["last_punch_type"] if row else None
-    state = "none"
-    if last_punch_type == "in":
-        state = "punched_in"
-    elif last_punch_type == "out":
-        state = "completed"
+    punches = [r["punch_type"] for r in logs]
+    last    = logs[-1] if logs else None
+    state   = "none"
+    if punches:
+        state = "punched_in" if punches[-1] == "in" else "completed"
 
     summary_out = None
-    if row and row["s_user_id"] is not None:
-        summary_out = {
-            "user_id":         row["s_user_id"],
-            "work_date":       row["work_date"],
-            "first_punch_in":  to_local(row["first_punch_in"]).strftime("%I:%M %p") if row["first_punch_in"] else None,
-            "last_punch_out":  to_local(row["last_punch_out"]).strftime("%I:%M %p") if row["last_punch_out"] else None,
-            "total_minutes":   row["total_minutes"],
-            "is_late":         row["is_late"] or False,
-            "late_by_minutes": row["late_by_minutes"] or 0,
-            "status":          row["status"] or "present",
-        }
+    if summary:
+        s = dict(summary)
+        if s.get("first_punch_in"):
+            s["first_punch_in"] = to_local(s["first_punch_in"]).strftime("%I:%M %p")
+        if s.get("last_punch_out"):
+            s["last_punch_out"] = to_local(s["last_punch_out"]).strftime("%I:%M %p")
+        summary_out = s
 
     return {
         "is_punched_in": state == "punched_in",
         "state": state,
-        "last_punch": {
-            "punch_type": last_punch_type,
-            "punched_at": str(row["last_punched_at"]),
-        } if last_punch_type else None,
+        "last_punch": {"punch_type": last["punch_type"], "punched_at": str(last["punched_at"])} if last else None,
         "summary": summary_out,
     }
 
@@ -702,12 +870,11 @@ async def today_logs(
 
 @app.get("/api/hr/branches")
 async def get_branches(
-    _hr: dict = Depends(require_hr_jwt),   # FIX 2: no DB query for auth
+    _: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ):
     rows = await db.fetch(
-        "SELECT id, name, city, address, latitude, longitude, radius_meters "
-        "FROM branches WHERE is_active=TRUE ORDER BY city, name"
+        "SELECT id, name, city, address, latitude, longitude, radius_meters FROM branches WHERE is_active=TRUE ORDER BY city, name"
     )
     return [{**dict(r), "latitude": float(r["latitude"]), "longitude": float(r["longitude"])} for r in rows]
 
@@ -717,7 +884,7 @@ async def get_branches(
 # ══════════════════════════════════════════════════════════════
 
 def _ser(e: dict) -> dict:
-    """Serialize a report row's time fields in-place."""
+    """Serialize a report row's time fields."""
     for f in ("first_punch_in", "last_punch_out"):
         if e.get(f):
             e[f] = to_local(e[f]).isoformat()
@@ -731,7 +898,7 @@ def _ser(e: dict) -> dict:
 async def daily_report(
     date_str:  Annotated[Optional[str], Query()] = None,
     branch_id: Annotated[Optional[int], Query()] = None,
-    _hr: dict = Depends(require_hr_jwt),   # FIX 2
+    _hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
     target = parse_date_param(date_str)
@@ -746,7 +913,7 @@ async def daily_report(
         JOIN employees e ON e.user_id = u.id
         LEFT JOIN branches b ON b.id = e.branch_id
         LEFT JOIN daily_summary s ON s.user_id=u.id AND s.work_date=$1
-        WHERE u.is_active=TRUE AND u.role='employee'
+        WHERE u.is_active=TRUE AND e.is_active=TRUE AND u.role='employee'
     """
     params: list = [target]
     if branch_id:
@@ -773,7 +940,7 @@ async def daily_report(
 async def export_excel(
     date_str:  Annotated[str, Query()],
     branch_id: Annotated[Optional[int], Query()] = None,
-    _hr: dict = Depends(require_hr_jwt),   # FIX 2
+    _hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
     target = parse_date_param(date_str)
@@ -785,7 +952,7 @@ async def export_excel(
         JOIN employees e ON e.user_id = u.id
         LEFT JOIN branches b ON b.id = e.branch_id
         LEFT JOIN daily_summary s ON s.user_id=u.id AND s.work_date=$1
-        WHERE u.is_active=TRUE AND u.role='employee'
+        WHERE u.is_active=TRUE AND e.is_active=TRUE AND u.role='employee'
     """
     params: list = [target]
     if branch_id:
@@ -828,40 +995,181 @@ async def export_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="attendance_{target}.xlsx"'})
 
+import re
+from fastapi import HTTPException
+from datetime import date
 
+PAN_REGEX   = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
+IFSC_REGEX  = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
+PHONE_REGEX = re.compile(r"^[6-9]\d{9}$")
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _validate_common_fields(
+    *,
+    full_name=None,
+    work_email=None,
+    personal_email=None,
+    phone=None,
+    emg_phone=None,
+    pan_number=None,
+    bank_ifsc=None,
+    bank_account=None,
+    annual_ctc=None,
+    role=None,
+    date_of_joining=None,
+    probation_end=None,
+    contract_end=None,
+    require_role=False,
+):
+    # ── Name ─────────────────────────────
+    if full_name is not None and len(full_name.strip()) < 2:
+        raise HTTPException(400, "Full name must be at least 2 characters")
+
+    # ── Emails ───────────────────────────
+    if work_email is not None and not EMAIL_REGEX.match(work_email):
+        raise HTTPException(400, "Invalid work email format")
+
+    if personal_email is not None and not EMAIL_REGEX.match(personal_email):
+        raise HTTPException(400, "Invalid personal email format")
+
+    # ── Phones ───────────────────────────
+    if phone is not None and not PHONE_REGEX.match(phone):
+        raise HTTPException(400, "Phone must be 10 digits starting with 6-9")
+
+    if emg_phone is not None and not PHONE_REGEX.match(emg_phone):
+        raise HTTPException(400, "Emergency phone must be valid 10-digit number")
+
+    # ── PAN ──────────────────────────────
+    if pan_number is not None:
+        pan = pan_number.upper()
+        if not PAN_REGEX.match(pan):
+            raise HTTPException(400, "Invalid PAN format (ABCDE1234F)")
+
+    # ── IFSC ─────────────────────────────
+    if bank_ifsc is not None:
+        if not IFSC_REGEX.match(bank_ifsc.upper()):
+            raise HTTPException(400, "Invalid IFSC format (e.g., SBIN0001234)")
+
+    # ── Bank account ─────────────────────
+    if bank_account is not None and len(bank_account) < 8:
+        raise HTTPException(400, "Bank account number seems too short")
+
+    # ── Salary ───────────────────────────
+    if annual_ctc is not None and annual_ctc <= 0:
+        raise HTTPException(400, "Annual CTC must be greater than 0")
+
+    # ── Role validation ──────────────────
+    if role is not None:
+        if role not in ("employee", "hr", "admin"):
+            raise HTTPException(400, "Role must be employee, hr, or admin")
+
+    if require_role and role not in ("employee", "hr"):
+        raise HTTPException(400, "Role must be either 'employee' or 'hr'")
+
+    # ── Date logic (convert safely) ──────
+    doj = parse_date(date_of_joining) if date_of_joining else None
+    prob = parse_date(probation_end) if probation_end else None
+    contract = parse_date(contract_end) if contract_end else None
+
+    if doj and prob and prob < doj:
+        raise HTTPException(400, "Probation end cannot be before joining date")
+
+    if doj and contract and contract < doj:
+        raise HTTPException(400, "Contract end cannot be before joining date")
+    
+def validate_onboard_payload(payload):
+    _validate_common_fields(
+        full_name=payload.full_name,
+        work_email=payload.work_email,
+        personal_email=payload.personal_email,
+        phone=payload.phone,
+        emg_phone=payload.emg_phone,
+        pan_number=payload.pan_number,
+        bank_ifsc=payload.bank_ifsc,
+        bank_account=payload.bank_account,
+        annual_ctc=payload.annual_ctc,
+        role=payload.role,
+        date_of_joining=payload.date_of_joining,
+        probation_end=payload.probation_end,
+        contract_end=payload.contract_end,
+        require_role=True,
+    )
+
+def validate_update_payload(req: UpdateEmployeeRequest):
+    _validate_common_fields(
+        full_name=req.full_name,
+        personal_email=req.personal_email,
+        phone=req.phone,
+        emg_phone=req.emg_phone,
+        pan_number=req.pan_number,
+        bank_ifsc=req.bank_ifsc,
+        bank_account=req.bank_account,
+        annual_ctc=req.annual_ctc,
+        role=req.role,
+        date_of_joining=req.date_of_joining,
+        probation_end=req.probation_end,
+        contract_end=req.contract_end,
+    )
 # ══════════════════════════════════════════════════════════════
 # HR — ONBOARDING / EMPLOYEES
 # ══════════════════════════════════════════════════════════════
 
-@app.post("/api/hr/employees", status_code=201)
+@app.post("/api/hr/employees")
 async def onboard_employee(
-    req: OnboardRequest,
-    hr: dict = Depends(require_hr_jwt),    # FIX 2
+    payload: OnboardRequest = Body(...),
+    hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
-    """Create user + employee record in one transaction."""
-    email = req.work_email.lower()
-    if await db.fetchrow("SELECT id FROM users WHERE email=$1", email):
-        raise HTTPException(409, "Email already registered")
+    """
+    HR onboards a new employee (atomic operation):
+    - Creates user (auth identity)
+    - Creates employee profile (1:1)
+    - Generates final password (usable directly)
+    - Logs credential generation audit
+    
+    Requires: HR or Admin authentication
+    """
 
-    for eid, label in [(req.l1_manager_id, "L1"), (req.l2_manager_id, "L2")]:
-        if eid and not await db.fetchrow("SELECT id FROM employees WHERE id=$1", eid):
-            raise HTTPException(400, f"{label} manager (id={eid}) not found")
+    validate_onboard_payload(payload)
+    # 1. Validate role (only employee role allowed here)
+    if payload.role not in ("employee", "hr"):
+        raise HTTPException(400, "Only 'employee' or 'hr' roles can be onboarded here")
+
+    # 2. Check duplicate email
+    existing = await db.fetchrow(
+        "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+        payload.work_email,
+    )
+    if existing:
+        raise HTTPException(409, "User with this email already exists")
+
+    # 3. Generate final password
+    raw_password = payload.password or generate_temp_password()
+    hashed_password = pwd_context.hash(raw_password)
 
     async with db.transaction():
+        # 4. Create user
         user = await db.fetchrow(
-            """INSERT INTO users (email, password_hash, full_name, role, is_active)
-               VALUES ($1,$2,$3,$4,TRUE) RETURNING id""",
-            email, hash_password(req.password), req.full_name.strip(), req.role,
+            """
+            INSERT INTO users (email, password_hash, full_name, role, is_active)
+            VALUES ($1, $2, $3, $4, TRUE)
+            RETURNING id, email, full_name, role
+            """,
+            payload.work_email,
+            hashed_password,
+            payload.full_name,
+            payload.role,
         )
-        uid = user["id"]
-        emp_id = f"sdpl-{uid:05d}"
+        user_id = user["id"]
 
+        # 5. Create employee profile (mandatory for employee/hr roles)
         emp = await db.fetchrow(
-            """INSERT INTO employees (
-                user_id, emp_id,
-                phone, personal_email, dob, gender, blood_group, nationality, home_address,
-                emg_name, emg_phone, emg_rel,
+            """
+            INSERT INTO employees (
+                user_id,
+                phone, personal_email, dob, gender, blood_group, nationality,
+                home_address,
                 branch_id, job_title, designation, department, sub_department,
                 grade, date_of_joining, cost_centre,
                 l1_manager_id, l2_manager_id,
@@ -869,44 +1177,70 @@ async def onboard_employee(
                 shift_start, shift_end, work_mode, weekly_off, work_location, asset_id,
                 annual_ctc, pay_frequency, pf_enrolled, esic_applicable,
                 bank_name, bank_account, bank_ifsc, pan_number,
+                emg_name, emg_phone, emg_rel,
                 onboarding_status
-               ) VALUES (
-                $1,$2,
-                $3,$4,$5,$6,$7,$8,$9,
-                $10,$11,$12,
-                $13,$14,$15,$16,$17,
-                $18,$19,$20,
-                $21,$22,
-                $23,$24,$25,$26,
-                $27,$28,$29,$30,$31,$32,
+            )
+            VALUES (
+                $1,$2,$3,$4,$5,$6,$7,
+                $8,
+                $9,$10,$11,$12,$13,
+                $14,$15,$16,
+                $17,$18,
+                $19,$20,$21,$22,
+                $23,$24,$25,$26,$27,$28,
+                $29,$30,$31,$32,
                 $33,$34,$35,$36,
-                $37,$38,$39,$40,
-                'awaiting'
-               ) RETURNING id, emp_id""",
-            uid, emp_id,
-            req.phone, req.personal_email,
-            parse_date(req.dob), req.gender, req.blood_group, req.nationality, req.home_address,
-            req.emg_name, req.emg_phone, req.emg_rel,
-            req.branch_id, req.job_title, req.designation, req.department, req.sub_department,
-            req.grade, parse_date(req.date_of_joining), req.cost_centre,
-            req.l1_manager_id, req.l2_manager_id,
-            req.employment_type, parse_date(req.contract_end), parse_date(req.probation_end), req.notice_period,
-            req.shift_start, req.shift_end, req.work_mode, req.weekly_off, req.work_location, req.asset_id,
-            req.annual_ctc, req.pay_frequency, req.pf_enrolled, req.esic_applicable,
-            req.bank_name, req.bank_account, req.bank_ifsc, req.pan_number,
+                $37,$38,$39,
+                'completed'
+            )
+            RETURNING id
+            """,
+            user_id,
+            payload.phone, payload.personal_email, parse_date(payload.dob), payload.gender,
+            payload.blood_group, payload.nationality,
+            payload.home_address,
+            payload.branch_id, payload.job_title, payload.designation,
+            payload.department, payload.sub_department,
+            payload.grade, parse_date(payload.date_of_joining), payload.cost_centre,
+            payload.l1_manager_id, payload.l2_manager_id,
+            payload.employment_type, parse_date(payload.contract_end), parse_date(payload.probation_end), payload.notice_period,
+            payload.shift_start, payload.shift_end, payload.work_mode,
+            payload.weekly_off, payload.work_location, payload.asset_id,
+            payload.annual_ctc, payload.pay_frequency, payload.pf_enrolled,
+            payload.esic_applicable,
+            payload.bank_name, payload.bank_account, payload.bank_ifsc, payload.pan_number,
+            payload.emg_name, payload.emg_phone, payload.emg_rel,
         )
 
-    logger.info("Onboarded: user_id=%s emp_id=%s by hr=%s", uid, emp_id, hr["id"])
-    return {
-        "id": uid,
-        "employee_id": emp["id"],
-        "emp_id": emp["emp_id"],
-        "email": email,
-        "full_name": req.full_name,
-        "role": req.role,
-        "onboarding_status": "awaiting",
-    }
+        employee_id = emp["id"]
 
+        # 6. Credential audit entry
+        await db.execute(
+            """
+            INSERT INTO credential_audits
+            (user_id, action, performed_by, is_temporary, notes, created_at)
+            VALUES ($1, 'generated', $2, FALSE, $3, NOW())
+            """,
+            user_id,
+            hr["id"],
+            f"Employee onboarded by HR ({hr['email']})",
+        )
+
+    logger.info(
+        "Employee onboarded: emp_id=%s user_id=%s by hr_id=%s",
+        employee_id, user_id, hr["id"]
+    )
+
+    return {
+        "employee_id": employee_id,
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "role": user["role"],
+        "temporary_password": raw_password,
+        "login_url": "https://your-domain.com/login",
+        "message": "Employee onboarded successfully with credentials.",
+        "created_at": datetime.now().isoformat(),
+    }
 
 @app.get("/api/hr/employees")
 async def list_employees(
@@ -914,10 +1248,13 @@ async def list_employees(
     department:        Annotated[Optional[str], Query()] = None,
     branch_id:         Annotated[Optional[int], Query()] = None,
     onboarding_status: Annotated[Optional[str], Query()] = None,
-    _hr: dict = Depends(require_hr_jwt),   # FIX 2
+    is_active: Annotated[Optional[bool], Query()] = None,
+    _hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
-    conditions = ["u.is_active = TRUE"]
+    """List employees with manager names. Filterable."""
+    # conditions = ["u.is_active = TRUE", "e.is_active = TRUE"]
+    conditions = ["1=1"]  # for easier appending of AND clauses
     params: list = []
 
     def add(val):
@@ -932,11 +1269,14 @@ async def list_employees(
         conditions.append(f"e.branch_id = {add(branch_id)}")
     if onboarding_status:
         conditions.append(f"e.onboarding_status = {add(onboarding_status)}")
+    if is_active is not None:
+        conditions.append(f"e.is_active = {add(is_active)}")
 
     rows = await db.fetch(
         f"""SELECT
               u.id AS user_id, e.id, e.emp_id,
               u.email, u.full_name, u.role,
+              e.is_active AS is_active,
               e.phone, e.job_title, e.designation, e.department,
               e.grade, e.date_of_joining, e.onboarding_status,
               e.work_mode, e.shift_start, e.shift_end,
@@ -972,9 +1312,10 @@ async def list_employees(
 @app.get("/api/hr/employees/{emp_id}")
 async def get_employee(
     emp_id: int,
-    _hr: dict = Depends(require_hr_jwt),   # FIX 2
+    _hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
+    """Full detail for one employee."""
     row = await db.fetchrow(
         """SELECT
               u.id AS user_id, e.id, e.emp_id,
@@ -1017,12 +1358,82 @@ async def get_employee(
     if d.get("annual_ctc"): d["annual_ctc"] = float(d["annual_ctc"])
     return d
 
+# from fastapi import Path as PathParam
+
+@app.post("/api/hr/employees/{emp_id}/generate-credentials")
+async def regenerate_employee_credentials(
+    emp_id: int = PathParam(..., gt=0),
+    hr: dict = Depends(require_hr),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """
+    HR regenerates final credentials for an employee.
+    - Overwrites password_hash
+    - Does NOT force password reset (simplified lifecycle)
+    - Returns new password one-time to HR
+    """
+
+    # 1. Fetch employee + user info
+    emp = await db.fetchrow(
+        """
+        SELECT e.id, e.user_id, u.email, u.full_name, u.is_active
+        FROM employees e
+        JOIN users u ON u.id = e.user_id
+        WHERE e.id = $1
+        """,
+        emp_id,
+    )
+
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    if not emp["is_active"]:
+        raise HTTPException(400, "Cannot generate credentials for inactive employee")
+
+    user_id = emp["user_id"]
+
+    # 2. Generate final password
+    new_password = generate_temp_password()
+    hashed = pwd_context.hash(new_password)
+
+    async with db.transaction():
+        # 3. Update password (final credential, no reset enforcement)
+        await db.execute(
+            """
+            UPDATE users
+            SET password_hash=$1, last_login=NULL
+            WHERE id=$2
+            """,
+            hashed,
+            user_id,
+        )
+
+        # 4. Insert audit log
+        await db.execute(
+            """
+            INSERT INTO credential_audits
+            (user_id, action, performed_by, is_temporary, notes, created_at)
+            VALUES ($1, 'generated_final', $2, FALSE, $3, NOW())
+            """,
+            user_id,
+            hr["id"],
+            f"Final credentials regenerated by HR ({hr['email']})",
+        )
+
+    return {
+        "employee_id": emp_id,
+        "email": emp["email"],
+        "full_name": emp["full_name"],
+        "new_password": new_password,  # return only once
+        "message": "New credentials generated successfully.",
+        "generated_at": datetime.now().isoformat(),
+    }
 
 @app.patch("/api/hr/employees/{emp_id}/onboarding-status")
 async def update_onboarding_status(
     emp_id: int,
     req: UpdateOnboardingStatus,
-    hr: dict = Depends(require_hr_jwt),    # FIX 2
+    hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
     result = await db.execute(
@@ -1035,14 +1446,21 @@ async def update_onboarding_status(
     return {"id": emp_id, "onboarding_status": req.status}
 
 
+
 @app.put("/api/hr/employees/{emp_id}")
 async def update_employee(
     emp_id: int,
     req: UpdateEmployeeRequest,
-    hr: dict = Depends(require_hr_jwt),    # FIX 2
+    hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
-    """Partial update — only non-None fields are written. FIX 8: one UPDATE…RETURNING."""
+    """Update employee fields (partial). Only non-None fields are written."""
+    validate_update_payload(req)
+    row = await db.fetchrow("SELECT e.id, e.user_id FROM employees e WHERE e.id = $1", emp_id)
+    if not row:
+        raise HTTPException(404, "Employee not found")
+    user_id = row["user_id"]
+
     emp_fields = []
     simple_emp = [
         ("personal_email", req.personal_email), ("phone", req.phone),
@@ -1085,19 +1503,8 @@ async def update_employee(
             params = [v for _, v in emp_fields]
             sets = ", ".join(f"{col}=${i+1}" for i, (col, _) in enumerate(emp_fields))
             params.append(emp_id)
-            # RETURNING user_id avoids a prior SELECT — FIX 8
-            returned = await db.fetchrow(
-                f"UPDATE employees SET {sets}, updated_at=NOW() WHERE id=${len(params)} RETURNING user_id",
-                *params)
-            if not returned:
-                raise HTTPException(404, "Employee not found")
-            user_id = returned["user_id"]
-        else:
-            row = await db.fetchrow("SELECT user_id FROM employees WHERE id=$1", emp_id)
-            if not row:
-                raise HTTPException(404, "Employee not found")
-            user_id = row["user_id"]
-
+            await db.execute(
+                f"UPDATE employees SET {sets}, updated_at=NOW() WHERE id=${len(params)}", *params)
         if req.full_name is not None:
             await db.execute("UPDATE users SET full_name=$1 WHERE id=$2", req.full_name, user_id)
         if req.role is not None:
@@ -1109,41 +1516,122 @@ async def update_employee(
 
 @app.patch("/api/hr/employees/{emp_id}/deactivate")
 async def deactivate_employee(
-    emp_id: int,
-    hr: dict = Depends(require_hr_jwt),    # FIX 2
+    emp_id: int = PathParam(..., gt=0),
+    hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
-    """Soft-delete. FIX 7: single UPDATE via subquery (was SELECT + UPDATE)."""
-    result = await db.execute(
-        "UPDATE users SET is_active=FALSE WHERE id=(SELECT user_id FROM employees WHERE id=$1)",
+    """
+    Soft delete an employee:
+    - Marks employee inactive
+    - Disables login by setting users.is_active = FALSE
+    - Keeps all historical data (attendance, audits)
+    """
+
+    # 1. Fetch employee + user status
+    emp = await db.fetchrow(
+        """
+        SELECT e.id, e.user_id, e.is_active AS emp_active,
+               u.email, u.full_name, u.is_active AS user_active
+        FROM employees e
+        JOIN users u ON u.id = e.user_id
+        WHERE e.id = $1
+        """,
         emp_id,
     )
-    if result == "UPDATE 0":
-        raise HTTPException(404, "Employee not found")
-    logger.info("Employee deactivated: emp_id=%s by hr=%s", emp_id, hr["id"])
-    return {"id": emp_id, "message": "Employee deactivated"}
 
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    if not emp["emp_active"]:
+        raise HTTPException(400, "Employee already inactive")
+
+    async with db.transaction():
+        # 2. Deactivate employee profile
+        await db.execute(
+            "UPDATE employees SET is_active=FALSE WHERE id=$1",
+            emp_id,
+        )
+
+        # 3. Disable login
+        await db.execute(
+            "UPDATE users SET is_active=FALSE WHERE id=$1",
+            emp["user_id"],
+        )
+
+        # # 4. Audit log
+        # await db.execute(
+        #     """
+        #     INSERT INTO credential_audits
+        #     (user_id, action, performed_by, is_temporary, notes, created_at)
+        #     VALUES ($1, 'deactivated', $2, FALSE, $3, NOW())
+        #     """,
+        #     emp["user_id"],
+        #     hr["id"],
+        #     f"Employee deactivated by HR ({hr['email']})",
+        # )
+
+    return {
+        "employee_id": emp_id,
+        "email": emp["email"],
+        "full_name": emp["full_name"],
+        "status": "inactive",
+        "message": "Employee soft-deactivated successfully. Login disabled.",
+    }
 
 @app.patch("/api/hr/employees/{emp_id}/reactivate")
 async def reactivate_employee(
     emp_id: int,
-    hr: dict = Depends(require_hr_jwt),    # FIX 2
+    hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
-    """FIX 7: single UPDATE via subquery."""
-    result = await db.execute(
-        "UPDATE users SET is_active=TRUE WHERE id=(SELECT user_id FROM employees WHERE id=$1)",
+    """Reactivate a deactivated employee."""
+    
+    # 1. Fetch employee + user
+    row = await db.fetchrow(
+        "SELECT id, user_id, is_active FROM employees WHERE id = $1",
         emp_id,
     )
-    if result == "UPDATE 0":
+    if not row:
         raise HTTPException(404, "Employee not found")
+
+    if row["is_active"]:
+        raise HTTPException(400, "Employee is already active")
+
+    # 2. Reactivate both employee profile and user login
+    async with db.transaction():
+        await db.execute(
+            "UPDATE employees SET is_active=TRUE WHERE id=$1",
+            emp_id,
+        )
+        await db.execute(
+            "UPDATE users SET is_active=TRUE WHERE id=$1",
+            row["user_id"],
+        )
+
+        # # Optional audit log
+        # await db.execute(
+        #     """
+        #     INSERT INTO credential_audits
+        #     (user_id, action, performed_by, is_temporary, notes, created_at)
+        #     VALUES ($1, 'reactivated', $2, FALSE, $3, NOW())
+        #     """,
+        #     row["user_id"],
+        #     hr["id"],
+        #     f"Employee reactivated by HR ({hr['email']})",
+        # )
+
     logger.info("Employee reactivated: emp_id=%s by hr=%s", emp_id, hr["id"])
-    return {"id": emp_id, "message": "Employee reactivated"}
+
+    return {
+        "id": emp_id,
+        "message": "Employee reactivated successfully",
+        "status": "active",
+    }
 
 
 @app.get("/api/hr/onboarding-stats")
 async def onboarding_stats(
-    _hr: dict = Depends(require_hr_jwt),   # FIX 2
+    _hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
     row = await db.fetchrow(
@@ -1159,15 +1647,19 @@ async def onboarding_stats(
 
 @app.get("/api/hr/managers")
 async def list_managers(
-    _: dict = Depends(require_hr_jwt),     # FIX 2
+    _: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ):
+    """
+    All active employees eligible as L1 or L2 manager.
+    Any role qualifies — employee, hr, or admin.
+    """
     rows = await db.fetch(
         """SELECT e.id, e.emp_id, u.full_name, u.role,
                   e.job_title, e.designation, e.department
            FROM employees e
            JOIN users u ON u.id = e.user_id
-           WHERE u.is_active = TRUE
+           WHERE u.is_active = TRUE AND e.is_active = TRUE
            ORDER BY u.full_name""",
     )
     return [dict(r) for r in rows]
@@ -1179,14 +1671,15 @@ async def list_managers(
 
 @app.get("/health")
 async def health():
+    tz = pytz.timezone(settings.office_timezone)
     return {
         "status": "healthy" if (db_pool and not db_pool._closed) else "degraded",
         "utc":    datetime.now(pytz.utc).isoformat(),
-        "local":  datetime.now(_TZ).isoformat(),
+        "local":  datetime.now(tz).isoformat(),
     }
 
 
-BASE_DIR     = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 
 
