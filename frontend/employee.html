@@ -2,12 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GodavariKrishna · Staff Portal</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <title>Attendance Clock | SDPL</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link
@@ -22,653 +30,797 @@
         box-sizing: border-box;
       }
 
-      :root {
-        --primary: #1e5ed8;
-        --primary-dark: #1447b5;
-        --bg: #f5f5f5;
-        --surface: #ffffff;
-        --border: #e0e0e0;
-        --text: #000;
-        --text-secondary: #666;
-        --text-muted: #999;
-        --success: #10b981;
-        --success-light: #ecfdf5;
-        --danger: #ef4444;
-        --warning: #f59e0b;
-        --info-bg: #f0f9ff;
-        --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+      html,
+      body {
+        width: 100%;
+        height: 100%;
       }
 
-      html {
-        scroll-behavior: smooth;
+      :root {
+        --primary: #0052cc;
+        --primary-dark: #003a99;
+        --primary-light: #e6f0ff;
+        --secondary: #10b981;
+        --secondary-light: #dbeae5;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --bg: #f8f9fa;
+        --surface: #ffffff;
+        --surface-secondary: #f3f4f6;
+        --border: #e5e7eb;
+        --border-light: #f0f0f0;
+        --text: #111827;
+        --text-secondary: #6b7280;
+        --text-muted: #9ca3af;
+        --success: #059669;
+        --success-light: #ecfdf5;
+        --error-light: #fef2f2;
+        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --shadow-sm:
+          0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
+        --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       body {
         font-family:
-          "Inter",
+          "Sora",
           -apple-system,
           BlinkMacSystemFont,
+          "Segoe UI",
           sans-serif;
         background: var(--bg);
         color: var(--text);
+        padding: max(12px, env(safe-area-inset-left))
+          max(12px, env(safe-area-inset-top))
+          max(40px, env(safe-area-inset-bottom))
+          max(12px, env(safe-area-inset-right));
         min-height: 100vh;
+        overflow-x: hidden;
       }
 
-      /* ── HEADER ── */
+      /* HEADER */
       .header {
-        background: var(--surface);
-        padding: 16px 16px;
-        border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        box-shadow: var(--shadow);
+        margin-bottom: 24px;
+        gap: 12px;
       }
 
-      .header-left {
+      .brand {
         display: flex;
         align-items: center;
         gap: 10px;
       }
 
-      .header-icon {
-        width: 32px;
-        height: 32px;
-        background: var(--primary);
-        border-radius: 8px;
+      .brand-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-weight: 700;
-        font-size: 14px;
+        font-size: 0.9rem;
+        box-shadow: var(--shadow-sm);
       }
 
-      .header-title {
+      .brand-name {
         font-weight: 700;
-        font-size: 14px;
+        font-size: 1.1rem;
+        letter-spacing: -0.5px;
         color: var(--text);
-      }
-
-      .header-subtitle {
-        font-weight: 500;
-        font-size: 11px;
-        color: var(--text-muted);
       }
 
       .header-right {
         display: flex;
-        gap: 12px;
         align-items: center;
+        gap: 12px;
       }
 
-      .header-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        border: 1px solid var(--border);
+      .connection-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: var(--success);
+        animation: pulse 2s infinite;
+      }
+
+      .connection-indicator.offline {
+        background: var(--warning);
+        animation: none;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .user-badge {
         background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 60px;
+        padding: 6px 12px 6px 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary);
         cursor: pointer;
+        transition: all var(--transition);
+      }
+
+      .user-badge:hover {
+        background: var(--surface-secondary);
+        border-color: var(--primary);
+      }
+
+      .user-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-light), #c7d2e8);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--text-secondary);
-        transition: all 0.2s;
-      }
-
-      .header-btn:hover {
-        background: var(--info-bg);
-        border-color: var(--primary);
         color: var(--primary);
-      }
-
-      .header-btn svg {
-        width: 16px;
-        height: 16px;
-      }
-
-      /* ── CONTAINER ── */
-      .container {
-        max-width: 420px;
-        margin: 0 auto;
-        padding: 16px;
-        padding-bottom: 80px;
-      }
-
-      /* ── CARD ── */
-      .card {
-        background: var(--surface);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 16px;
-        box-shadow: var(--shadow);
-        border: 1px solid var(--border);
-      }
-
-      .card-label {
-        font-size: 11px;
         font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--text-muted);
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+        font-size: 0.75rem;
       }
 
-      .card-label svg {
-        width: 14px;
-        height: 14px;
-      }
-
-      /* ── INFO CARDS ── */
-      .info-grid {
+      /* SHIFT INFO BAR */
+      .shift-bar {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 12px;
-        margin-bottom: 16px;
+        margin-bottom: 24px;
       }
 
-      .info-card {
-        background: var(--info-bg);
-        border: 1px solid #bfdbfe;
-        border-radius: 10px;
+      .shift-item {
+        background: var(--surface);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
         padding: 12px;
         text-align: center;
+        box-shadow: var(--shadow-xs);
       }
 
-      .info-card-icon {
-        font-size: 20px;
-        margin-bottom: 6px;
-      }
-
-      .info-card-label {
-        font-size: 10px;
+      .shift-item-label {
+        font-size: 0.65rem;
         font-weight: 600;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
         color: var(--text-muted);
         margin-bottom: 4px;
       }
 
-      .info-card-value {
-        font-size: 13px;
+      .shift-item-value {
+        font-size: 0.95rem;
         font-weight: 700;
         color: var(--text);
       }
 
-      /* ── CLOCK CARD ── */
-      .clock-card {
-        background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 100%);
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        margin-bottom: 16px;
-        border: 1px solid #bfdbfe;
+      /* MAIN ACTION CARD */
+      .main-card {
+        background: var(--surface);
+        border-radius: 20px;
+        padding: 32px 24px;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border);
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
       }
 
-      .clock-label {
-        font-size: 11px;
+      .main-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+      }
+
+      /* TIMER */
+      .timer-section {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .timer-label {
+        font-size: 0.7rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 1px;
         color: var(--text-muted);
         margin-bottom: 8px;
       }
 
-      .clock-display {
+      .timer-display {
+        font-size: 3.5rem;
+        font-weight: 400;
+        font-variant-numeric: tabular-nums;
+        color: #0a4ab2;
+        line-height: 1;
+        letter-spacing: -1px;
+        font-family: "sans-serif";
+        margin-bottom: 8px;
+      }
+
+      .timer-status {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+      }
+
+      .timer-status.working {
+        color: var(--secondary);
+      }
+
+      .timer-status.completed {
+        color: var(--success);
+      }
+
+      /* ACTION BUTTONS */
+      .action-area {
+        margin-bottom: 28px;
+      }
+
+      .action-btn {
+        width: 100%;
+        padding: 18px 24px;
+        border-radius: 14px;
+        border: none;
+        font-weight: 700;
+        font-size: 1.05rem;
         display: flex;
-        align-items: baseline;
+        align-items: center;
         justify-content: center;
-        gap: 4px;
+        gap: 12px;
+        cursor: pointer;
+        transition: all var(--transition);
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .action-btn::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.2);
+        opacity: 0;
+        transition: opacity var(--transition);
+      }
+
+      .action-btn:hover:not(:disabled)::before {
+        opacity: 1;
+      }
+
+      .action-btn.punch-in {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: white;
         margin-bottom: 12px;
       }
 
-      .clock-time {
-        font-size: 48px;
-        font-weight: 800;
-        color: var(--primary);
-        font-family: "Courier New", monospace;
-        letter-spacing: -1px;
+      .action-btn.punch-in:active:not(:disabled) {
+        transform: scale(0.98);
       }
 
-      .clock-period {
-        font-size: 14px;
+      .action-btn.punch-out {
+        background: linear-gradient(135deg, var(--danger), #dc2626);
+        color: white;
+      }
+
+      .action-btn.punch-out:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+
+      .action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .action-btn .icon {
+        font-size: 1.3rem;
+        display: inline-block;
+      }
+
+      /* SUMMARY GRID */
+      .summary-section {
+        margin-bottom: 24px;
+        display: none;
+      }
+
+      .summary-section.show {
+        display: block;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .summary-card {
+        background: linear-gradient(135deg, var(--surface-secondary), #fafbfc);
+        border: 1px solid var(--border-light);
+        border-radius: 14px;
+        padding: 16px 12px;
+        text-align: center;
+        transition: all var(--transition);
+      }
+
+      .summary-card:hover {
+        border-color: var(--primary-light);
+        background: linear-gradient(135deg, var(--primary-light), #f5f8ff);
+      }
+
+      .summary-value {
+        font-weight: 400;
+        font-size: 1.35rem;
+        color: var(--primary);
+        margin-bottom: 4px;
+        font-family: "sans-serif";
+      }
+
+      .summary-label {
+        font-size: 0.7rem;
         font-weight: 600;
-        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+      }
+
+      /* STATUS & LOCATION */
+      .status-bar {
+        background: linear-gradient(135deg, var(--surface-secondary), #fafbfc);
+        border-radius: 14px;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid var(--border-light);
+        gap: 12px;
+        flex-wrap: wrap;
       }
 
       .status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        background: var(--success-light);
-        border: 1px solid rgba(16, 185, 129, 0.2);
-        border-radius: 20px;
-        font-size: 12px;
+        gap: 8px;
+        font-size: 0.8rem;
         font-weight: 600;
-        color: var(--success);
-      }
-
-      .status-badge.outside {
-        background: #fee2e2;
-        border-color: rgba(239, 68, 68, 0.2);
-        color: var(--danger);
-      }
-
-      .status-badge.pending {
-        background: #f3f4f6;
-        border-color: var(--border);
         color: var(--text-secondary);
       }
 
       .status-dot {
-        width: 6px;
-        height: 6px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
-        background: currentColor;
-        display: inline-block;
+        background: var(--text-muted);
+        animation: pulse 2s infinite;
       }
 
-      /* ── ACTION BUTTONS ── */
-      .action-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 16px;
+      .status-dot.inside {
+        background: var(--success);
       }
 
-      .action-btn {
-        padding: 14px 12px;
-        border: none;
-        border-radius: 10px;
+      .status-dot.outside {
+        background: var(--warning);
+      }
+
+      .status-dot.error {
+        background: var(--danger);
+      }
+
+      .status-dot.loading {
+        animation: pulse 1.5s infinite;
+      }
+
+      .location-distance {
         font-weight: 700;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        color: var(--primary);
       }
 
-      .action-btn svg {
-        width: 16px;
-        height: 16px;
-      }
-
-      .punch-in {
-        background: var(--primary);
-        color: white;
-        box-shadow: 0 4px 12px rgba(30, 94, 216, 0.3);
-      }
-
-      .punch-in:hover:not(:disabled) {
-        background: var(--primary-dark);
-        box-shadow: 0 6px 16px rgba(30, 94, 216, 0.4);
-        transform: translateY(-2px);
-      }
-
-      .punch-out {
+      /* MAP CARD */
+      .map-card {
         background: var(--surface);
-        color: var(--text-secondary);
-        border: 2px solid var(--border);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 20px;
       }
 
-      .punch-out:hover:not(:disabled) {
-        border-color: var(--text-secondary);
-        background: #fafafa;
-      }
-
-      .action-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-      }
-
-      /* ── RECENT ACTIVITY ── */
-      .activity-section {
-        margin-bottom: 16px;
-      }
-
-      .activity-header {
+      .map-header {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border-light);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 12px;
-        padding: 0 0 8px 0;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .activity-title {
-        font-size: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        letter-spacing: 0.5px;
-      }
-
-      .activity-link {
-        font-size: 11px;
-        color: var(--primary);
+        font-size: 0.8rem;
         font-weight: 600;
-        text-decoration: none;
-        cursor: pointer;
-      }
-
-      .activity-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 0;
-        border-bottom: 1px solid #f0f0f0;
-      }
-
-      .activity-item:last-child {
-        border-bottom: none;
-      }
-
-      .activity-icon {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        background: var(--success-light);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--success);
-        flex-shrink: 0;
-        font-weight: 700;
-      }
-
-      .activity-content {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .activity-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 2px;
-      }
-
-      .activity-time {
-        font-size: 11px;
-        color: var(--text-muted);
-      }
-
-      /* ── MAP CARD ── */
-      .map-card {
-        margin-bottom: 16px;
+        background: var(--surface-secondary);
       }
 
       .map-container {
-        height: 240px;
-        border-radius: 10px;
-        overflow: hidden;
-        background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 100%);
+        height: 180px;
+        background: #e5e7eb;
         position: relative;
-        border: 1px solid #bfdbfe;
-        margin-bottom: 8px;
-      }
-
-      .map-placeholder {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        color: var(--primary);
-      }
-
-      .map-placeholder svg {
-        width: 40px;
-        height: 40px;
-      }
-
-      .map-placeholder span {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--primary);
       }
 
       #leafletMap {
-        height: 100%;
         width: 100%;
+        height: 100%;
       }
 
       .map-footer {
-        display: flex;
-        justify-content: space-between;
-        font-size: 11px;
-        font-weight: 600;
+        padding: 12px 16px;
+        font-size: 0.75rem;
         color: var(--text-muted);
-        padding: 0 4px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        background: var(--surface-secondary);
+        font-family: "JetBrains Mono", monospace;
       }
 
-      /* ── LOCATION DETAILS ── */
-      .location-details {
-        background: var(--info-bg);
-        border: 1px solid #bfdbfe;
-        border-radius: 10px;
-        padding: 12px;
-        font-size: 12px;
-        color: var(--text-secondary);
-        line-height: 1.5;
+      .map-loading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(2px);
       }
 
-      /* ── MODAL ── */
+      .spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* MODAL */
       .modal-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
         display: none;
         align-items: flex-end;
         justify-content: center;
-        z-index: 500;
+        z-index: 1000;
+        -webkit-user-select: none;
+        user-select: none;
       }
 
       .modal-overlay.open {
         display: flex;
+        animation: fadeIn 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
       }
 
       .modal-sheet {
         background: var(--surface);
-        border-radius: 20px 20px 0 0;
         width: 100%;
-        max-width: 100%;
-        padding: 0;
-        animation: slideUp 0.3s ease;
-        box-shadow: var(--shadow-lg);
+        max-width: 500px;
+        border-radius: 28px 28px 0 0;
+        padding: 24px 0 max(24px, env(safe-area-inset-bottom));
+        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       @keyframes slideUp {
         from {
           transform: translateY(100%);
+          opacity: 0;
         }
         to {
           transform: translateY(0);
+          opacity: 1;
         }
       }
 
       .modal-handle {
-        width: 40px;
+        width: 48px;
         height: 4px;
         background: var(--border);
         border-radius: 2px;
-        margin: 12px auto 0;
+        margin: 0 auto 20px;
       }
 
-      .modal-header {
-        padding: 14px 20px 12px;
-        border-bottom: 1px solid var(--border);
-        text-align: center;
+      .modal-content {
+        padding: 0 24px;
       }
 
       .modal-title {
-        font-size: 15px;
         font-weight: 700;
+        font-size: 1.25rem;
+        margin-bottom: 8px;
         color: var(--text);
       }
 
-      .modal-map {
-        height: 200px;
-        background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 100%);
-        position: relative;
+      .modal-subtitle {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
       }
 
       #confirmMap {
-        height: 100%;
         width: 100%;
-      }
-
-      .modal-body {
-        padding: 16px 20px;
+        height: 160px;
+        border-radius: 16px;
+        border: 1px solid var(--border-light);
+        margin-bottom: 16px;
+        background: #e5e7eb;
       }
 
       .modal-info {
+        background: var(--primary-light);
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 12px 14px;
         margin-bottom: 16px;
+        font-size: 0.85rem;
+        color: var(--primary);
+        font-weight: 500;
       }
 
-      .modal-label {
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: var(--text-muted);
-        margin-bottom: 4px;
+      .modal-info.warning {
+        background: #fef3c7;
+        border-color: #fcd34d;
+        color: #92400e;
       }
 
-      .modal-address {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 12px;
-        line-height: 1.4;
-      }
-
-      .modal-time-row {
+      .modal-row {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 16px;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 16px;
+        background: var(--surface-secondary);
+        border-radius: 12px;
       }
 
       .modal-time {
-        font-size: 28px;
-        font-weight: 800;
+        font-size: 2.25rem;
+        font-weight: 400;
         color: var(--primary);
-        font-family: "Courier New", monospace;
+        font-family: "sans-serif";
       }
 
-      .modal-date {
-        font-size: 11px;
-        color: var(--text-secondary);
-        margin-top: 2px;
-      }
-
-      .modal-meta {
+      .modal-distance {
         text-align: right;
-        font-size: 11px;
-        color: var(--text-secondary);
+        font-size: 0.85rem;
       }
 
-      .modal-confirm-btn {
-        width: 100%;
-        padding: 14px;
-        background: var(--primary);
-        color: white;
-        border: none;
-        border-radius: 10px;
+      .modal-distance-value {
         font-weight: 700;
-        font-size: 14px;
-        cursor: pointer;
-        margin-bottom: 8px;
-        transition: all 0.2s;
+        color: var(--primary);
+        display: block;
+      }
+
+      .modal-distance-label {
+        font-size: 0.7rem;
+        color: var(--text-muted);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
       }
 
-      .modal-confirm-btn:hover {
-        background: var(--primary-dark);
-        box-shadow: 0 4px 12px rgba(30, 94, 216, 0.3);
+      .modal-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
       }
 
-      .modal-confirm-btn.out {
-        background: var(--danger);
+      .modal-btn {
+        width: 100%;
+        padding: 16px 20px;
+        border-radius: 12px;
+        border: none;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
       }
 
-      .modal-confirm-btn.out:hover {
-        background: #dc2626;
+      .modal-btn.primary {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: white;
+      }
+
+      .modal-btn.primary:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+
+      .modal-btn.danger {
+        background: linear-gradient(135deg, var(--danger), #dc2626);
+        color: white;
+      }
+
+      .modal-btn.danger:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+
+      .modal-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
       }
 
       .modal-cancel {
-        width: 100%;
-        padding: 12px;
         background: transparent;
+        border: 1px solid var(--border);
         color: var(--text-secondary);
-        border: none;
         font-weight: 600;
-        cursor: pointer;
-        font-size: 13px;
       }
 
-      /* ── TOAST ── */
+      .modal-cancel:active:not(:disabled) {
+        background: var(--surface-secondary);
+      }
+
+      /* TOAST */
       .toast {
         position: fixed;
-        bottom: 20px;
-        left: 16px;
-        right: 16px;
+        bottom: max(30px, calc(env(safe-area-inset-bottom) + 20px));
+        left: 20px;
+        right: 20px;
+        max-width: 360px;
+        margin: 0 auto;
         background: var(--surface);
-        padding: 14px 16px;
-        border-radius: 10px;
-        border-left: 4px solid var(--primary);
+        border-radius: 12px;
+        padding: 14px 18px;
         box-shadow: var(--shadow-lg);
-        transform: translateY(120px);
-        opacity: 0;
-        transition: all 0.3s;
-        z-index: 1000;
-        font-size: 13px;
+        border-left: 4px solid var(--primary);
         font-weight: 500;
+        font-size: 0.9rem;
+        transform: translateY(120px);
+        transition: transform var(--transition);
+        z-index: 1100;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
 
       .toast.show {
         transform: translateY(0);
-        opacity: 1;
       }
 
       .toast.success {
-        border-color: var(--success);
+        border-left-color: var(--success);
+      }
+
+      .toast.success::before {
+        content: "✓";
+        color: var(--success);
+        font-weight: 700;
       }
 
       .toast.error {
-        border-color: var(--danger);
+        border-left-color: var(--danger);
       }
 
-      /* ── UTILITY ── */
-      .hidden {
-        display: none !important;
+      .toast.error::before {
+        content: "!";
+        color: var(--danger);
+        font-weight: 700;
       }
 
-      @media (max-width: 480px) {
-        .container {
-          padding: 12px;
+      .toast.warning {
+        border-left-color: var(--warning);
+      }
+
+      .toast.warning::before {
+        content: "⚠";
+        color: var(--warning);
+      }
+
+      .toast-text {
+        flex: 1;
+      }
+
+      /* ERROR STATE */
+      .error-state {
+        background: var(--error-light);
+        border: 1px solid #fecaca;
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      .error-state.show {
+        display: block;
+        animation: slideDown 0.3s ease;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
         }
-
-        .card {
-          border-radius: 10px;
-          padding: 14px;
-          margin-bottom: 12px;
+        to {
+          opacity: 1;
+          transform: translateY(0);
         }
       }
 
+      .error-title {
+        font-weight: 700;
+        color: var(--danger);
+        margin-bottom: 4px;
+      }
+
+      .error-message {
+        font-size: 0.85rem;
+        color: #7f1d1d;
+      }
+
+      .error-action {
+        margin-top: 10px;
+      }
+
+      .error-btn {
+        background: var(--danger);
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+
+      .error-btn:active {
+        background: #b91c1c;
+      }
+
+      /* ACCESSIBILITY */
       @media (prefers-reduced-motion: reduce) {
         * {
           animation-duration: 0.01ms !important;
@@ -676,180 +828,170 @@
           transition-duration: 0.01ms !important;
         }
       }
+
+      /* DARK MODE SUPPORT */
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f172a;
+          --surface: #1e293b;
+          --surface-secondary: #334155;
+          --border: #475569;
+          --border-light: #334155;
+          --text: #f1f5f9;
+          --text-secondary: #cbd5e1;
+          --text-muted: #94a3b8;
+          --primary-light: #1e3a8a;
+        }
+      }
+
+      /* RESPONSIVE */
+      @media (max-width: 360px) {
+        .shift-bar {
+          grid-template-columns: 1fr;
+        }
+
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .timer-display {
+          font-size: 2.5rem;
+        }
+      }
+
+      .hidden {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
     <!-- HEADER -->
     <div class="header">
-      <div class="header-left">
-        <div class="header-icon">C</div>
+      <div class="brand">
+        <div class="brand-icon">gk</div>
         <div>
-          <div class="header-title">SDPL</div>
-          <div class="header-subtitle">EMPLOYEE PORTAL</div>
+          <div class="brand-name">SDPL</div>
         </div>
       </div>
       <div class="header-right">
-        <button class="header-btn" title="Notifications">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-        </button>
-        <button class="header-btn" title="Menu" onclick="logout()">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="12" cy="5" r="1" />
-            <circle cx="12" cy="19" r="1" />
-          </svg>
-        </button>
+        <div
+          class="connection-indicator"
+          id="connectionIndicator"
+          title="Connection status"
+          aria-label="Connection status: Online"
+        ></div>
+        <div
+          class="user-badge"
+          onclick="logout()"
+          role="button"
+          tabindex="0"
+          aria-label="User menu"
+        >
+          <span class="user-avatar" id="userAvatar">U</span>
+          <span id="userDisplayName">Loading</span>
+        </div>
       </div>
     </div>
 
-    <!-- CONTAINER -->
-    <div class="container">
-      <!-- INFO CARDS -->
-      <div class="info-grid">
-        <div class="info-card">
-          <div class="info-card-icon"></div>
-          <div class="info-card-label">Shift</div>
-          <div class="info-card-value" id="shiftInfo">Regular</div>
-        </div>
-        <div class="info-card">
-          <div class="info-card-icon"></div>
-          <div class="info-card-label">Branch</div>
-          <div class="info-card-value" id="branchInfo">—</div>
-        </div>
-        <div class="info-card">
-          <div class="info-card-icon"></div>
-          <div class="info-card-label">Date</div>
-          <div class="info-card-value" id="dateInfo">—</div>
-        </div>
+    <!-- SHIFT INFO -->
+    <div class="shift-bar">
+      <div class="shift-item">
+        <div class="shift-item-label">Shift</div>
+        <div class="shift-item-value" id="shiftTimes">Regular</div>
+      </div>
+      <div class="shift-item">
+        <div class="shift-item-label">Branch</div>
+        <div class="shift-item-value" id="branchName">—</div>
+      </div>
+      <div class="shift-item">
+        <div class="shift-item-label">Date</div>
+        <div class="shift-item-value" id="todayDate">—</div>
+      </div>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div class="error-state" id="errorState" role="alert">
+      <div class="error-title" id="errorTitle">Error</div>
+      <div class="error-message" id="errorMessage">Something went wrong</div>
+      <div class="error-action" id="errorAction"></div>
+    </div>
+
+    <!-- MAIN CARD -->
+    <div class="main-card">
+      <div class="timer-section">
+        <div class="timer-label">Today's Work Time</div>
+        <div class="timer-display" id="workTimer">0:00:00</div>
+        <div class="timer-status" id="timerStatus">Not punched in</div>
       </div>
 
-      <!-- CLOCK CARD -->
-      <div class="clock-card">
-        <div class="clock-label">LIVE ATTENDANCE TRACKING</div>
-        <div class="clock-display">
-          <span class="clock-time" id="currentTime">00:00:00</span>
-          <span class="clock-period" id="timePeriod">AM</span>
-        </div>
-        <div class="status-badge" id="statusBadge">
-          <span class="status-dot"></span>
-          <span id="statusText">Acquiring GPS…</span>
-        </div>
-      </div>
-
-      <!-- ACTION BUTTONS -->
-      <div class="action-grid">
+      <div class="action-area">
         <button
           class="action-btn punch-in"
           id="punchInBtn"
           onclick="openConfirm('in')"
-          disabled
+          aria-label="Punch in to start work"
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5m0 0l-5-5"
-            />
-          </svg>
-          Punch In
+          <span class="icon">⏺</span> Punch In
         </button>
-        <button
-          class="action-btn punch-out"
-          id="punchOutBtn"
-          onclick="openConfirm('out')"
-          disabled
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m0 18l5-5m0 0l-5-5"
-            />
-          </svg>
-          Punch Out
-        </button>
-      </div>
 
-      <!-- RECENT ACTIVITY -->
-      <!-- <div class="activity-section card">
-        <div class="activity-header">
-          <span class="activity-title">Recent Activity</span>
-          <a class="activity-link" href="#">View All</a>
-        </div>
-        <div id="activityList">
-          <div class="activity-item">
-            <div class="activity-icon">✓</div>
-            <div class="activity-content">
-              <div class="activity-name">Loading activity…</div>
-              <div class="activity-time">—</div>
-            </div>
-          </div>
-        </div>
-      </div> -->
-
-      <!-- LIVE LOCATION -->
-      <div class="card map-card">
-        <div class="card-label">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
+        <div id="punchOutContainer" style="display: none">
+          <button
+            class="action-btn punch-out"
+            id="punchOutBtn"
+            onclick="openConfirm('out')"
+            aria-label="Punch out to end work"
           >
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-            <circle cx="12" cy="10" r="3" />
-          </svg>
-          LIVE LOCATION
-        </div>
-        <div class="map-container">
-          <div class="map-placeholder" id="mapPlaceholder">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            <span>Acquiring GPS…</span>
-          </div>
-          <div id="leafletMap"></div>
-        </div>
-        <div class="map-footer">
-          <span id="locationInfo">—</span>
-          <span id="radiusInfo">OFFICE RADIUS: —</span>
+            <span class="icon">⏹</span> Punch Out
+          </button>
         </div>
       </div>
 
-      <!-- LOCATION DETAILS -->
-      <div class="location-details" id="locationDetails" style="display: none">
-        <strong>ID:</strong> <span id="locationId">—</span><br />
-        <strong>Coordinates:</strong> <span id="locationCoords">—</span><br />
-        <strong>Accuracy:</strong> <span id="locationAccuracy">—</span>
+      <div class="summary-section" id="summarySection">
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-value" id="sumIn">—</div>
+            <div class="summary-label">In Time</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value" id="sumOut">—</div>
+            <div class="summary-label">Out Time</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-value" id="sumTotal">0h 0m</div>
+            <div class="summary-label">Total</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- CONFIRM MODAL -->
+    <!-- STATUS BAR -->
+    <div class="status-bar" role="status" aria-live="polite">
+      <span class="status-badge">
+        <span class="status-dot loading" id="statusDot"></span>
+        <span id="statusText">Acquiring location…</span>
+      </span>
+      <span class="status-badge location-distance" id="locationDist">—</span>
+    </div>
+
+    <!-- MAP CARD -->
+    <div class="map-card">
+      <div class="map-header">
+        <span>Live Location</span>
+        <span id="radiusInfo">Radius: —</span>
+      </div>
+      <div class="map-container" id="mapContainer">
+        <div id="leafletMap"></div>
+        <div class="map-loading" id="mapLoading" style="display: none">
+          <div class="spinner"></div>
+        </div>
+      </div>
+      <div class="map-footer">
+        <span id="coordsDisplay">—</span>
+        <span id="accuracyDisplay">—</span>
+      </div>
+    </div>
+
+    <!-- MODAL -->
     <div
       class="modal-overlay"
       id="confirmModal"
@@ -857,72 +999,105 @@
     >
       <div class="modal-sheet">
         <div class="modal-handle"></div>
-        <div class="modal-header">
-          <div class="modal-title" id="modalTitle">Confirm Punch Location</div>
-        </div>
-        <div class="modal-map" id="confirmMapContainer">
+        <div class="modal-content">
+          <h2 class="modal-title" id="modalTitle">Confirm Punch</h2>
+          <p class="modal-subtitle" id="modalSubtitle">Verify your location</p>
+
+          <div class="modal-info" id="modalInfo" style="display: none">
+            <strong>⚠ Outside office radius</strong>
+            <br />You are <span id="warningDistance">—</span> away from office
+          </div>
+
           <div id="confirmMap"></div>
-        </div>
-        <div class="modal-body">
-          <div class="modal-info">
-            <div class="modal-label">Location</div>
-            <div class="modal-address" id="modalAddress">Fetching address…</div>
-          </div>
-          <div class="modal-time-row">
-            <div>
-              <div class="modal-time" id="modalTime">00:00 AM</div>
-              <div class="modal-date" id="modalDate">—</div>
-            </div>
-            <div class="modal-meta">
-              <div id="modalDist">—</div>
-              <div
-                id="modalLate"
-                style="color: var(--warning); font-weight: 700; margin-top: 3px"
-              ></div>
+
+          <div class="modal-row">
+            <div class="modal-time" id="modalTime">--:--</div>
+            <div class="modal-distance">
+              <span class="modal-distance-value" id="modalDist">—</span>
+              <span class="modal-distance-label">from office</span>
             </div>
           </div>
-          <button
-            class="modal-confirm-btn"
-            id="modalConfirmBtn"
-            onclick="confirmPunch()"
-          >
-            Punch In
-          </button>
-          <button class="modal-cancel" onclick="closeConfirm()">Cancel</button>
+
+          <div class="modal-buttons">
+            <button
+              class="modal-btn primary"
+              id="modalConfirmBtn"
+              onclick="confirmPunch()"
+              aria-label="Confirm punch action"
+            >
+              <span id="modalBtnIcon">→</span>
+              <span id="modalBtnText">Punch In</span>
+            </button>
+            <button
+              class="modal-btn modal-cancel"
+              onclick="closeConfirm()"
+              aria-label="Cancel"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="toast" id="toast"></div>
+    <!-- TOAST -->
+    <div class="toast" id="toast" role="alert" aria-live="polite">
+      <span class="toast-text" id="toastText"></span>
+    </div>
 
     <script>
       const API = "/api";
       let token = localStorage.getItem("token");
       let user = null;
 
-      // Maps
-      let leafMap = null;
-      let confirmMap = null;
-      let userMarker = null;
-      let officeCir = null;
-
-      // Location
+      // State
+      let leafMap = null,
+        confirmMap = null,
+        userMarker = null,
+        officeCircle = null;
       let locationWatcher = null;
       let userLat = null,
-        userLng = null;
+        userLng = null,
+        userAccuracy = null;
       let isInsideRange = null;
       let hasOfficeLocation = false;
 
       // Attendance
       let isPunchedIn = false;
       let isCompleted = false;
+      let punchInTime = null;
+      let workTimerInterval = null;
+
+      // Modal
       let pendingType = null;
       let modalTimer = null;
+      let pendingModalMap = false;
 
-      /* ── Utilities ── */
+      // Network
+      let isOnline = navigator.onLine;
+
+      // Helpers
+      function showError(title, message, action = null) {
+        const el = document.getElementById("errorState");
+        document.getElementById("errorTitle").textContent = title;
+        document.getElementById("errorMessage").textContent = message;
+
+        const actionEl = document.getElementById("errorAction");
+        if (action) {
+          actionEl.innerHTML = `<button class="error-btn" onclick="${action}">Retry</button>`;
+        } else {
+          actionEl.innerHTML = "";
+        }
+        el.classList.add("show");
+      }
+
+      function hideError() {
+        document.getElementById("errorState").classList.remove("show");
+      }
+
       function toast(msg, type = "success") {
         const el = document.getElementById("toast");
-        el.textContent = msg;
+        document.getElementById("toastText").textContent = msg;
         el.className = `toast ${type} show`;
         setTimeout(() => el.classList.remove("show"), 4000);
       }
@@ -940,19 +1115,26 @@
       }
 
       async function apiFetch(url, method = "GET", body = null) {
+        if (!isOnline) {
+          throw new Error("No internet connection");
+        }
         const opts = {
           method,
           headers: { "Content-Type": "application/json" },
         };
         if (token) opts.headers["Authorization"] = `Bearer ${token}`;
         if (body) opts.body = JSON.stringify(body);
-        const res = await fetch(API + url, opts);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "Request failed");
-        return data;
+
+        try {
+          const res = await fetch(API + url, opts);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "Request failed");
+          return data;
+        } catch (err) {
+          throw err;
+        }
       }
 
-      /* ── Auth ── */
       async function checkAuth() {
         if (!token) {
           window.location.href = "/login";
@@ -961,7 +1143,7 @@
         try {
           user = await apiFetch("/auth/me");
           return true;
-        } catch (e) {
+        } catch {
           localStorage.removeItem("token");
           window.location.href = "/login";
           return false;
@@ -969,69 +1151,89 @@
       }
 
       function logout() {
-        localStorage.removeItem("token");
-        if (locationWatcher) navigator.geolocation.clearWatch(locationWatcher);
-        window.location.href = "/login";
+        if (
+          confirm(
+            "Are you sure you want to logout? Make sure you have punched out.",
+          )
+        ) {
+          localStorage.removeItem("token");
+          if (locationWatcher)
+            navigator.geolocation.clearWatch(locationWatcher);
+          window.location.href = "/login";
+        }
       }
 
-      /* ── Clock ── */
-      function updateClock() {
-        const now = new Date(),
-          h = now.getHours(),
-          m = now.getMinutes().toString().padStart(2, "0"),
-          s = now.getSeconds().toString().padStart(2, "0"),
-          ap = h >= 12 ? "PM" : "AM";
-        document.getElementById("currentTime").textContent =
-          `${(h % 12 || 12).toString().padStart(2, "0")}:${m}:${s}`;
-        document.getElementById("timePeriod").textContent = ap;
+      // TIMER
+      function startWorkTimer() {
+        if (workTimerInterval) clearInterval(workTimerInterval);
+        const timerEl = document.getElementById("workTimer");
+        const statusEl = document.getElementById("timerStatus");
+
+        function updateTimer() {
+          if (!punchInTime) {
+            timerEl.textContent = "0:00:00";
+            return;
+          }
+          const now = new Date();
+          const diffMs = now - punchInTime;
+          if (diffMs < 0) return; // clock skew protection
+          const totalSeconds = Math.floor(diffMs / 1000);
+          const hours = Math.floor(totalSeconds / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+          timerEl.textContent = `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+          statusEl.textContent = "Currently working";
+          statusEl.className = "timer-status working";
+        }
+        updateTimer();
+        workTimerInterval = setInterval(updateTimer, 1000);
       }
 
-      /* ── Init ── */
-      async function initDashboard() {
-        try {
-          const ok = await checkAuth();
-          if (!ok) return;
+      function stopWorkTimer() {
+        if (workTimerInterval) clearInterval(workTimerInterval);
+        workTimerInterval = null;
+      }
 
-          document.querySelector(".header-title").textContent =
-            user.company_name || "SDPL";
+      function formatTime(d) {
+        const h = d.getHours(),
+          m = d.getMinutes().toString().padStart(2, "0");
+        const ap = h >= 12 ? "PM" : "AM";
+        return `${h % 12 || 12}:${m} ${ap}`;
+      }
 
-          const fmt = (t) => {
-            const [h, m] = t.split(":");
-            const hN = parseInt(h, 10);
-            const ap = hN >= 12 ? "PM" : "AM";
-            return `${hN % 12 || 12}:${m} ${ap}`;
-          };
+      // UI Updates
+      function updatePunchUI() {
+        const punchInBtn = document.getElementById("punchInBtn");
+        const outContainer = document.getElementById("punchOutContainer");
+        const summarySection = document.getElementById("summarySection");
+        const statusEl = document.getElementById("timerStatus");
+        const timerEl = document.getElementById("workTimer");
 
-          if (user.shift_start && user.shift_end) {
-            document.getElementById("shiftInfo").textContent =
-              `${fmt(user.shift_start).split(" ")[0].substring(0, 5)}-${fmt(user.shift_end)}`;
-          }
+        if (isCompleted) {
+          punchInBtn.style.display = "none";
+          outContainer.style.display = "none";
+          summarySection.classList.remove("show");
+          statusEl.textContent = "Completed today";
+          statusEl.className = "timer-status completed";
+          stopWorkTimer();
+          timerEl.textContent = "0:00:00";
+          return;
+        }
 
-          document.getElementById("branchInfo").textContent = (
-            user.branch_name || "N/A"
-          ).substring(0, 12);
-
-          document.getElementById("dateInfo").textContent =
-            new Date().toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "short",
-              year: "2-digit",
-            });
-
-          hasOfficeLocation = user.branch_lat && user.branch_lng;
-
-          if (user.radius_meters) {
-            document.getElementById("radiusInfo").textContent =
-              `OFFICE RADIUS: ${user.radius_meters}M`;
-          }
-
-          setInterval(updateClock, 1000);
-          updateClock();
-          await loadStatus();
-          detectLocation();
-        } catch (e) {
-          console.error("Init error:", e);
-          toast("Error loading dashboard", "error");
+        if (isPunchedIn) {
+          punchInBtn.style.display = "none";
+          outContainer.style.display = "block";
+          summarySection.classList.add("show");
+          statusEl.className = "timer-status working";
+          if (punchInTime) startWorkTimer();
+        } else {
+          punchInBtn.style.display = "flex";
+          outContainer.style.display = "none";
+          summarySection.classList.remove("show");
+          statusEl.textContent = "Not punched in";
+          statusEl.className = "timer-status";
+          stopWorkTimer();
+          timerEl.textContent = "0:00:00";
         }
       }
 
@@ -1040,185 +1242,136 @@
           const data = await apiFetch("/attendance/status");
           isPunchedIn = data.is_punched_in;
           isCompleted = data.state === "completed";
-          updatePunchButtons();
+
+          if (data.last_punch_in) {
+            punchInTime = new Date(data.last_punch_in);
+          } else {
+            punchInTime = null;
+          }
+
+          if (data.summary) {
+            document.getElementById("sumIn").textContent =
+              data.summary.first_punch_in || "—";
+            document.getElementById("sumOut").textContent =
+              data.summary.last_punch_out || "—";
+            const h = Math.floor((data.summary.total_minutes || 0) / 60);
+            const m = (data.summary.total_minutes || 0) % 60;
+            document.getElementById("sumTotal").textContent = `${h}h ${m}m`;
+          }
+
+          hideError();
+          updatePunchUI();
         } catch (e) {
-          console.error("Status error:", e);
+          showError(
+            "Status Load Failed",
+            "Could not load attendance status. Please check your connection.",
+            "location.reload()",
+          );
         }
       }
 
-      function updatePunchButtons() {
-        const inBtn = document.getElementById("punchInBtn");
-        const outBtn = document.getElementById("punchOutBtn");
+      async function initDashboard() {
+        try {
+          const ok = await checkAuth();
+          if (!ok) return;
 
-        if (isCompleted) {
-          inBtn.disabled = true;
-          outBtn.disabled = true;
-          inBtn.textContent = "Done ✓";
-          outBtn.textContent = "Done ✓";
-          return;
-        }
+          document.getElementById("userDisplayName").textContent =
+            user.full_name || user.username;
+          document.getElementById("userAvatar").textContent = (
+            user.full_name?.[0] || "U"
+          ).toUpperCase();
 
-        const locationOk = !hasOfficeLocation || isInsideRange === true;
+          hasOfficeLocation = user.branch_lat && user.branch_lng;
+          if (user.shift_start && user.shift_end) {
+            const fmt = (t) => {
+              const [h, m] = t.split(":");
+              return `${parseInt(h) % 12 || 12}:${m} ${parseInt(h) >= 12 ? "PM" : "AM"}`;
+            };
+            document.getElementById("shiftTimes").textContent =
+              `${fmt(user.shift_start)} – ${fmt(user.shift_end)}`;
+          }
+          document.getElementById("branchName").textContent =
+            user.branch_name || "—";
+          document.getElementById("todayDate").textContent =
+            new Date().toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "short",
+            });
+          if (user.radius_meters)
+            document.getElementById("radiusInfo").textContent =
+              `Radius: ${user.radius_meters}m`;
 
-        if (isPunchedIn) {
-          inBtn.disabled = true;
-          outBtn.disabled = false;
-        } else {
-          inBtn.disabled = hasOfficeLocation ? !locationOk : false;
-          outBtn.disabled = true;
+          await loadStatus();
+          detectLocation();
+        } catch (e) {
+          showError(
+            "Initialization Error",
+            "Failed to load dashboard.",
+            "location.reload()",
+          );
         }
       }
 
-      /* ── Maps ── */
+      // LOCATION & MAPS
       function initMainMap(lat, lng) {
         try {
-          const placeholder = document.getElementById("mapPlaceholder");
-          placeholder.classList.add("hidden");
-
           if (!leafMap) {
             leafMap = L.map("leafletMap", {
               zoomControl: false,
               attributionControl: false,
+              dragging: false,
+              tap: false,
             });
-            L.tileLayer(
-              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            ).addTo(leafMap);
-            L.control.zoom({ position: "bottomright" }).addTo(leafMap);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+              maxZoom: 18,
+            }).addTo(leafMap);
           }
-
           const userIcon = L.divIcon({
-            html: `<div style="width:12px;height:12px;background:#1e5ed8;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
+            html: `<div style="width:14px;height:14px;background:#0052cc;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>`,
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
           });
-
-          if (!userMarker) {
+          if (!userMarker)
             userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(
               leafMap,
             );
-          } else {
-            userMarker.setLatLng([lat, lng]);
-          }
+          else userMarker.setLatLng([lat, lng]);
 
-          if (hasOfficeLocation) {
-            const offIcon = L.divIcon({
-              html: `<div style="width:10px;height:10px;background:#ef4444;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`,
-              iconSize: [10, 10],
-              iconAnchor: [5, 5],
-            });
-
-            let hasOffMarker = false;
-            leafMap.eachLayer((layer) => {
-              if (
-                layer._latlng &&
-                layer._latlng.lat === user.branch_lat &&
-                layer._latlng.lng === user.branch_lng
-              ) {
-                hasOffMarker = true;
-              }
-            });
-
-            if (!hasOffMarker) {
-              L.marker([user.branch_lat, user.branch_lng], {
-                icon: offIcon,
-              }).addTo(leafMap);
-            }
-
-            if (!officeCir) {
-              officeCir = L.circle([user.branch_lat, user.branch_lng], {
+          if (hasOfficeLocation && user.branch_lat && user.branch_lng) {
+            if (!officeCircle) {
+              officeCircle = L.circle([user.branch_lat, user.branch_lng], {
                 radius: user.radius_meters || 200,
                 color: "#10b981",
                 fillColor: "#10b981",
-                fillOpacity: 0.1,
+                fillOpacity: 0.08,
                 weight: 2,
               }).addTo(leafMap);
             }
-
             leafMap.fitBounds(
               L.latLngBounds([
                 [lat, lng],
                 [user.branch_lat, user.branch_lng],
               ]),
-              { padding: [50, 50] },
+              { padding: [40, 40] },
             );
           } else {
             leafMap.setView([lat, lng], 16);
           }
-
-          setTimeout(() => {
-            if (leafMap) leafMap.invalidateSize();
-          }, 100);
+          setTimeout(() => leafMap?.invalidateSize(), 150);
         } catch (e) {
-          console.error("Map error:", e);
+          console.error("Map init error", e);
         }
       }
 
-      function initConfirmMap(lat, lng) {
-        try {
-          if (!confirmMap) {
-            confirmMap = L.map("confirmMap", {
-              zoomControl: false,
-              attributionControl: false,
-            });
-            L.tileLayer(
-              "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            ).addTo(confirmMap);
-          }
-
-          confirmMap.setView([lat, lng], 16);
-          confirmMap.eachLayer((layer) => {
-            if (layer instanceof L.Marker || layer instanceof L.Circle) {
-              confirmMap.removeLayer(layer);
-            }
-          });
-
-          const icon = L.divIcon({
-            html: `<div style="width:14px;height:14px;background:#1e5ed8;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35)"></div>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7],
-          });
-          L.marker([lat, lng], { icon }).addTo(confirmMap);
-
-          if (hasOfficeLocation) {
-            L.circle([user.branch_lat, user.branch_lng], {
-              radius: user.radius_meters || 200,
-              color: "#10b981",
-              fillColor: "#10b981",
-              fillOpacity: 0.1,
-              weight: 2,
-            }).addTo(confirmMap);
-          }
-
-          setTimeout(() => {
-            if (confirmMap) confirmMap.invalidateSize();
-          }, 100);
-        } catch (e) {
-          console.error("Confirm map error:", e);
-        }
-      }
-
-      async function getAddress(lat, lng) {
-        try {
-          const r = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-            { headers: { "Accept-Language": "en" } },
-          );
-          const d = await r.json();
-          return d.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-        } catch {
-          return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-        }
-      }
-
-      /* ── GPS ── */
       function updateLocationUI(lat, lng, accuracy) {
         userLat = lat;
         userLng = lng;
+        userAccuracy = accuracy;
 
-        document.getElementById("locationCoords").textContent =
-          `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-        document.getElementById("locationAccuracy").textContent =
-          `${Math.round(accuracy)}m`;
+        document.getElementById("coordsDisplay").textContent =
+          `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        document.getElementById("accuracyDisplay").textContent =
+          `Accuracy: ±${Math.round(accuracy)}m`;
 
         initMainMap(lat, lng);
 
@@ -1226,15 +1379,17 @@
           checkDistance();
         } else {
           isInsideRange = true;
-          setBadge(true, "Inside Geofence Range");
-          document.getElementById("locationInfo").textContent = `✓ In Range`;
-          updatePunchButtons();
+          document.getElementById("statusText").textContent = "No geofence set";
+          document.getElementById("statusDot").className = "status-dot";
+          updatePunchUI();
         }
       }
 
       function detectLocation() {
         if (!navigator.geolocation) {
-          setBadge(false, "Location Unavailable");
+          document.getElementById("statusText").textContent =
+            "Geolocation not supported";
+          document.getElementById("statusDot").className = "status-dot error";
           return;
         }
 
@@ -1245,35 +1400,34 @@
               pos.coords.longitude,
               pos.coords.accuracy,
             );
-
             if (locationWatcher)
               navigator.geolocation.clearWatch(locationWatcher);
-
             locationWatcher = navigator.geolocation.watchPosition(
-              (p) => {
+              (p) =>
                 updateLocationUI(
                   p.coords.latitude,
                   p.coords.longitude,
                   p.coords.accuracy,
-                );
-              },
+                ),
               () => {},
-              { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
+              { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 },
             );
           },
           (err) => {
-            const msgs = {
-              1: "Location permission denied",
-              2: "GPS unavailable",
-              3: "GPS timed out",
-            };
-            setBadge(false, msgs[err.code] || "Location error");
+            let msg = "GPS error";
+            if (err.code === 1) msg = "Location permission denied";
+            else if (err.code === 2) msg = "Position unavailable";
+            else if (err.code === 3) msg = "Location timeout";
+
+            document.getElementById("statusText").textContent = msg;
+            document.getElementById("statusDot").className = "status-dot error";
+
             if (!hasOfficeLocation) {
               isInsideRange = true;
-              updatePunchButtons();
+              updatePunchUI();
             }
           },
-          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+          { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 },
         );
       }
 
@@ -1285,58 +1439,69 @@
         );
         isInsideRange = dist <= (user.radius_meters || 200);
 
-        setBadge(
-          isInsideRange,
-          isInsideRange
-            ? "Inside Geofence Range"
-            : `Outside Range (${dist}m away)`,
-        );
-        document.getElementById("locationInfo").textContent = isInsideRange
-          ? `✓ In Range (${dist}m)`
-          : `${dist}m away`;
-        updatePunchButtons();
-      }
+        const badge = document.getElementById("statusText");
+        const dot = document.getElementById("statusDot");
 
-      function setBadge(inside, text) {
-        const b = document.getElementById("statusBadge");
-        if (inside === true) {
-          b.className = "status-badge";
-        } else if (inside === false) {
-          b.className = "status-badge outside";
+        if (isInsideRange) {
+          badge.textContent = "Inside office";
+          dot.className = "status-dot inside";
+          document.getElementById("locationDist").textContent = `✓ ${dist}m`;
         } else {
-          b.className = "status-badge pending";
+          badge.textContent = `Outside office`;
+          dot.className = "status-dot outside";
+          document.getElementById("locationDist").textContent = `${dist}m away`;
         }
-        document.getElementById("statusText").textContent = text;
+
+        updatePunchUI();
       }
 
-      /* ── Modal ── */
+      // MODAL
       async function openConfirm(type) {
+        hideError();
+
         if (!userLat || !userLng) {
-          toast("GPS not available yet", "error");
+          toast("Waiting for location…", "warning");
           return;
         }
 
         if (type === "in" && hasOfficeLocation && !isInsideRange) {
-          toast("You must be inside office radius", "error");
+          toast("Must be inside office to punch in", "error");
           return;
         }
 
         pendingType = type;
         document.getElementById("modalTitle").textContent =
           type === "in" ? "Confirm Punch In" : "Confirm Punch Out";
-        document.getElementById("modalConfirmBtn").textContent =
-          type === "in" ? "Punch In" : "Punch Out";
-        document.getElementById("modalConfirmBtn").className =
-          type === "out" ? "modal-confirm-btn out" : "modal-confirm-btn";
+        document.getElementById("modalSubtitle").textContent =
+          type === "in"
+            ? "You are about to start your shift"
+            : "You are about to end your shift";
 
+        const btn = document.getElementById("modalConfirmBtn");
+        btn.className =
+          type === "out" ? "modal-btn danger" : "modal-btn primary";
+        document.getElementById("modalBtnText").textContent =
+          type === "in" ? "Punch In" : "Punch Out";
+
+        const infoEl = document.getElementById("modalInfo");
         if (hasOfficeLocation) {
           const dist = Math.round(
             haversine(userLat, userLng, user.branch_lat, user.branch_lng),
           );
-          document.getElementById("modalDist").textContent =
-            `${dist}m from office`;
+          document.getElementById("modalDist").textContent = `${dist}m`;
+
+          if (!isInsideRange) {
+            infoEl.style.display = "block";
+            document.getElementById("warningDistance").textContent = `${dist}m`;
+          } else {
+            infoEl.style.display = "none";
+          }
+        } else {
+          document.getElementById("modalDist").textContent = "—";
+          infoEl.style.display = "none";
         }
 
+        // Time update
         if (modalTimer) clearInterval(modalTimer);
         const tick = () => {
           const now = new Date();
@@ -1344,35 +1509,58 @@
             m = now.getMinutes().toString().padStart(2, "0"),
             ap = h >= 12 ? "PM" : "AM";
           document.getElementById("modalTime").textContent =
-            `${(h % 12 || 12).toString().padStart(2, "0")}:${m} ${ap}`;
-          document.getElementById("modalDate").textContent =
-            now.toLocaleDateString("en-IN");
+            `${h % 12 || 12}:${m} ${ap}`;
         };
         tick();
         modalTimer = setInterval(tick, 1000);
 
-        document.getElementById("modalAddress").textContent =
-          "Fetching address…";
-        getAddress(userLat, userLng).then(
-          (a) => (document.getElementById("modalAddress").textContent = a),
-        );
-
+        // Open modal
         document.getElementById("confirmModal").classList.add("open");
+        pendingModalMap = true;
+
+        // Init map after animation
         setTimeout(() => {
-          initConfirmMap(userLat, userLng);
-          if (confirmMap) confirmMap.invalidateSize();
-        }, 150);
+          if (!pendingModalMap) return;
+          try {
+            if (!confirmMap) {
+              confirmMap = L.map("confirmMap", {
+                zoomControl: false,
+                attributionControl: false,
+                dragging: false,
+                tap: false,
+              });
+              L.tileLayer(
+                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+              ).addTo(confirmMap);
+            }
+            confirmMap.setView([userLat, userLng], 16);
+            confirmMap.eachLayer((l) => {
+              if (l instanceof L.Marker) confirmMap.removeLayer(l);
+            });
+            L.marker([userLat, userLng]).addTo(confirmMap);
+            if (hasOfficeLocation) {
+              L.circle([user.branch_lat, user.branch_lng], {
+                radius: user.radius_meters || 200,
+                color: "#10b981",
+                fillOpacity: 0.08,
+              }).addTo(confirmMap);
+            }
+            confirmMap.invalidateSize();
+          } catch (e) {
+            console.error("Confirm map error", e);
+          }
+        }, 200);
       }
 
       function closeConfirm() {
         document.getElementById("confirmModal").classList.remove("open");
         if (modalTimer) clearInterval(modalTimer);
         pendingType = null;
+        pendingModalMap = false;
       }
 
       function closeConfirmOnBg(e) {
-        if (e.target === document.getElementById("confirmModal"))
-          closeConfirm();
+        if (e.target.classList.contains("modal-overlay")) closeConfirm();
       }
 
       async function confirmPunch() {
@@ -1381,7 +1569,7 @@
 
         const btn = document.getElementById("modalConfirmBtn");
         btn.disabled = true;
-        btn.textContent = "Processing…";
+        document.getElementById("modalBtnText").textContent = "Processing…";
 
         try {
           const ep =
@@ -1389,27 +1577,58 @@
           const data = await apiFetch(ep, "POST", {
             latitude: userLat,
             longitude: userLng,
+            accuracy: userAccuracy,
           });
 
-          toast(data.message || "Success", "success");
+          toast(data.message || "Success!", "success");
           closeConfirm();
 
           if (type === "in") {
             isPunchedIn = true;
+            punchInTime = new Date();
+            document.getElementById("sumIn").textContent = formatTime(
+              new Date(),
+            );
           } else {
+            isPunchedIn = false;
             isCompleted = true;
+            document.getElementById("sumOut").textContent = formatTime(
+              new Date(),
+            );
           }
 
-          updatePunchButtons();
+          await loadStatus();
+          updatePunchUI();
         } catch (e) {
-          toast(e.message, "error");
+          toast(e.message || "Action failed", "error");
           btn.disabled = false;
-          btn.textContent = type === "in" ? "Punch In" : "Punch Out";
+          document.getElementById("modalBtnText").textContent =
+            type === "in" ? "Punch In" : "Punch Out";
         }
       }
 
-      // Init
-      document.addEventListener("DOMContentLoaded", initDashboard);
+      // NETWORK STATUS
+      function updateConnectionStatus() {
+        const indicator = document.getElementById("connectionIndicator");
+        isOnline = navigator.onLine;
+        if (isOnline) {
+          indicator.classList.remove("offline");
+          indicator.setAttribute("aria-label", "Connection status: Online");
+        } else {
+          indicator.classList.add("offline");
+          indicator.setAttribute("aria-label", "Connection status: Offline");
+          toast("No internet connection", "error");
+        }
+      }
+
+      window.addEventListener("online", updateConnectionStatus);
+      window.addEventListener("offline", updateConnectionStatus);
+
+      // INIT
+      document.addEventListener("DOMContentLoaded", () => {
+        updateConnectionStatus();
+        initDashboard();
+      });
 
       window.addEventListener("beforeunload", () => {
         if (locationWatcher) navigator.geolocation.clearWatch(locationWatcher);
@@ -1422,6 +1641,16 @@
           document.getElementById("confirmModal").classList.contains("open")
         ) {
           confirmMap.invalidateSize();
+        }
+      });
+
+      // Keyboard support
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.key === "Escape" &&
+          document.getElementById("confirmModal").classList.contains("open")
+        ) {
+          closeConfirm();
         }
       });
     </script>
