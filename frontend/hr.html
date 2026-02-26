@@ -3434,9 +3434,9 @@
           managerList
             .map((m) => {
               const role = m.role.charAt(0).toUpperCase() + m.role.slice(1);
-              const title = m.job_title ? ` · ${m.job_title}` : "";
+              const title = m.job_title ? ` | ${m.job_title}` : "";
               const dept = m.department ? ` (${m.department})` : "";
-              return `<option value="${m.id}">${m.full_name}${title}${dept} [${role}]</option>`;
+              return `<option value="${m.id}">${m.full_name}${title}${dept} | ${role}</option>`;
             })
             .join("");
         document.getElementById("f_l1_manager").innerHTML = opts;
