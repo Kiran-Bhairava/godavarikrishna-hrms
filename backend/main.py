@@ -752,6 +752,7 @@ async def punch_in(
         "distance": int(distance),
         "is_late": is_late,
         "late_by_minutes": late_min,
+        "punched_at_iso": log["punched_at"].isoformat(),
     }
 
 
@@ -838,11 +839,19 @@ async def attendance_status(
             s["last_punch_out"] = to_local(s["last_punch_out"]).strftime("%I:%M %p")
         summary_out = s
 
+    first_punch_in_iso = None
+    if "in" in punches and logs:
+        for log_entry in logs:
+            if log_entry["punch_type"] == "in":
+                first_punch_in_iso = log_entry["punched_at"].isoformat()
+                break
+
     return {
         "is_punched_in": state == "punched_in",
         "state": state,
         "last_punch": {"punch_type": last["punch_type"], "punched_at": str(last["punched_at"])} if last else None,
         "summary": summary_out,
+        "last_punch_in": first_punch_in_iso,
     }
 
 
