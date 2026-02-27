@@ -11,6 +11,22 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0052cc" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Attendance" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192" />
+    <link rel="icon" type="image/png" href="/icon-512.png" sizes="512x512" />
     <title>Attendance Clock | SDPL</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1450,7 +1466,7 @@
         const dot = document.getElementById("statusDot");
 
         if (isInsideRange) {
-          badge.textContent = "Inside office";
+          badge.textContent = "Inside office range";
           dot.className = "status-dot inside";
           document.getElementById("locationDist").textContent = `✓ ${dist}m`;
         } else {
@@ -1472,7 +1488,7 @@
         }
 
         if (type === "in" && hasOfficeLocation && !isInsideRange) {
-          toast("Must be inside office to punch in", "error");
+          toast("Must be inside office range to punch in", "error");
           return;
         }
 
@@ -1659,6 +1675,11 @@
           closeConfirm();
         }
       });
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js");
+        });
+      }
     </script>
   </body>
 </html>

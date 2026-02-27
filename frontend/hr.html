@@ -3,6 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0052cc" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Attendance" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- Manifest & Icons -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192" />
+    <link rel="icon" type="image/png" href="/icon-512.png" sizes="512x512" />
     <title>GodavariKrishna · HR Portal</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -2022,9 +2038,9 @@
             </p>
           </div>
           <div class="ae-topbar-actions">
-            <button class="btn btn-secondary" onclick="saveDraft()">
+            <!-- <button class="btn btn-secondary" onclick="saveDraft()">
               Save Draft
-            </button>
+            </button> -->
             <button class="btn btn-primary" onclick="submitEnrollment()">
               Submit Enrollment
             </button>
@@ -2299,8 +2315,8 @@
                   </div>
                 </div>
 
-                <div class="ae-section-title">Profile Photo</div>
-                <div
+                <!-- <div class="ae-section-title">Profile Photo</div> -->
+                <!-- <div
                   class="photo-upload"
                   onclick="document.getElementById('photoInput').click()"
                 >
@@ -2339,7 +2355,7 @@
                   >
                     Select File
                   </button>
-                </div>
+                </div> -->
               </div>
               <div class="ae-status-bar">
                 <div class="ae-progress-text">
@@ -4283,6 +4299,11 @@
           setTimeout(attachProgressListeners, 50);
         }
       };
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js");
+        });
+      }
     </script>
   </body>
 </html>
