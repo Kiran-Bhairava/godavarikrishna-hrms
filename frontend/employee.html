@@ -1049,6 +1049,7 @@
       const API = "/api";
       let token = localStorage.getItem("token");
       let user = null;
+      let totalWorkTime = null;
 
       // State
       let leafMap = null,
@@ -1212,11 +1213,12 @@
         if (isCompleted) {
           punchInBtn.style.display = "none";
           outContainer.style.display = "none";
-          summarySection.classList.remove("show");
+          summarySection.classList.add("show");
           statusEl.textContent = "Completed today";
           statusEl.className = "timer-status completed";
           stopWorkTimer();
-          timerEl.textContent = "0:00:00";
+          timerEl.textContent = totalWorkTime || "0h 0m";
+          // timerEl.textContent = "0:00:00";
           return;
         }
 
@@ -1254,9 +1256,14 @@
               data.summary.first_punch_in || "—";
             document.getElementById("sumOut").textContent =
               data.summary.last_punch_out || "—";
+
+            // ✅ Declare variables FIRST
             const h = Math.floor((data.summary.total_minutes || 0) / 60);
             const m = (data.summary.total_minutes || 0) % 60;
-            document.getElementById("sumTotal").textContent = `${h}h ${m}m`;
+
+            // ✅ Use them AFTER declaration
+            totalWorkTime = `${h}h ${m}m`;
+            document.getElementById("sumTotal").textContent = totalWorkTime;
           }
 
           hideError();
@@ -1585,10 +1592,9 @@
 
           if (type === "in") {
             isPunchedIn = true;
-            punchInTime = new Date();
-            document.getElementById("sumIn").textContent = formatTime(
-              new Date(),
-            );
+            punchInTime = new Date(data.punched_at_iso);
+            document.getElementById("sumIn").textContent =
+              formatTime(punchInTime);
           } else {
             isPunchedIn = false;
             isCompleted = true;
