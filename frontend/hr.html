@@ -34,6 +34,11 @@
         padding: 0;
         box-sizing: border-box;
       }
+      html,
+      body {
+        width: 100%;
+        overflow-x: hidden;
+      }
       :root {
         --bg: #f0f2f5;
         --surface: #fff;
@@ -1442,16 +1447,19 @@
 
         .main {
           margin-left: 0;
+          width: 100vw;
+          overflow-x: hidden;
         }
 
         /* Topbar adjustments */
         .topbar {
           padding: 0 16px;
           height: 56px;
+          width: 100%;
         }
 
         .topbar-breadcrumb {
-          font-size: 12px;
+          display: none;
         }
 
         .topbar-right {
@@ -1461,6 +1469,8 @@
         /* Page padding */
         .page {
           padding: 16px 16px 40px;
+          width: 100%;
+          max-width: 100%;
         }
 
         /* Headers */
@@ -1475,6 +1485,7 @@
           grid-template-columns: 1fr;
           gap: 12px;
           margin-bottom: 16px;
+          width: 100%;
         }
 
         .kpi-value {
@@ -1486,6 +1497,7 @@
           grid-template-columns: repeat(2, 1fr);
           gap: 10px;
           margin-bottom: 16px;
+          width: 100%;
         }
 
         .stat-chip {
@@ -1501,6 +1513,8 @@
           padding: 12px;
           gap: 8px;
           flex-direction: column;
+          width: 100%;
+          max-width: 100%;
         }
 
         .filter-group {
@@ -1528,14 +1542,22 @@
           font-size: 12px;
         }
 
-        /* Tables */
+        /* Tables - CRITICAL FIX */
+        .table-card {
+          width: 100%;
+          overflow-x: auto;
+        }
+
         table {
           font-size: 12px;
+          width: 100%;
+          border-collapse: collapse;
         }
 
         thead th {
           padding: 10px 12px;
           font-size: 10px;
+          white-space: nowrap;
         }
 
         tbody td {
@@ -1549,10 +1571,20 @@
           font-size: 11px;
         }
 
+        /* Hide action column on small screens */
+        #obTable td:last-child,
+        #reportTable td:last-child,
+        #obTable th:last-child,
+        #reportTable th:last-child {
+          min-width: auto;
+          width: auto;
+        }
+
         /* OB KPI */
         .ob-kpi-row {
           grid-template-columns: repeat(2, 1fr);
           gap: 10px;
+          width: 100%;
         }
 
         .ob-kpi {
@@ -1567,6 +1599,7 @@
         .ob-table-header {
           gap: 8px;
           flex-direction: column;
+          width: 100%;
         }
 
         .ob-tabs {
@@ -1579,6 +1612,7 @@
         .form-grid-3 {
           grid-template-columns: 1fr;
           gap: 12px;
+          width: 100%;
         }
 
         .form-input,
@@ -1586,12 +1620,14 @@
         .form-textarea {
           padding: 8px 12px;
           font-size: 12px;
+          width: 100%;
         }
 
         /* Add Employee */
         .ae-layout {
           flex-direction: column;
           gap: 16px;
+          width: 100%;
         }
 
         .ae-steps {
@@ -1612,6 +1648,7 @@
 
         .ae-topbar {
           flex-direction: column;
+          width: 100%;
         }
 
         .ae-topbar h2 {
@@ -1629,12 +1666,14 @@
         .ae-section-card {
           padding: 16px;
           margin-bottom: 12px;
+          width: 100%;
         }
 
         .ae-status-bar {
           padding: 12px 16px;
           flex-direction: column;
           gap: 12px;
+          width: 100%;
         }
 
         .ae-nav-btns {
@@ -1650,6 +1689,7 @@
         .modal {
           max-width: 95vw;
           max-height: 95vh;
+          width: 100%;
         }
 
         .modal-header {
@@ -1663,6 +1703,7 @@
         .modal-footer {
           padding: 12px 16px;
           flex-direction: column;
+          width: 100%;
         }
 
         .modal-footer-right {
@@ -1681,6 +1722,7 @@
           padding: 14px;
           flex-direction: column;
           gap: 10px;
+          width: 100%;
         }
 
         .help-banner .btn {
@@ -1693,6 +1735,8 @@
       @media (max-width: 480px) {
         .page {
           padding: 12px 12px 40px;
+          width: 100%;
+          max-width: 100%;
         }
 
         .page-title h1,
