@@ -176,6 +176,7 @@ class Employee(Base):
     branch = relationship("Branch")
     l1     = relationship("Employee", foreign_keys=[l1_manager_id], remote_side="Employee.id")
     l2     = relationship("Employee", foreign_keys=[l2_manager_id], remote_side="Employee.id")
+    regularization_requests = relationship("RegularizationRequest", foreign_keys="RegularizationRequest.employee_id", back_populates="employee")
 
     __table_args__ = (
         CheckConstraint(
@@ -298,13 +299,120 @@ class DailySummary(Base):
     is_late         = Column(Boolean, server_default="false")
     late_by_minutes = Column(Integer, server_default="0")
     status          = Column(String(20), server_default="present")
+    
+    # ── Regularization fields ──────────────────────────────────
+    regularization_request_id = Column(Integer, ForeignKey("regularization_requests.id", ondelete="SET NULL"))
+    regularization_status   = Column(String(20), server_default="not_requested")  # not_requested, pending, approved, rejected
+    regularization_minutes  = Column(Integer, server_default="0")
+    is_regularized          = Column(Boolean, server_default="false")
+    
+    # ── Payroll fields ─────────────────────────────────────────
+    payroll_status          = Column(String(20), server_default="absent")  # present, partial, absent
+    payroll_minutes         = Column(Integer, server_default="0")
+    payroll_notes           = Column(Text)
 
     user = relationship("User", back_populates="daily_summaries")
+    regularization_request = relationship("RegularizationRequest", back_populates="daily_summary")
 
     __table_args__ = (
         UniqueConstraint("user_id", "work_date", name="uq_daily_summary_user_date"),
-        CheckConstraint("status IN ('present','leave')", name="status_values"),
+        CheckConstraint("status IN ('present','leave','absent')", name="status_values"),
+        CheckConstraint("payroll_status IN ('present','partial','absent')", name="payroll_status_values"),
     )
 
 
 Index("idx_summary_user_date", DailySummary.user_id, DailySummary.work_date)
+
+
+# ── regularization_requests ────────────────────────────────────
+class RegularizationRequest(Base):
+    """
+    Attendance regularization requests (early logout, late login, etc.)
+    
+    Approval workflow:
+    - Requests 1-3 per month: L1 manager only
+    - Requests 4+ per month: Both L1 and L2 (HR) managers
+    
+    If L1 absent: auto-escalate to L2
+    If either rejects: final_status = 'rejected'
+    If all approvals done: final_status = 'approved'
+    """
+    __tablename__ = "regularization_requests"
+
+    id                      = Column(Integer, primary_key=True)
+    employee_id             = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    work_date               = Column(Date, nullable=False)
+    
+    # ── Request details ────────────────────────────────────────
+    actual_worked_minutes   = Column(Integer, nullable=False)  # e.g., 450 (7h 30m)
+    requested_minutes       = Column(Integer, nullable=False)  # e.g., 90 (1h 30m)
+    reason                  = Column(Text, nullable=False)
+    submitted_at            = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+    submitted_by_user_id    = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    
+    # ── L1 Manager approval ────────────────────────────────────
+    l1_manager_id           = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"))
+    l1_status               = Column(String(20), server_default="pending")  # pending, approved, rejected
+    l1_approved_at          = Column(TIMESTAMP(timezone=True))
+    l1_approved_by_user_id  = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    l1_comment              = Column(Text)
+    
+    # ── L2 Manager (HR) approval ───────────────────────────────
+    l2_manager_id           = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"))
+    l2_status               = Column(String(20))  # NULL if not required, else pending, approved, rejected
+    l2_approved_at          = Column(TIMESTAMP(timezone=True))
+    l2_approved_by_user_id  = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    l2_comment              = Column(Text)
+    
+    # ── Final status ───────────────────────────────────────────
+    escalation_required = Column(Boolean, server_default="false")
+    final_status            = Column(String(20), server_default="pending")  # approved, rejected, pending
+    
+    # ── Metadata ───────────────────────────────────────────────
+    created_at              = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+    updated_at              = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
+    
+    # ── Relationships ──────────────────────────────────────────
+    employee                = relationship("Employee", foreign_keys=[employee_id], back_populates="regularization_requests")
+    l1_manager              = relationship("Employee", foreign_keys=[l1_manager_id])
+    l2_manager              = relationship("Employee", foreign_keys=[l2_manager_id])
+    submitted_by_user       = relationship("User", foreign_keys=[submitted_by_user_id])
+    l1_approved_by_user     = relationship("User", foreign_keys=[l1_approved_by_user_id])
+    l2_approved_by_user     = relationship("User", foreign_keys=[l2_approved_by_user_id])
+    daily_summary           = relationship("DailySummary", back_populates="regularization_request", uselist=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "l1_status IN ('pending', 'approved', 'rejected')",
+            name="l1_status_values"
+        ),
+        CheckConstraint(
+            "l2_status IS NULL OR l2_status IN ('pending', 'approved', 'rejected')",
+            name="l2_status_values"
+        ),
+        CheckConstraint(
+            "final_status IN ('pending','approved','rejected')",
+            name="reg_final_status_values"
+        ),
+    )
+
+
+Index("idx_reg_req_employee", RegularizationRequest.employee_id)
+Index("idx_reg_req_work_date", RegularizationRequest.work_date)
+Index("idx_reg_req_l1_manager", RegularizationRequest.l1_manager_id)
+Index("idx_reg_req_l2_manager", RegularizationRequest.l2_manager_id)
+Index("idx_reg_req_final_status", RegularizationRequest.final_status)
+Index("idx_reg_req_created", RegularizationRequest.created_at)
+
+class RegularizationAuditLog(Base):
+    __tablename__ = "regularization_audit_logs"
+
+    id = Column(Integer, primary_key=True)
+    request_id = Column(Integer, ForeignKey("regularization_requests.id", ondelete="CASCADE"))
+
+    action_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    action_role = Column(String(10))  # l1 / l2 / system
+    action_type = Column(String(30))  # submitted / l1_approved / etc
+    note = Column(Text)
+
+    created_at = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())

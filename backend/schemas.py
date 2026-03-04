@@ -249,3 +249,177 @@ class DailyReportResponse(BaseModel):
     date: str
     stats: ReportStats
     employees: list[EmployeeReportRow]
+
+
+# ══════════════════════════════════════════════════════════════
+# REGULARIZATION
+# ══════════════════════════════════════════════════════════════
+
+class RegularizationRequestCreate(BaseModel):
+    work_date: date
+    actual_worked_minutes: int
+    requested_minutes: int
+    reason: str
+
+    @field_validator("requested_minutes")
+    @classmethod
+    def validate_requested(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("Requested minutes must be greater than 0")
+        if v > 480:  # max 8 hours
+            raise ValueError("Cannot request more than 8 hours")
+        return v
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 3:
+            raise ValueError("Reason must be at least 3 characters")
+        if len(v) > 500:
+            raise ValueError("Reason must be at most 500 characters")
+        return v
+
+
+class RegularizationApprovalRequest(BaseModel):
+    comment: Optional[str] = None
+
+    @field_validator("comment")
+    @classmethod
+    def validate_comment(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 500:
+            raise ValueError("Comment must be at most 500 characters")
+        return v
+
+
+class RegularizationRejectionRequest(BaseModel):
+    comment: str
+
+    @field_validator("comment")
+    @classmethod
+    def validate_comment(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 5:
+            raise ValueError("Comment must be at least 5 characters")
+        if len(v) > 500:
+            raise ValueError("Comment must be at most 500 characters")
+        return v
+
+
+class RegularizationRequestRow(BaseModel):
+    request_id: int
+    work_date: date
+    actual_worked_minutes: int
+    actual_worked: str  # "7h 30m"
+    requested_minutes: int
+    requested_display: str  # "1h 30m"
+    reason: str
+    submitted_at: datetime
+    l1_status: str
+    l1_manager_name: Optional[str] = None
+    l1_approved_at: Optional[datetime] = None
+    l2_status: Optional[str] = None
+    l2_manager_name: Optional[str] = None
+    l2_approved_at: Optional[datetime] = None
+    final_status: str
+    payroll_impact: str  # "present" or "absent"
+
+
+class RegularizationRequestsListResponse(BaseModel):
+    month: str  # "2024-12"
+    total: int
+    approved: int
+    rejected: int
+    pending: int
+    monthly_limit_hours: int
+    approved_hours_this_month: int
+    requests: list[RegularizationRequestRow]
+
+
+class RegularizationRequestDetail(BaseModel):
+    request_id: int
+    employee_id: int
+    employee_name: str
+    work_date: date
+    actual_worked_minutes: int
+    actual_worked_display: str
+    shift_minutes: int
+    shift_display: str
+    gap_minutes: int
+    gap_display: str
+    requested_minutes: int
+    requested_display: str
+    reason: str
+    submitted_at: datetime
+    
+    l1_manager_id: Optional[int] = None
+    l1_manager_name: Optional[str] = None
+    l1_status: str
+    l1_comment: Optional[str] = None
+    l1_approved_at: Optional[datetime] = None
+    
+    l2_manager_id: Optional[int] = None
+    l2_manager_name: Optional[str] = None
+    l2_status: Optional[str] = None
+    l2_comment: Optional[str] = None
+    l2_approved_at: Optional[datetime] = None
+    
+    requires_l2_approval: bool
+    final_status: str
+    is_regularized: bool
+    payroll_status: str
+    payroll_notes: Optional[str] = None
+
+
+class PendingApprovalRow(BaseModel):
+    request_id: int
+    employee_id: int
+    employee_name: str
+    work_date: date
+    actual_worked_minutes: int
+    actual_worked_display: str
+    requested_minutes: int
+    requested_display: str
+    reason: str
+    submitted_at: datetime
+    request_number_this_month: int
+    requires_l2: bool
+    l1_manager_name: Optional[str] = None  # For L2 view
+
+
+class PendingApprovalsResponse(BaseModel):
+    pending_count: int
+    pending_requests: list[PendingApprovalRow]
+
+
+class RegularizationApprovalResponse(BaseModel):
+    request_id: int
+    status: str  # approved or rejected
+    approved_by_role: str  # l1 or l2
+    approved_at: datetime
+    final_status: str
+    message: str
+
+
+class CalendarDayView(BaseModel):
+    date: date
+    punch_in: Optional[str] = None  # "09:15"
+    punch_out: Optional[str] = None  # "17:45"
+    actual_worked_minutes: int
+    actual_worked: str  # "8h 30m"
+    shift_start: str  # "09:00"
+    shift_end: str  # "18:00"
+    shift_minutes: int
+    shift_hours: str  # "9h"
+    status: str  # "present", "absent", "leave"
+    is_late: bool
+    late_by_minutes: int
+    gap_minutes: Optional[int] = None
+    gap_hours: Optional[str] = None
+    
+    regularization: Optional[dict] = None  # {request_id, status, requested_minutes, l1_status, l2_status}
+
+
+class AttendanceCalendarResponse(BaseModel):
+    month: str  # "2024-12"
+    days: list[CalendarDayView]

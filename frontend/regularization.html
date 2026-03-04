@@ -1,0 +1,2051 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="theme-color" content="#0052cc" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SDPL HRMS" />
+    <link rel="apple-touch-icon" href="/appletouchicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/icon192.png" sizes="192x192" />
+    <link rel="icon" type="image/png" href="/icon512.png" sizes="512x512" />
+    <title>Attendance Regularization | SDPL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
+
+      :root {
+        --primary: #0089d0;
+        --primary-dark: #0081ea;
+        --primary-light: #e6f0ff;
+        --secondary: #10b981;
+        --secondary-light: #dbeae5;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --bg: #f8f9fa;
+        --surface: #ffffff;
+        --surface-secondary: #f3f4f6;
+        --border: #e5e7eb;
+        --border-light: #f0f0f0;
+        --text: #111827;
+        --text-secondary: #6b7280;
+        --text-muted: #9ca3af;
+        --success: #059669;
+        --success-light: #ecfdf5;
+        --error-light: #fef2f2;
+        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --shadow-sm:
+          0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
+        --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      body {
+        font-family:
+          "Sora",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: max(12px, env(safe-area-inset-left))
+          max(12px, env(safe-area-inset-top))
+          max(1100px, env(safe-area-inset-bottom))
+          max(12px, env(safe-area-inset-right));
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* HEADER */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        gap: 12px;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .back-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: var(--text);
+      }
+
+      .back-btn:active {
+        transform: scale(0.95);
+      }
+
+      .page-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.3px;
+      }
+
+      /* TABS */
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        background: var(--surface);
+        padding: 4px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+      }
+
+      .tab {
+        flex: 1;
+        padding: 10px 16px;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .tab:active {
+        transform: scale(0.98);
+      }
+
+      .tab.active {
+        background: var(--primary);
+        color: white;
+      }
+
+      .tab-badge {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        background: var(--danger);
+        color: white;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 10px;
+        min-width: 18px;
+        text-align: center;
+      }
+
+      .tab.active .tab-badge {
+        background: white;
+        color: var(--primary);
+      }
+
+      /* MONTH SELECTOR */
+      .month-selector {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+      }
+
+      .month-display {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .month-nav {
+        display: flex;
+        gap: 8px;
+      }
+
+      .month-nav button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: var(--surface-secondary);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .month-nav button:active {
+        transform: scale(0.9);
+      }
+
+      .month-nav button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* STATS CARDS */
+      .stats-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .stat-card {
+        flex: 1;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 4px;
+      }
+
+      .stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .stat-value.success {
+        color: var(--success);
+      }
+
+      .stat-value.warning {
+        color: var(--warning);
+      }
+
+      .stat-value.danger {
+        color: var(--danger);
+      }
+
+      /* USAGE BAR */
+      .usage-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .usage-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .usage-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .usage-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .usage-bar {
+        height: 8px;
+        background: var(--surface-secondary);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .usage-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+        border-radius: 4px;
+        transition: width 0.3s ease;
+      }
+
+      .usage-fill.warning {
+        background: linear-gradient(90deg, var(--warning), #d97706);
+      }
+
+      .usage-fill.danger {
+        background: linear-gradient(90deg, var(--danger), #dc2626);
+      }
+
+      /* DAY CARDS & APPROVAL CARDS (shared styles) */
+      .content-view {
+        display: none;
+      }
+
+      .content-view.active {
+        display: block;
+      }
+
+      .days-list,
+      .approval-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 80px;
+      }
+
+      .day-card,
+      .approval-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        transition: all 0.2s ease;
+      }
+
+      .day-card.incomplete {
+        border-left: 4px solid var(--warning);
+      }
+
+      .day-card.pending,
+      .approval-card {
+        border-left: 4px solid var(--primary);
+        background: var(--primary-light);
+      }
+
+      .day-card.approved {
+        border-left: 4px solid var(--success);
+        background: var(--success-light);
+      }
+
+      .day-card.rejected {
+        border-left: 4px solid var(--danger);
+        background: var(--error-light);
+      }
+
+      .day-header,
+      .approval-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 10px;
+        gap: 12px;
+      }
+
+      .day-date,
+      .approval-emp-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+        flex: 1;
+      }
+
+      .day-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        flex-shrink: 0;
+      }
+
+      .day-badge.complete {
+        background: var(--success-light);
+        color: var(--success);
+      }
+
+      .day-badge.incomplete {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .day-badge.pending {
+        background: var(--primary-light);
+        color: var(--primary-dark);
+      }
+
+      .day-badge.approved {
+        background: var(--success-light);
+        color: var(--success);
+      }
+
+      .day-badge.rejected {
+        background: var(--error-light);
+        color: var(--danger);
+      }
+
+      .approval-meta {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+
+      .approval-reason {
+        padding: 10px 12px;
+        background: white;
+        border-radius: 8px;
+        margin: 10px 0;
+        font-size: 13px;
+        color: var(--text);
+        font-style: italic;
+      }
+
+      .day-times {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 10px;
+        font-size: 13px;
+      }
+
+      .day-time {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--text-secondary);
+      }
+
+      .day-worked {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-top: 1px solid var(--border-light);
+        margin-top: 8px;
+      }
+
+      .worked-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+
+      .worked-value {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .gap-warning {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        background: #fef3c7;
+        border-radius: 8px;
+        margin-top: 10px;
+      }
+
+      .gap-warning span {
+        font-size: 12px;
+        font-weight: 600;
+        color: #92400e;
+      }
+
+      .request-status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        background: var(--surface-secondary);
+        border-radius: 8px;
+        margin-top: 10px;
+      }
+
+      .request-status-text {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .request-btn,
+      .approval-actions button {
+        padding: 8px 16px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .request-btn:active,
+      .approval-actions button:active {
+        transform: scale(0.95);
+      }
+
+      .request-btn.secondary {
+        background: var(--surface);
+        color: var(--primary);
+        border: 1px solid var(--primary);
+      }
+
+      .approval-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .approval-actions button {
+        flex: 1;
+      }
+
+      .approval-actions .reject-btn {
+        background: var(--surface);
+        color: var(--danger);
+        border: 1px solid var(--danger);
+      }
+
+      .approval-actions .approve-btn {
+        background: var(--success);
+      }
+
+      /* EMPTY STATE */
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+      }
+
+      .empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+
+      .empty-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+      }
+
+      .empty-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+      }
+
+      /* BOTTOM SHEET */
+      .bottom-sheet-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 999;
+      }
+
+      .bottom-sheet-overlay.active {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .bottom-sheet {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--surface);
+        border-radius: 24px 24px 0 0;
+        padding: 8px 20px max(24px, env(safe-area-inset-bottom));
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      .bottom-sheet.active {
+        transform: translateY(0);
+      }
+
+      .sheet-handle {
+        width: 36px;
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 0 auto 20px;
+      }
+
+      .sheet-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+
+      .sheet-subtitle {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 20px;
+      }
+
+      .sheet-section {
+        margin-bottom: 20px;
+      }
+
+      .sheet-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 8px;
+      }
+
+      .sheet-info-card {
+        background: var(--surface-secondary);
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+
+      .sheet-info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+      }
+
+      .sheet-info-row:not(:last-child) {
+        border-bottom: 1px solid var(--border-light);
+      }
+
+      .sheet-info-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+
+      .sheet-info-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .gap-highlight {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px;
+        background: #fef3c7;
+        border-radius: 10px;
+        margin-bottom: 16px;
+      }
+
+      .gap-highlight span {
+        font-size: 15px;
+        font-weight: 700;
+        color: #92400e;
+      }
+
+      /* TIME CHIPS */
+      .time-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .time-chip {
+        flex: 1;
+        min-width: 70px;
+        padding: 12px 16px;
+        background: var(--surface);
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text);
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .time-chip:active {
+        transform: scale(0.95);
+      }
+
+      .time-chip.selected {
+        background: var(--primary-light);
+        border-color: var(--primary);
+        color: var(--primary-dark);
+      }
+
+      .time-chip.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      /* Add this new style */
+      .forgot-alert {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 10px;
+        margin-bottom: 16px;
+      }
+
+      .forgot-alert svg {
+        flex-shrink: 0;
+        color: #ff6b00;
+      }
+
+      .forgot-alert-text {
+        font-size: 13px;
+        color: #856404;
+        font-weight: 500;
+      }
+
+      .manual-entry-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 12px;
+        text-align: center;
+      }
+
+      /* TEXTAREA */
+      .sheet-textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 12px;
+        background: var(--surface-secondary);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--text);
+        resize: vertical;
+      }
+
+      .sheet-textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+
+      /* BUTTONS */
+      .sheet-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+      }
+
+      .btn {
+        flex: 1;
+        padding: 14px 24px;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .btn:active {
+        transform: scale(0.98);
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: white;
+      }
+
+      .btn-secondary {
+        background: var(--surface-secondary);
+        color: var(--text);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* BOTTOM NAV */
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 8px max(8px, env(safe-area-inset-right))
+          max(8px, env(safe-area-inset-bottom))
+          max(8px, env(safe-area-inset-left));
+        display: flex;
+        gap: 8px;
+        z-index: 100;
+      }
+
+      .nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 10px;
+        background: transparent;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .nav-btn:active {
+        transform: scale(0.95);
+      }
+
+      .nav-btn.active {
+        background: var(--primary-light);
+      }
+
+      .nav-icon {
+        font-size: 22px;
+        color: var(--text-secondary);
+      }
+
+      .nav-btn.active .nav-icon {
+        color: var(--primary-dark);
+      }
+
+      .nav-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .nav-btn.active .nav-label {
+        color: var(--primary-dark);
+      }
+
+      /* LOADING */
+      .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+      }
+
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* TOAST */
+      .toast {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-100px);
+        background: var(--text);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        transition: all 0.3s ease;
+        z-index: 10001;
+        max-width: 90%;
+      }
+
+      .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+
+      .toast.success {
+        background: var(--success);
+      }
+
+      .toast.error {
+        background: var(--danger);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-left">
+        <a href="/employee" class="back-btn">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <h1 class="page-title">Regularization</h1>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" data-tab="mine" onclick="switchTab('mine')">
+        My Requests
+      </button>
+      <button
+        class="tab"
+        data-tab="team"
+        id="teamTab"
+        onclick="switchTab('team')"
+        style="display: none"
+      >
+        Team
+        <span class="tab-badge" id="teamBadge">0</span>
+      </button>
+    </div>
+
+    <!-- MY REQUESTS VIEW -->
+    <div id="mineView" class="content-view active">
+      <!-- MONTH SELECTOR -->
+      <div class="month-selector">
+        <div class="month-display" id="monthDisplay">March 2026</div>
+        <div class="month-nav">
+          <button id="prevMonth" onclick="changeMonth(-1)">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <button id="nextMonth" onclick="changeMonth(1)" disabled>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Approved</div>
+          <div class="stat-value success" id="approvedCount">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Pending</div>
+          <div class="stat-value warning" id="pendingCount">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Rejected</div>
+          <div class="stat-value danger" id="rejectedCount">0</div>
+        </div>
+      </div>
+
+      <!-- USAGE -->
+      <div class="usage-card">
+        <div class="usage-header">
+          <span class="usage-label">Monthly Usage</span>
+          <span class="usage-value" id="usageValue">0h / 20h</span>
+        </div>
+        <div class="usage-bar">
+          <div class="usage-fill" id="usageFill" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- DAYS LIST -->
+      <div id="daysList" class="days-list">
+        <div class="loading">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEAM APPROVALS VIEW -->
+    <div id="teamView" class="content-view">
+      <div id="approvalsList" class="approval-list">
+        <div class="loading">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM SHEET FOR REQUEST -->
+    <div
+      class="bottom-sheet-overlay"
+      id="sheetOverlay"
+      onclick="closeSheet()"
+    ></div>
+    <div class="bottom-sheet" id="bottomSheet">
+      <div class="sheet-handle"></div>
+      <h2 class="sheet-title" id="sheetTitle">Request Regularization</h2>
+      <p class="sheet-subtitle" id="sheetSubtitle">Monday, March 3, 2026</p>
+
+      <div class="sheet-section">
+        <div class="sheet-label">Your Shift</div>
+        <div class="sheet-info-card">
+          <div class="sheet-info-row">
+            <span class="sheet-info-label">Shift Time</span>
+            <span class="sheet-info-value" id="sheetShift"
+              >09:00 AM - 06:00 PM</span
+            >
+          </div>
+          <div class="sheet-info-row">
+            <span class="sheet-info-label">Expected Hours</span>
+            <span class="sheet-info-value" id="sheetExpected">9h</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- NORMAL ATTENDANCE SECTION (for early/late cases) -->
+      <div class="sheet-section" id="attendanceSection">
+        <div class="sheet-label">Actual Attendance</div>
+        <div class="sheet-info-card">
+          <div class="sheet-info-row">
+            <span class="sheet-info-label">Clock In</span>
+            <span class="sheet-info-value" id="sheetClockIn">09:15 AM</span>
+          </div>
+          <div class="sheet-info-row">
+            <span class="sheet-info-label">Clock Out</span>
+            <span class="sheet-info-value" id="sheetClockOut">04:30 PM</span>
+          </div>
+          <div class="sheet-info-row">
+            <span class="sheet-info-label">Worked</span>
+            <span class="sheet-info-value" id="sheetWorked">7h 15m</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORGOT PUNCH SECTION (for forgot cases) -->
+      <div class="sheet-section" id="forgotSection" style="display: none">
+        <div class="forgot-alert">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <div class="forgot-alert-text" id="forgotAlertText">
+            You forgot to punch in/out
+          </div>
+        </div>
+        <div class="manual-entry-label" id="manualEntryLabel">
+          Enter actual hours you worked:
+        </div>
+      </div>
+
+      <!-- GAP HIGHLIGHT (only for normal cases) -->
+      <div class="gap-highlight" id="gapSection">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+        <span id="sheetGap">Missing: 1h 45m</span>
+      </div>
+
+      <div class="gap-highlight">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+        <span id="sheetGap">Missing: 1h 45m</span>
+      </div>
+
+      <div class="sheet-section">
+        <div class="sheet-label">Request Additional Time</div>
+        <div class="time-chips" id="timeChips">
+          <!-- Generated dynamically -->
+        </div>
+      </div>
+
+      <div class="sheet-section">
+        <div class="sheet-label">Reason</div>
+        <textarea
+          class="sheet-textarea"
+          id="reasonInput"
+          placeholder="Explain why you need regularization (minimum 3 characters)..."
+          maxlength="500"
+        ></textarea>
+      </div>
+
+      <div class="sheet-actions">
+        <button class="btn btn-secondary" onclick="closeSheet()">Cancel</button>
+        <button
+          class="btn btn-primary"
+          id="submitBtn"
+          onclick="submitRequest()"
+        >
+          Submit Request
+        </button>
+      </div>
+    </div>
+
+    <!-- BOTTOM SHEET FOR APPROVAL -->
+    <div
+      class="bottom-sheet-overlay"
+      id="approvalOverlay"
+      onclick="closeApprovalSheet()"
+    ></div>
+    <div class="bottom-sheet" id="approvalSheet">
+      <div class="sheet-handle"></div>
+      <h2 class="sheet-title" id="approvalTitle">Approve Request</h2>
+      <p class="sheet-subtitle" id="approvalSubtitle">Employee Name • Date</p>
+
+      <div class="sheet-section">
+        <div class="sheet-label">Request Details</div>
+        <div class="sheet-info-card">
+          <div class="sheet-info-row">
+            <span class="sheet-info-label">Worked</span>
+            <span class="sheet-info-value" id="approvalWorked">7h 15m</span>
+          </div>
+          <div class="sheet-info-row">
+            <span class="sheet-info-label">Requesting</span>
+            <span class="sheet-info-value" id="approvalRequested">1h 30m</span>
+          </div>
+          <div class="sheet-info-row">
+            <span class="sheet-info-label">Total</span>
+            <span class="sheet-info-value" id="approvalTotal">8h 45m</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-section">
+        <div class="sheet-label">Reason</div>
+        <div class="approval-reason" id="approvalReason">
+          Had doctor appointment
+        </div>
+      </div>
+
+      <div class="sheet-section">
+        <div class="sheet-label">Comment (Optional)</div>
+        <textarea
+          class="sheet-textarea"
+          id="approvalComment"
+          placeholder="Add a comment..."
+          maxlength="500"
+        ></textarea>
+      </div>
+
+      <div class="sheet-actions">
+        <button
+          class="btn"
+          style="background: var(--danger); color: white"
+          onclick="rejectRequest()"
+        >
+          Reject
+        </button>
+        <button class="btn btn-primary" onclick="approveRequest()">
+          Approve
+        </button>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottom-nav">
+      <a href="/employee" class="nav-btn">
+        <svg
+          class="nav-icon"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+        <span class="nav-label">Clock</span>
+      </a>
+      <button class="nav-btn active">
+        <svg
+          class="nav-icon"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span class="nav-label">Attendance</span>
+      </button>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ══════════════════════════════════════════════════════════════
+      // CONFIGURATION
+      // ══════════════════════════════════════════════════════════════
+      const API_BASE = "/api";
+      const MONTHLY_LIMIT_MINUTES = 1200; // 20 hours
+
+      // ══════════════════════════════════════════════════════════════
+      // STATE
+      // ══════════════════════════════════════════════════════════════
+      let currentMonth = new Date();
+      let calendarData = [];
+      let pendingApprovals = [];
+      let selectedDay = null;
+      let selectedRequest = null;
+      let currentTab = "mine";
+      let token = localStorage.getItem("token");
+      let user = null;
+
+      // ══════════════════════════════════════════════════════════════
+      // ACCESS GUARD
+      // ══════════════════════════════════════════════════════════════
+      async function checkAccess() {
+        if (!token) {
+          window.location.href = "/login";
+          return null;
+        }
+
+        try {
+          user = await apiFetch("/auth/me");
+
+          // Block HR/admin from this page
+          if (user.role === "hr" || user.role === "admin") {
+            console.log("HR/Admin user detected, redirecting to HR dashboard");
+            window.location.href = "/hr-manager";
+            return null;
+          }
+
+          return user;
+        } catch (error) {
+          console.error("Auth check failed:", error);
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          return null;
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // HELPERS
+      // ══════════════════════════════════════════════════════════════
+      function formatDate(date) {
+        const options = {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        };
+        return new Date(date).toLocaleDateString("en-IN", options);
+      }
+
+      function formatTime(timeStr) {
+        if (!timeStr) return "-";
+        const [h, m] = timeStr.split(":");
+        const hour = parseInt(h);
+        const ampm = hour >= 12 ? "PM" : "AM";
+        const displayHour = hour % 12 || 12;
+        return `${displayHour}:${m} ${ampm}`;
+      }
+
+      function minutesToDisplay(minutes) {
+        if (!minutes || minutes <= 0) return "0m";
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        if (h === 0) return `${m}m`;
+        if (m === 0) return `${h}h`;
+        return `${h}h ${m}m`;
+      }
+
+      function showToast(message, type = "success") {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.className = `toast ${type}`;
+        setTimeout(() => toast.classList.add("show"), 10);
+        setTimeout(() => {
+          toast.classList.remove("show");
+        }, 3000);
+      }
+
+      async function apiFetch(endpoint, method = "GET", body = null) {
+        const options = {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        };
+        if (body) options.body = JSON.stringify(body);
+
+        const res = await fetch(`${API_BASE}${endpoint}`, options);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || data.message || "Request failed");
+        }
+        return data;
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // TAB SWITCHING
+      // ══════════════════════════════════════════════════════════════
+      function switchTab(tab) {
+        currentTab = tab;
+
+        // Update tab buttons
+        document.querySelectorAll(".tab").forEach((t) => {
+          t.classList.toggle("active", t.dataset.tab === tab);
+        });
+
+        // Update views
+        document
+          .getElementById("mineView")
+          .classList.toggle("active", tab === "mine");
+        document
+          .getElementById("teamView")
+          .classList.toggle("active", tab === "team");
+
+        if (tab === "team") {
+          loadPendingApprovals();
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // MONTH NAVIGATION
+      // ══════════════════════════════════════════════════════════════
+      function updateMonthDisplay() {
+        const options = { month: "long", year: "numeric" };
+        document.getElementById("monthDisplay").textContent =
+          currentMonth.toLocaleDateString("en-IN", options);
+
+        // Disable next month button if current month
+        const now = new Date();
+        const isCurrentMonth =
+          currentMonth.getMonth() === now.getMonth() &&
+          currentMonth.getFullYear() === now.getFullYear();
+        document.getElementById("nextMonth").disabled = isCurrentMonth;
+      }
+
+      function changeMonth(delta) {
+        currentMonth = new Date(
+          currentMonth.getFullYear(),
+          currentMonth.getMonth() + delta,
+          1,
+        );
+        updateMonthDisplay();
+        loadCalendar();
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // DATA LOADING
+      // ══════════════════════════════════════════════════════════════
+      async function loadCalendar() {
+        try {
+          const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
+          const data = await apiFetch(
+            `/attendance/regularization/calendar?month=${monthStr}`,
+          );
+
+          calendarData = data.days || [];
+          renderDays();
+          updateStats();
+        } catch (error) {
+          console.error("Failed to load calendar:", error);
+          showToast(error.message, "error");
+          document.getElementById("daysList").innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">⚠️</div>
+              <div class="empty-title">Failed to load</div>
+              <div class="empty-text">${error.message}</div>
+            </div>
+          `;
+        }
+      }
+
+      async function loadPendingApprovals() {
+        const container = document.getElementById("approvalsList");
+        container.innerHTML =
+          '<div class="loading"><div class="spinner"></div></div>';
+
+        try {
+          const data = await apiFetch("/attendance/regularization/pending");
+          pendingApprovals = data.pending_requests || [];
+          renderApprovals();
+        } catch (error) {
+          console.error("Failed to load approvals:", error);
+          showToast(error.message, "error");
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">⚠️</div>
+              <div class="empty-title">Failed to load</div>
+              <div class="empty-text">${error.message}</div>
+            </div>
+          `;
+        }
+      }
+
+      async function checkManagerStatus() {
+        try {
+          const data = await apiFetch("/attendance/regularization/pending");
+
+          if (data.pending_count > 0) {
+            document.getElementById("teamTab").style.display = "flex";
+            document.getElementById("teamBadge").textContent =
+              data.pending_count;
+          }
+        } catch (error) {
+          console.error("Failed to check manager status:", error);
+        }
+      }
+
+      function updateStats() {
+        // Count requests by status from regularization field
+        let approved = 0,
+          pending = 0,
+          rejected = 0;
+
+        calendarData.forEach((day) => {
+          if (day.regularization) {
+            if (day.regularization.status === "approved") approved++;
+            else if (day.regularization.status === "pending") pending++;
+            else if (day.regularization.status === "rejected") rejected++;
+          }
+        });
+
+        document.getElementById("approvedCount").textContent = approved;
+        document.getElementById("pendingCount").textContent = pending;
+        document.getElementById("rejectedCount").textContent = rejected;
+
+        // Calculate usage (sum of approved requested_minutes)
+        const usedMinutes = calendarData.reduce((sum, day) => {
+          if (day.regularization && day.regularization.status === "approved") {
+            return sum + (day.regularization.requested_minutes || 0);
+          }
+          return sum;
+        }, 0);
+
+        const usedHours = Math.floor(usedMinutes / 60);
+        const usagePercent = Math.round(
+          (usedMinutes / MONTHLY_LIMIT_MINUTES) * 100,
+        );
+
+        document.getElementById("usageValue").textContent =
+          `${usedHours}h / 20h`;
+
+        const usageFill = document.getElementById("usageFill");
+        usageFill.style.width = `${Math.min(usagePercent, 100)}%`;
+        usageFill.className = "usage-fill";
+        if (usagePercent > 80) usageFill.classList.add("danger");
+        else if (usagePercent > 60) usageFill.classList.add("warning");
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // RENDERING
+      // ══════════════════════════════════════════════════════════════
+      function renderDays() {
+        const container = document.getElementById("daysList");
+
+        if (calendarData.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">📅</div>
+              <div class="empty-title">No attendance records</div>
+              <div class="empty-text">You haven't punched in this month yet</div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = calendarData
+          .map((day) => {
+            const gapMinutes = day.gap_minutes || 0;
+            const hasGap = gapMinutes > 0;
+            const reg = day.regularization;
+
+            let cardClass = "day-card";
+            let badgeClass = "day-badge complete";
+            let badgeText = "✓ Complete";
+            let showRequestBtn = false;
+            let requestBtnText = "Request Fix";
+            let requestStatus = null;
+
+            if (reg) {
+              // Has regularization request
+              if (reg.status === "pending") {
+                cardClass += " pending";
+                badgeClass = "day-badge pending";
+                badgeText = "🕒 Pending";
+                requestStatus = `Request pending (${minutesToDisplay(reg.requested_minutes)})`;
+              } else if (reg.status === "approved") {
+                cardClass += " approved";
+                badgeClass = "day-badge approved";
+                badgeText = "✓ Approved";
+                requestStatus = `Approved +${minutesToDisplay(reg.requested_minutes)}`;
+              } else if (reg.status === "rejected") {
+                cardClass += " rejected";
+                badgeClass = "day-badge rejected";
+                badgeText = "✗ Rejected";
+                showRequestBtn = true;
+                requestBtnText = "Resubmit";
+              }
+            } else if (hasGap) {
+              const hasPunchIn = day.punch_in && day.punch_in !== "-";
+              const hasPunchOut = day.punch_out && day.punch_out !== "-";
+
+              // ✅ CHECK IF TODAY
+              const today = new Date().toISOString().split("T")[0];
+              const isToday = day.date === today;
+
+              cardClass += " incomplete";
+              badgeClass = "day-badge incomplete";
+
+              if (!hasPunchOut && isToday) {
+                // Still working today
+                badgeText = "🕐 In Progress";
+                showRequestBtn = false; // ✅ HIDE BUTTON
+              } else if (!hasPunchIn && !hasPunchOut) {
+                badgeText = "⚠ No Record";
+                showRequestBtn = true;
+              } else if (!hasPunchIn) {
+                badgeText = "⚠ No Punch IN";
+                showRequestBtn = true;
+              } else if (!hasPunchOut) {
+                badgeText = "⚠ No Punch OUT";
+                showRequestBtn = true;
+              } else {
+                badgeText = "⚠ Incomplete";
+                showRequestBtn = true;
+              }
+            }
+
+            return `
+            <div class="${cardClass}">
+              <div class="day-header">
+                <div class="day-date">${formatDate(day.date)}</div>
+                <div class="${badgeClass}">${badgeText}</div>
+              </div>
+              
+              ${
+                day.punch_in || day.punch_out
+                  ? `
+                <div class="day-times">
+                  <div class="day-time">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    In: ${formatTime(day.punch_in)}
+                  </div>
+                  <div class="day-time">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                    Out: ${formatTime(day.punch_out)}
+                  </div>
+                </div>
+              `
+                  : ""
+              }
+              
+              <div class="day-worked">
+                <span class="worked-label">Worked</span>
+                <span class="worked-value">${day.actual_worked}</span>
+              </div>
+              
+              ${
+                hasGap && !reg
+                  ? `
+                <div class="gap-warning">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                  </svg>
+                  <span>Missing: ${day.gap_hours}</span>
+                </div>
+              `
+                  : ""
+              }
+              
+              ${
+                requestStatus
+                  ? `
+                <div class="request-status">
+                  <span class="request-status-text">${requestStatus}</span>
+                </div>
+              `
+                  : ""
+              }
+              
+              ${
+                showRequestBtn
+                  ? `
+                <div class="request-status">
+                  <button class="request-btn" onclick="openSheet('${day.date}')">${requestBtnText}</button>
+                </div>
+              `
+                  : ""
+              }
+            </div>
+          `;
+          })
+          .join("");
+      }
+
+      function renderApprovals() {
+        const container = document.getElementById("approvalsList");
+
+        if (pendingApprovals.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">✅</div>
+              <div class="empty-title">All caught up!</div>
+              <div class="empty-text">No pending approval requests</div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = pendingApprovals
+          .map((req) => {
+            return `
+            <div class="approval-card">
+              <div class="approval-header">
+                <div class="approval-emp-name">${req.employee_name}</div>
+                <div class="day-badge pending">Pending</div>
+              </div>
+              
+              <div class="approval-meta">
+                ${formatDate(req.work_date)} • Requested: ${req.requested_display}
+              </div>
+              
+              <div class="approval-reason">"${req.reason}"</div>
+              
+              <div class="day-worked">
+                <span class="worked-label">Worked</span>
+                <span class="worked-value">${req.actual_worked_display}</span>
+              </div>
+              
+              <div class="approval-actions">
+                <button class="reject-btn" onclick="openApprovalSheet(${req.request_id}, 'reject')">
+                  Reject
+                </button>
+                <button class="approve-btn" onclick="openApprovalSheet(${req.request_id}, 'approve')">
+                  Approve
+                </button>
+              </div>
+            </div>
+          `;
+          })
+          .join("");
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // BOTTOM SHEET - REQUEST
+      // ══════════════════════════════════════════════════════════════
+      function openSheet(dateStr) {
+        selectedDay = calendarData.find((d) => d.date === dateStr);
+        if (!selectedDay) return;
+
+        // Populate basic info
+        document.getElementById("sheetSubtitle").textContent = formatDate(
+          selectedDay.date,
+        );
+        document.getElementById("sheetShift").textContent =
+          `${formatTime(selectedDay.shift_start)} - ${formatTime(selectedDay.shift_end)}`;
+        document.getElementById("sheetExpected").textContent =
+          selectedDay.shift_hours;
+
+        // ✅ NEW: Detect if forgot punch in/out
+        const hasPunchIn = selectedDay.punch_in && selectedDay.punch_in !== "-";
+        const hasPunchOut =
+          selectedDay.punch_out && selectedDay.punch_out !== "-";
+        const isForgotCase = !hasPunchIn || !hasPunchOut;
+
+        if (isForgotCase) {
+          // FORGOT PUNCH IN/OUT CASE
+          showManualEntrySheet(selectedDay, hasPunchIn, hasPunchOut);
+        } else {
+          // NORMAL CASE (early/late)
+          showNormalRequestSheet(selectedDay);
+        }
+
+        // Show sheet
+        document.getElementById("sheetOverlay").classList.add("active");
+        document.getElementById("bottomSheet").classList.add("active");
+        document.body.style.overflow = "hidden";
+      }
+
+      function showNormalRequestSheet(day) {
+        // Normal case: has both punches
+        document.getElementById("sheetTitle").textContent =
+          "Request Regularization";
+
+        document.getElementById("sheetClockIn").textContent =
+          formatTime(day.punch_in) || "-";
+        document.getElementById("sheetClockOut").textContent =
+          formatTime(day.punch_out) || "-";
+        document.getElementById("sheetWorked").textContent = day.actual_worked;
+        document.getElementById("sheetGap").textContent =
+          `Missing: ${day.gap_hours}`;
+
+        // Show normal attendance section
+        document.getElementById("attendanceSection").style.display = "block";
+        document.getElementById("forgotSection").style.display = "none";
+        document.getElementById("gapSection").style.display = "block";
+
+        // Generate time chips (auto-select gap)
+        const gapMinutes = day.gap_minutes || 0;
+        const chips = [15, 30, 60, 90, 120];
+        const chipsHtml = chips
+          .map((min) => {
+            const isSelected =
+              min === gapMinutes ||
+              (gapMinutes > 0 &&
+                min <= gapMinutes &&
+                min === Math.max(...chips.filter((c) => c <= gapMinutes)));
+            const disabled = min > gapMinutes;
+            return `
+              <div class="time-chip ${isSelected ? "selected" : ""} ${disabled ? "disabled" : ""}" 
+                  onclick="selectChip(${min})" data-minutes="${min}">
+                ${minutesToDisplay(min)}
+              </div>
+            `;
+          })
+          .join("");
+        document.getElementById("timeChips").innerHTML = chipsHtml;
+
+        // Clear reason
+        document.getElementById("reasonInput").value = "";
+      }
+
+      function showManualEntrySheet(day, hasPunchIn, hasPunchOut) {
+        // Forgot punch case: manual entry
+        let forgotWhat = "";
+        let alertText = "";
+
+        if (!hasPunchIn && !hasPunchOut) {
+          forgotWhat = "both punch in and punch out";
+          alertText =
+            "⚠️ No attendance record found. Enter hours you actually worked.";
+        } else if (!hasPunchIn) {
+          forgotWhat = "punch in";
+          alertText = `⚠️ You forgot to punch IN. System shows OUT at ${formatTime(day.punch_out)}`;
+        } else {
+          forgotWhat = "punch out";
+          alertText = `⚠️ You forgot to punch OUT. System shows IN at ${formatTime(day.punch_in)}`;
+        }
+
+        document.getElementById("sheetTitle").textContent =
+          `Forgot ${forgotWhat}`;
+
+        // Hide normal sections
+        document.getElementById("attendanceSection").style.display = "none";
+        document.getElementById("gapSection").style.display = "none";
+
+        // Show forgot section
+        document.getElementById("forgotSection").style.display = "block";
+        document.getElementById("forgotAlertText").textContent = alertText;
+        document.getElementById("manualEntryLabel").textContent =
+          "Enter actual hours you worked:";
+
+        // Generate time chips for manual entry (full shift hours)
+        const shift_minutes = day.shift_minutes || 540;
+        const chips = [
+          { label: "8h", minutes: 480 },
+          { label: "9h", minutes: 540 },
+          { label: "10h", minutes: 600 },
+          { label: "Custom", minutes: 0 },
+        ];
+
+        const chipsHtml = chips
+          .map((chip) => {
+            const isSelected = chip.minutes === shift_minutes;
+            return `
+              <div class="time-chip ${isSelected ? "selected" : ""}" 
+                  onclick="selectChip(${chip.minutes})" data-minutes="${chip.minutes}">
+                ${chip.label}
+              </div>
+            `;
+          })
+          .join("");
+        document.getElementById("timeChips").innerHTML = chipsHtml;
+
+        // Clear reason
+        document.getElementById("reasonInput").value = "";
+      }
+
+      function closeSheet() {
+        document.getElementById("sheetOverlay").classList.remove("active");
+        document.getElementById("bottomSheet").classList.remove("active");
+        document.body.style.overflow = "";
+        selectedDay = null;
+      }
+
+      function selectChip(minutes) {
+        // Remove previous selection
+        document.querySelectorAll(".time-chip").forEach((chip) => {
+          chip.classList.remove("selected");
+        });
+
+        // Select clicked chip
+        const chip = document.querySelector(`[data-minutes="${minutes}"]`);
+        if (chip && !chip.classList.contains("disabled")) {
+          chip.classList.add("selected");
+        }
+      }
+
+      async function submitRequest() {
+        const selectedChip = document.querySelector(".time-chip.selected");
+        if (!selectedChip) {
+          showToast("Please select time", "error");
+          return;
+        }
+
+        const requestedMinutes = parseInt(selectedChip.dataset.minutes);
+        const reason = document.getElementById("reasonInput").value.trim();
+
+        if (reason.length < 3) {
+          showToast("Please provide a reason (minimum 3 characters)", "error");
+          return;
+        }
+
+        const submitBtn = document.getElementById("submitBtn");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Submitting...";
+
+        try {
+          // ✅ UPDATED: Use actual worked minutes (may be 0 for forgot cases)
+          const actualWorked = selectedDay.actual_worked_minutes || 0;
+
+          await apiFetch("/attendance/regularization/request", "POST", {
+            work_date: selectedDay.date,
+            actual_worked_minutes: actualWorked,
+            requested_minutes: requestedMinutes,
+            reason: reason,
+          });
+
+          showToast("Request submitted successfully", "success");
+          closeSheet();
+          loadCalendar(); // Reload to show pending status
+          checkManagerStatus(); // Update badge
+        } catch (error) {
+          showToast(error.message, "error");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Submit Request";
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // BOTTOM SHEET - APPROVAL
+      // ══════════════════════════════════════════════════════════════
+      function openApprovalSheet(requestId) {
+        selectedRequest = pendingApprovals.find(
+          (r) => r.request_id === requestId,
+        );
+        if (!selectedRequest) return;
+
+        // Populate sheet
+        document.getElementById("approvalSubtitle").textContent =
+          `${selectedRequest.employee_name} • ${formatDate(selectedRequest.work_date)}`;
+        document.getElementById("approvalWorked").textContent =
+          selectedRequest.actual_worked_display;
+        document.getElementById("approvalRequested").textContent =
+          selectedRequest.requested_display;
+
+        const totalMinutes =
+          selectedRequest.actual_worked_minutes +
+          selectedRequest.requested_minutes;
+        document.getElementById("approvalTotal").textContent =
+          minutesToDisplay(totalMinutes);
+        document.getElementById("approvalReason").textContent =
+          selectedRequest.reason;
+        document.getElementById("approvalComment").value = "";
+
+        // Show sheet
+        document.getElementById("approvalOverlay").classList.add("active");
+        document.getElementById("approvalSheet").classList.add("active");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeApprovalSheet() {
+        document.getElementById("approvalOverlay").classList.remove("active");
+        document.getElementById("approvalSheet").classList.remove("active");
+        document.body.style.overflow = "";
+        selectedRequest = null;
+      }
+
+      async function approveRequest() {
+        if (!selectedRequest) return;
+
+        const comment = document.getElementById("approvalComment").value.trim();
+
+        try {
+          await apiFetch(
+            `/attendance/regularization/requests/${selectedRequest.request_id}/approve`,
+            "POST",
+            {
+              comment: comment || null,
+            },
+          );
+
+          showToast("Request approved successfully", "success");
+          closeApprovalSheet();
+          loadPendingApprovals();
+          checkManagerStatus();
+        } catch (error) {
+          showToast(error.message, "error");
+        }
+      }
+
+      async function rejectRequest() {
+        if (!selectedRequest) return;
+
+        const comment = document.getElementById("approvalComment").value.trim();
+        if (comment.length < 5) {
+          showToast(
+            "Please provide a rejection reason (minimum 5 characters)",
+            "error",
+          );
+          return;
+        }
+
+        try {
+          await apiFetch(
+            `/attendance/regularization/requests/${selectedRequest.request_id}/reject`,
+            "POST",
+            {
+              comment: comment,
+            },
+          );
+
+          showToast("Request rejected", "success");
+          closeApprovalSheet();
+          loadPendingApprovals();
+          checkManagerStatus();
+        } catch (error) {
+          showToast(error.message, "error");
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // INIT
+      // ══════════════════════════════════════════════════════════════
+      async function init() {
+        const currentUser = await checkAccess();
+        if (!currentUser) return; // Redirected
+
+        updateMonthDisplay();
+        loadCalendar();
+        checkManagerStatus(); // Check if user is manager
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+
+      // Handle ESC key
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          if (
+            document.getElementById("bottomSheet").classList.contains("active")
+          ) {
+            closeSheet();
+          }
+          if (
+            document
+              .getElementById("approvalSheet")
+              .classList.contains("active")
+          ) {
+            closeApprovalSheet();
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

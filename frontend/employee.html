@@ -90,7 +90,7 @@
         color: var(--text);
         padding: max(12px, env(safe-area-inset-left))
           max(12px, env(safe-area-inset-top))
-          max(40px, env(safe-area-inset-bottom))
+          max(1000px, env(safe-area-inset-bottom))
           max(12px, env(safe-area-inset-right));
         min-height: 100vh;
         overflow-x: hidden;
@@ -130,11 +130,37 @@
         color: var(--text);
         letter-spacing: -0.3px;
       }
-
       .header-right {
         display: flex;
         align-items: center;
         gap: 12px;
+      }
+
+      .icon-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        background: #f1f3f5;
+        cursor: pointer;
+        transition:
+          background 0.2s ease,
+          transform 0.1s ease;
+      }
+
+      .icon-btn:hover {
+        background: #e9ecef;
+      }
+
+      .icon-btn:active {
+        transform: scale(0.95);
+      }
+
+      .logout-btn svg {
+        pointer-events: none;
       }
 
       .connection-indicator {
@@ -873,6 +899,64 @@
       .hidden {
         display: none !important;
       }
+
+      /* BOTTOM NAV */
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 8px max(8px, env(safe-area-inset-right))
+          max(8px, env(safe-area-inset-bottom))
+          max(8px, env(safe-area-inset-left));
+        display: flex;
+        gap: 8px;
+        z-index: 100;
+      }
+
+      .nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 10px;
+        background: transparent;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+      }
+
+      .nav-btn:active {
+        transform: scale(0.95);
+      }
+
+      .nav-btn.active {
+        background: var(--primary-light);
+      }
+
+      .nav-icon {
+        font-size: 22px;
+      }
+
+      .nav-btn.active .nav-icon {
+        color: var(--primary-dark);
+      }
+
+      .nav-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .nav-btn.active .nav-label {
+        color: var(--primary-dark);
+      }
     </style>
   </head>
   <body>
@@ -890,6 +974,7 @@
           <div class="brand-name">SDPL</div>
         </div>
       </div>
+
       <div class="header-right">
         <div
           class="connection-indicator"
@@ -897,16 +982,37 @@
           title="Connection status"
           aria-label="Connection status: Online"
         ></div>
-        <div
-          class="user-badge"
-          onclick="logout()"
-          role="button"
-          tabindex="0"
-          aria-label="User menu"
-        >
+
+        <!-- User info (no logout click here) -->
+        <div class="user-badge">
           <span class="user-avatar" id="userAvatar">U</span>
           <span id="userDisplayName">Loading</span>
         </div>
+
+        <!-- Logout icon button -->
+        <button
+          class="icon-btn logout-btn"
+          onclick="logout()"
+          title="Logout"
+          aria-label="Logout"
+        >
+          <!-- simple logout SVG -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -1057,6 +1163,42 @@
       </div>
     </div>
 
+    <!-- BOTTOM NAV -->
+    <div class="bottom-nav">
+      <button class="nav-btn active">
+        <svg
+          class="nav-icon"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+        <span class="nav-label">Clock</span>
+      </button>
+      <a href="/regularization" class="nav-btn">
+        <svg
+          class="nav-icon"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span class="nav-label">Attendance</span>
+      </a>
+    </div>
+
     <!-- TOAST -->
     <div class="toast" id="toast" role="alert" aria-live="polite">
       <span class="toast-text" id="toastText"></span>
@@ -1160,6 +1302,14 @@
         }
         try {
           user = await apiFetch("/auth/me");
+
+          //  NEW: Block HR/admin from employee pages
+          if (user.role === "hr" || user.role === "admin") {
+            console.log("HR/Admin user detected, redirecting to HR dashboard");
+            window.location.href = "/hr-manager";
+            return false;
+          }
+
           return true;
         } catch {
           localStorage.removeItem("token");
@@ -1274,11 +1424,11 @@
             document.getElementById("sumOut").textContent =
               data.summary.last_punch_out || "—";
 
-            // ✅ Declare variables FIRST
+            //  Declare variables FIRST
             const h = Math.floor((data.summary.total_minutes || 0) / 60);
             const m = (data.summary.total_minutes || 0) % 60;
 
-            // ✅ Use them AFTER declaration
+            //  Use them AFTER declaration
             totalWorkTime = `${h}h ${m}m`;
             document.getElementById("sumTotal").textContent = totalWorkTime;
           }

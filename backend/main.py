@@ -13,35 +13,39 @@ Architecture:
 import logging
 import math
 import pytz
-
+import dotenv
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, date, time
 from io import BytesIO
 from pathlib import Path
 from typing import Optional, Annotated
-
 import asyncpg
-import dotenv
-from fastapi import FastAPI, Depends, HTTPException, Query, Path as PathParam
+from fastapi import FastAPI, Depends, HTTPException, Query, Path as PathParam, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, field_validator
-from pydantic_settings import BaseSettings
-from fastapi import Body
-from schemas import LoginResponse
-from api_credentials import generate_temp_password  # reuse helper
+import re
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# ── Local imports ──────────────────────────────────────────────
+from config import settings
+from db import get_db, init_db, close_db
+from auth import get_current_user, require_hr, require_admin
+from schemas import LoginResponse
+from api_credentials import generate_temp_password
+
+# ── mandate Include routers ──────────────────────────────────
+from routers import regularization_router
 
 dotenv.load_dotenv()
 
-# ── Logging ───────────────────────────────────────────────────
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# ── Logging ────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
@@ -49,49 +53,31 @@ logging.basicConfig(
 logger = logging.getLogger("attendance")
 
 
-# ── Settings ──────────────────────────────────────────────────
-class Settings(BaseSettings):
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/attendance_db"
-    secret_key: str = ""
-    algorithm: str = "HS256"
-    access_token_expire_hours: int = 8
-    office_timezone: str = "Asia/Kolkata"
-    cors_origins: str = ""
-    late_grace_minutes: int = 0
-    db_pool_min: int = 5
-    db_pool_max: int = 20
+# ══════════════════════════════════════════════════════════════
+# APP SETUP
+# ══════════════════════════════════════════════════════════════
 
-    model_config = {"env_file": ".env", "case_sensitive": False}
-
-    @property
-    def allowed_origins(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
-
-
-settings = Settings()
-
-if not settings.secret_key:
-    raise RuntimeError("SECRET_KEY must be set in .env")
-
-
-# ── App ───────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db_pool
-    db_pool = await asyncpg.create_pool(
-        settings.database_url,
-        min_size=settings.db_pool_min,
-        max_size=settings.db_pool_max,
-    )
-    logger.info("DB pool ready")
+    """Startup and shutdown logic."""
+    # Startup
+    await init_db()
+    logger.info("✓ Database pool initialized")
     yield
-    await db_pool.close()
+    # Shutdown
+    await close_db()
+    logger.info("✓ Database pool closed")
 
 
-app = FastAPI(title="Attendance System", docs_url=None, redoc_url=None, lifespan=lifespan)
-security = HTTPBearer()
-db_pool: Optional[asyncpg.Pool] = None
+app = FastAPI(
+    title="Attendance System",
+    description="SDPL Attendance Manager",
+    version="3.0.0",
+    lifespan=lifespan,
+    redoc_url="/api/redoc",
+)
 
+# ── CORS Middleware ────────────────────────────────────────────
 if settings.allowed_origins:
     app.add_middleware(
         CORSMiddleware,
@@ -101,16 +87,9 @@ if settings.allowed_origins:
         allow_headers=["Authorization", "Content-Type"],
     )
 
-
-async def get_db():
-    if db_pool is None:
-        raise HTTPException(503, "Database not available")
-    async with db_pool.acquire() as conn:
-        yield conn
-
-
+app.include_router(regularization_router)
 # ══════════════════════════════════════════════════════════════
-# SCHEMAS
+# SCHEMAS (LOCAL ONLY)
 # ══════════════════════════════════════════════════════════════
 
 class LoginRequest(BaseModel):
@@ -124,6 +103,7 @@ class LoginRequest(BaseModel):
             raise ValueError("Password must not be empty")
         return v
 
+
 class RegisterRequest(BaseModel):
     """For admin and HR registration"""
     full_name: str
@@ -136,6 +116,7 @@ class RegisterRequest(BaseModel):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
         return v
+
 
 class PunchRequest(BaseModel):
     latitude: float
@@ -154,6 +135,7 @@ class PunchRequest(BaseModel):
         if not (-180 <= v <= 180):
             raise ValueError("Invalid longitude")
         return v
+
 
 class OnboardRequest(BaseModel):
     """For HR onboarding employees"""
@@ -214,14 +196,12 @@ class OnboardRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def min_length(cls, v):
-        # Allow empty password → will be auto-generated in endpoint
         if v is None or v == "":
             return None
-
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
-
         return v
+
 
 class UpdateOnboardingStatus(BaseModel):
     status: str
@@ -261,7 +241,7 @@ class UpdateEmployeeRequest(BaseModel):
     contract_end:    Optional[str] = None
     probation_end:   Optional[str] = None
     notice_period:   Optional[str] = None
-    shift_start:     Optional[str] = None   # "HH:MM"
+    shift_start:     Optional[str] = None
     shift_end:       Optional[str] = None
     work_mode:       Optional[str] = None
     weekly_off:      Optional[str] = None
@@ -290,7 +270,8 @@ class UpdateEmployeeRequest(BaseModel):
 # ══════════════════════════════════════════════════════════════
 
 def haversine(lat1, lon1, lat2, lon2) -> float:
-    R = 6_371_000
+    """Calculate distance in meters between two coordinates."""
+    R = 6_371_000  # Earth radius in meters
     p1, p2 = math.radians(lat1), math.radians(lat2)
     dp = math.radians(lat2 - lat1)
     dl = math.radians(lon2 - lon1)
@@ -299,14 +280,17 @@ def haversine(lat1, lon1, lat2, lon2) -> float:
 
 
 def hash_password(p: str) -> str:
+    """Hash a password."""
     return pwd_context.hash(p)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
+    """Verify a password against its hash."""
     return pwd_context.verify(plain, hashed)
 
 
 def create_token(user_id: int, email: str, role: str) -> str:
+    """Create JWT token."""
     exp = datetime.now(tz=pytz.utc) + timedelta(hours=settings.access_token_expire_hours)
     return jwt.encode(
         {"sub": str(user_id), "email": email, "role": role, "exp": exp},
@@ -315,10 +299,12 @@ def create_token(user_id: int, email: str, role: str) -> str:
 
 
 def local_now() -> datetime:
+    """Get current time in office timezone."""
     return datetime.now(pytz.timezone(settings.office_timezone))
 
 
 def to_local(dt: Optional[datetime]) -> Optional[datetime]:
+    """Convert UTC datetime to local timezone."""
     if dt is None:
         return None
     tz = pytz.timezone(settings.office_timezone)
@@ -328,6 +314,7 @@ def to_local(dt: Optional[datetime]) -> Optional[datetime]:
 
 
 def parse_date(s: Optional[str]) -> Optional[date]:
+    """Parse date string (YYYY-MM-DD)."""
     if not s:
         return None
     try:
@@ -337,6 +324,7 @@ def parse_date(s: Optional[str]) -> Optional[date]:
 
 
 def parse_date_param(s: Optional[str]) -> date:
+    """Parse date from query param, default to today."""
     if not s:
         return date.today()
     try:
@@ -345,84 +333,117 @@ def parse_date_param(s: Optional[str]) -> date:
         raise HTTPException(400, "Expected date format YYYY-MM-DD")
 
 
-# ── Auth deps ─────────────────────────────────────────────────
+# ── Validation Regexes ─────────────────────────────────────────
+PAN_REGEX   = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
+IFSC_REGEX  = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
+PHONE_REGEX = re.compile(r"^[6-9]\d{9}$")
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: asyncpg.Connection = Depends(get_db),
-) -> dict:
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id = int(payload.get("sub"))
-    except (JWTError, ValueError):
-        raise HTTPException(401, "Invalid token")
 
-    user = await db.fetchrow(
-        """
-        SELECT u.id, u.email, u.full_name, u.role, u.is_active,
-               e.branch_id,
-               e.shift_start, e.shift_end,
-               b.name AS branch_name,
-               b.city AS branch_city,
-               b.latitude, b.longitude, b.radius_meters
-        FROM users u
-        LEFT JOIN employees e ON e.user_id = u.id
-        LEFT JOIN branches b ON b.id = e.branch_id
-        WHERE u.id = $1
-        """,
-        user_id,
+def _validate_common_fields(
+    *,
+    full_name=None,
+    work_email=None,
+    personal_email=None,
+    phone=None,
+    emg_phone=None,
+    pan_number=None,
+    bank_ifsc=None,
+    bank_account=None,
+    annual_ctc=None,
+    role=None,
+    date_of_joining=None,
+    probation_end=None,
+    contract_end=None,
+    require_role=False,
+):
+    """Validate common employee fields."""
+    
+    if full_name is not None and len(full_name.strip()) < 2:
+        raise HTTPException(400, "Full name must be at least 2 characters")
+
+    if work_email is not None and not EMAIL_REGEX.match(work_email):
+        raise HTTPException(400, "Invalid work email format")
+
+    if personal_email is not None and not EMAIL_REGEX.match(personal_email):
+        raise HTTPException(400, "Invalid personal email format")
+
+    if phone is not None and not PHONE_REGEX.match(phone):
+        raise HTTPException(400, "Phone must be 10 digits starting with 6-9")
+
+    if emg_phone is not None and not PHONE_REGEX.match(emg_phone):
+        raise HTTPException(400, "Emergency phone must be valid 10-digit number")
+
+    if pan_number is not None:
+        pan = pan_number.upper()
+        if not PAN_REGEX.match(pan):
+            raise HTTPException(400, "Invalid PAN format (ABCDE1234F)")
+
+    if bank_ifsc is not None:
+        if not IFSC_REGEX.match(bank_ifsc.upper()):
+            raise HTTPException(400, "Invalid IFSC format (e.g., SBIN0001234)")
+
+    if bank_account is not None and len(bank_account) < 8:
+        raise HTTPException(400, "Bank account number seems too short")
+
+    if annual_ctc is not None and annual_ctc <= 0:
+        raise HTTPException(400, "Annual CTC must be greater than 0")
+
+    if role is not None:
+        if role not in ("employee", "hr", "admin"):
+            raise HTTPException(400, "Role must be employee, hr, or admin")
+
+    if require_role and role not in ("employee", "hr"):
+        raise HTTPException(400, "Role must be either 'employee' or 'hr'")
+
+    doj = parse_date(date_of_joining) if date_of_joining else None
+    prob = parse_date(probation_end) if probation_end else None
+    contract = parse_date(contract_end) if contract_end else None
+
+    if doj and prob and prob < doj:
+        raise HTTPException(400, "Probation end cannot be before joining date")
+
+    if doj and contract and contract < doj:
+        raise HTTPException(400, "Contract end cannot be before joining date")
+
+
+def validate_onboard_payload(payload: OnboardRequest):
+    """Validate onboard request."""
+    _validate_common_fields(
+        full_name=payload.full_name,
+        work_email=payload.work_email,
+        personal_email=payload.personal_email,
+        phone=payload.phone,
+        emg_phone=payload.emg_phone,
+        pan_number=payload.pan_number,
+        bank_ifsc=payload.bank_ifsc,
+        bank_account=payload.bank_account,
+        annual_ctc=payload.annual_ctc,
+        role=payload.role,
+        date_of_joining=payload.date_of_joining,
+        probation_end=payload.probation_end,
+        contract_end=payload.contract_end,
+        require_role=True,
     )
 
-    if not user or not user["is_active"]:
-        raise HTTPException(401, "User not found or inactive")
 
-    return {
-        "id": user["id"],
-        "email": user["email"],
-        "full_name": user["full_name"],
-        "role": user["role"],
-        "branch_id": user["branch_id"],
-        "shift_start": user["shift_start"],
-        "shift_end": user["shift_end"],
-        "branch_name": user["branch_name"],
-        "branch_city": user["branch_city"],
-        "branch_lat": float(user["latitude"]) if user["latitude"] else None,
-        "branch_lng": float(user["longitude"]) if user["longitude"] else None,
-        "radius_meters": user["radius_meters"],
-    }
-
-async def require_admin(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: asyncpg.Connection = Depends(get_db),
-) -> dict:
-    """Verify user is admin"""
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id = int(payload.get("sub"))
-    except (JWTError, ValueError):
-        raise HTTPException(401, "Invalid token")
-
-    user = await db.fetchrow(
-        "SELECT id, email, full_name, role, is_active FROM users WHERE id=$1",
-        user_id,
+def validate_update_payload(req: UpdateEmployeeRequest):
+    """Validate employee update request."""
+    _validate_common_fields(
+        full_name=req.full_name,
+        personal_email=req.personal_email,
+        phone=req.phone,
+        emg_phone=req.emg_phone,
+        pan_number=req.pan_number,
+        bank_ifsc=req.bank_ifsc,
+        bank_account=req.bank_account,
+        annual_ctc=req.annual_ctc,
+        role=req.role,
+        date_of_joining=req.date_of_joining,
+        probation_end=req.probation_end,
+        contract_end=req.contract_end,
     )
 
-    if not user or not user["is_active"]:
-        raise HTTPException(401, "User not found or inactive")
-
-    if user["role"] != "admin":
-        raise HTTPException(403, "Admin access required")
-
-    return dict(user)
-
-
-async def require_hr(user: dict = Depends(get_current_user)) -> dict:
-    """Verify user is HR or admin"""
-    if user["role"] not in ("hr", "admin"):
-        raise HTTPException(403, "HR access required")
-    return user
 
 # ══════════════════════════════════════════════════════════════
 # AUTH ENDPOINTS
@@ -568,7 +589,7 @@ async def login(
     if user["role"] in ("employee", "hr"):
         employee = await db.fetchrow(
             """
-            SELECT e.id, e.branch_id, e.onboarding_status,
+            SELECT e.id, e.branch_id, e.onboarding_status, e.shift_start, e.shift_end,
                    b.name AS branch_name,
                    b.city AS branch_city,
                    b.latitude, b.longitude, b.radius_meters
@@ -602,14 +623,21 @@ async def login(
     )
 
     # 6. Build response
+    shift_start = None
+    shift_end = None
+    if employee and employee["shift_start"]:
+        shift_start = employee["shift_start"].strftime("%H:%M")
+    if employee and employee["shift_end"]:
+        shift_end = employee["shift_end"].strftime("%H:%M")
+
     user_public = {
         "id": user_id,
         "email": user["email"],
         "full_name": user["full_name"],
         "role": user["role"],
         "branch_id": employee["branch_id"] if employee else None,
-        "shift_start": None,
-        "shift_end": None,
+        "shift_start": shift_start,
+        "shift_end": shift_end,
         "branch_name": employee["branch_name"] if employee else None,
         "branch_city": employee["branch_city"] if employee else None,
         "branch_lat": float(employee["latitude"]) if employee and employee["latitude"] else None,
@@ -633,45 +661,11 @@ async def logout():
 
 @app.get("/api/auth/me")
 async def get_me(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ):
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id = int(payload.get("sub"))
-    except:
-        raise HTTPException(401, "Invalid token")
-
-    user = await db.fetchrow("""
-        SELECT u.id, u.email, u.full_name, u.role, u.is_active,
-               e.branch_id,
-               b.name AS branch_name,
-               b.city AS branch_city,
-               b.latitude,
-               b.longitude,
-               b.radius_meters
-        FROM users u
-        LEFT JOIN employees e ON e.user_id = u.id
-        LEFT JOIN branches b ON b.id = e.branch_id
-        WHERE u.id = $1
-    """, user_id)
-
-    if not user:
-        raise HTTPException(404, "User not found")
-
-    return {
-        "id": user["id"],
-        "email": user["email"],
-        "full_name": user["full_name"],
-        "role": user["role"],
-        "branch_id": user["branch_id"],
-        "branch_name": user["branch_name"],
-        "branch_city": user["branch_city"],
-        "branch_lat": float(user["latitude"]) if user["latitude"] else None,
-        "branch_lng": float(user["longitude"]) if user["longitude"] else None,
-        "radius_meters": user["radius_meters"],
-    }
+    """Get current user profile."""
+    return user
 # ══════════════════════════════════════════════════════════════
 # ATTENDANCE
 # ══════════════════════════════════════════════════════════════
@@ -1705,6 +1699,10 @@ async def employee_portal():
 @app.get("/hr-manager")
 async def hr_manager_portal():
     return FileResponse(FRONTEND_DIR / "hr.html")
+
+@app.get("/regularization")
+async def regularization_page():
+    return FileResponse(FRONTEND_DIR / "regularization.html")
 
 
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
