@@ -721,6 +721,23 @@
         cursor: not-allowed;
       }
 
+      .custom-hours-input {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+        font-weight: 600;
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        text-align: center;
+        background: var(--surface-secondary);
+      }
+
+      .custom-hours-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: white;
+      }
+
       /* Add this new style */
       .forgot-alert {
         display: flex;
@@ -1146,6 +1163,18 @@
         <div class="time-chips" id="timeChips">
           <!-- Generated dynamically -->
         </div>
+      </div>
+      <div class="sheet-section" id="customTimeSection" style="display: none">
+        <div class="sheet-label">Enter Hours</div>
+        <input
+          type="number"
+          id="customHoursInput"
+          class="custom-hours-input"
+          placeholder="Enter hours (e.g., 8.5)"
+          step="0.5"
+          min="0"
+          max="12"
+        />
       </div>
 
       <div class="sheet-section">
@@ -1783,21 +1812,27 @@
 
         // Generate time chips (auto-select gap)
         const gapMinutes = day.gap_minutes || 0;
-        const chips = [15, 30, 60, 90, 120];
+        // Add "Custom" option
+        const chips = [
+          { label: "15m", minutes: 15 },
+          { label: "30m", minutes: 30 },
+          { label: "1h", minutes: 60 },
+          { label: "1h 30m", minutes: 90 },
+          { label: "2h", minutes: 120 },
+          { label: "Custom", minutes: -1 }, // -1 = custom
+        ];
+
         const chipsHtml = chips
-          .map((min) => {
-            const isSelected =
-              min === gapMinutes ||
-              (gapMinutes > 0 &&
-                min <= gapMinutes &&
-                min === Math.max(...chips.filter((c) => c <= gapMinutes)));
-            const disabled = min > gapMinutes;
+          .map((chip) => {
+            const isSelected = chip.minutes === gapMinutes && chip.minutes > 0;
+            const disabled = chip.minutes > 0 && chip.minutes > gapMinutes + 30;
             return `
-              <div class="time-chip ${isSelected ? "selected" : ""} ${disabled ? "disabled" : ""}" 
-                  onclick="selectChip(${min})" data-minutes="${min}">
-                ${minutesToDisplay(min)}
-              </div>
-            `;
+            <div class="time-chip ${isSelected ? "selected" : ""} ${disabled ? "disabled" : ""}" 
+                onclick="selectChip(${chip.minutes}, '${chip.label}')" 
+                data-minutes="${chip.minutes}">
+              ${chip.label}
+            </div>
+          `;
           })
           .join("");
         document.getElementById("timeChips").innerHTML = chipsHtml;
@@ -1869,16 +1904,25 @@
         selectedDay = null;
       }
 
-      function selectChip(minutes) {
-        // Remove previous selection
+      function selectChip(minutes, label) {
+        // Remove selection from all chips
         document.querySelectorAll(".time-chip").forEach((chip) => {
           chip.classList.remove("selected");
         });
 
-        // Select clicked chip
-        const chip = document.querySelector(`[data-minutes="${minutes}"]`);
-        if (chip && !chip.classList.contains("disabled")) {
-          chip.classList.add("selected");
+        // If custom, show input
+        if (minutes === -1) {
+          event.target.classList.add("selected");
+          document.getElementById("customTimeSection").style.display = "block";
+          document.getElementById("customHoursInput").focus();
+        } else {
+          // Select clicked chip
+          const chip = document.querySelector(`[data-minutes="${minutes}"]`);
+          if (chip && !chip.classList.contains("disabled")) {
+            chip.classList.add("selected");
+          }
+          // Hide custom input
+          document.getElementById("customTimeSection").style.display = "none";
         }
       }
 
@@ -1889,7 +1933,24 @@
           return;
         }
 
-        const requestedMinutes = parseInt(selectedChip.dataset.minutes);
+        let requestedMinutes = parseInt(selectedChip.dataset.minutes);
+
+        // ✅ Handle custom input
+        if (requestedMinutes === -1) {
+          const customHours = parseFloat(
+            document.getElementById("customHoursInput").value,
+          );
+          if (!customHours || customHours <= 0) {
+            showToast("Please enter valid hours", "error");
+            return;
+          }
+          if (customHours > 12) {
+            showToast("Cannot request more than 12 hours", "error");
+            return;
+          }
+          requestedMinutes = Math.round(customHours * 60); // Convert hours to minutes
+        }
+
         const reason = document.getElementById("reasonInput").value.trim();
 
         if (reason.length < 3) {
@@ -1902,7 +1963,6 @@
         submitBtn.textContent = "Submitting...";
 
         try {
-          // ✅ UPDATED: Use actual worked minutes (may be 0 for forgot cases)
           const actualWorked = selectedDay.actual_worked_minutes || 0;
 
           await apiFetch("/attendance/regularization/request", "POST", {
@@ -1914,8 +1974,8 @@
 
           showToast("Request submitted successfully", "success");
           closeSheet();
-          loadCalendar(); // Reload to show pending status
-          checkManagerStatus(); // Update badge
+          loadCalendar();
+          checkManagerStatus();
         } catch (error) {
           showToast(error.message, "error");
           submitBtn.disabled = false;

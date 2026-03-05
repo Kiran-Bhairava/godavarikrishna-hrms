@@ -1,7 +1,8 @@
 // Service Worker for SDPL Attendance App
 // Handles caching and offline functionality
 
-const CACHE_VERSION = 'v1';
+// IMPORTANT: Increment this version number whenever you deploy new code
+const CACHE_VERSION = 'v2'; // Change this on every deployment (v2, v3, v4, etc.)
 const CACHE_NAME = `attendance-app-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `attendance-runtime-${CACHE_VERSION}`;
 
@@ -103,11 +104,46 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Strategy 2: Static assets - Cache first, fallback to network
+  // Strategy 2: HTML pages - Network first, fallback to cache (always get fresh HTML)
+  if (request.mode === 'navigate' || request.headers.get('Accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(RUNTIME_CACHE).then(cache => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request)
+            .then(response => {
+              if (response) {
+                return response;
+              }
+              return caches.match('/employee');
+            });
+        })
+    );
+    return;
+  }
+
+  // Strategy 3: Static assets (CSS, JS, images) - Cache first, fallback to network
   event.respondWith(
     caches.match(request)
       .then(response => {
         if (response) {
+          // For cached assets, also fetch in background to update cache
+          fetch(request).then(networkResponse => {
+            if (networkResponse && networkResponse.status === 200) {
+              caches.open(RUNTIME_CACHE).then(cache => {
+                cache.put(request, networkResponse);
+              });
+            }
+          }).catch(() => {}); // Silent fail for background update
+          
           return response;
         }
 
@@ -125,9 +161,6 @@ self.addEventListener('fetch', event => {
             return response;
           })
           .catch(() => {
-            if (request.mode === 'navigate') {
-              return caches.match('/employee');
-            }
             return new Response('Offline', { status: 503 });
           });
       })
@@ -139,4 +172,16 @@ self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// Notify clients when a new service worker is waiting
+self.addEventListener('controllerchange', () => {
+  self.clients.matchAll().then(clients => {
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'REFRESH',
+        message: 'New version available'
+      });
+    });
+  });
 });

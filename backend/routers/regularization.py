@@ -347,69 +347,50 @@ async def create_regularization_request(
 
 @router.get("/requests")
 async def list_regularization_requests(
-    month: Optional[str] = Query(None),  # "2024-12"
-    status: str = Query("all"),  # all, pending, approved, rejected
+    month: Optional[str] = Query(None),
+    status: str = Query("all"),
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ) -> RegularizationRequestsListResponse:
-    """
-    GET /api/attendance/regularization/requests?month=2024-12&status=all
-    
-    List all regularization requests for current employee.
-    """
-    # Get employee
     emp = await get_employee_from_user(user["id"], db)
     employee_id = emp["id"]
     
-    # Parse month or use current
     if not month:
         now = datetime.now()
         month = f"{now.year}-{now.month:02d}"
     
     year, month_num = int(month.split("-")[0]), int(month.split("-")[1])
     
-    # Build query
-    where_clauses = [
-        "employee_id = $1",
-        f"EXTRACT(YEAR FROM work_date) = {year}",
-        f"EXTRACT(MONTH FROM work_date) = {month_num}",
-    ]
+    # Build query with manager names included
+    where_clauses = ["employee_id = $1"]
+    params = [employee_id]
     
     if status != "all":
-        where_clauses.append(f"final_status = '{status}'")
+        where_clauses.append(f"final_status = ${len(params) + 1}")
+        params.append(status)
     
+    # ✅ OPTIMIZED: Include manager names in main query
     query = f"""
         SELECT 
-            id, work_date, actual_worked_minutes, requested_minutes, reason,
-            submitted_at, l1_status, l2_status, final_status,
-            l1_manager_id, l2_manager_id
-        FROM regularization_requests
+            r.id, r.work_date, r.actual_worked_minutes, r.requested_minutes, r.reason,
+            r.submitted_at, r.l1_status, r.l2_status, r.final_status,
+            r.l1_manager_id, r.l2_manager_id,
+            l1_mgr.full_name as l1_manager_name,
+            l2_mgr.full_name as l2_manager_name
+        FROM regularization_requests r
+        LEFT JOIN employees l1_emp ON l1_emp.id = r.l1_manager_id
+        LEFT JOIN users l1_mgr ON l1_mgr.id = l1_emp.user_id
+        LEFT JOIN employees l2_emp ON l2_emp.id = r.l2_manager_id
+        LEFT JOIN users l2_mgr ON l2_mgr.id = l2_emp.user_id
         WHERE {' AND '.join(where_clauses)}
-        ORDER BY work_date DESC
+          AND EXTRACT(YEAR FROM r.work_date) = {year}
+          AND EXTRACT(MONTH FROM r.work_date) = {month_num}
+        ORDER BY r.work_date DESC
     """
     
-    rows = await db.fetch(query, employee_id)
+    rows = await db.fetch(query, *params)
     
-    # Get manager names
-    manager_names = {}
-    for row in rows:
-        if row["l1_manager_id"] and row["l1_manager_id"] not in manager_names:
-            emp_rec = await db.fetchrow(
-                "SELECT u.full_name FROM employees e JOIN users u ON u.id = e.user_id WHERE e.id = $1",
-                row["l1_manager_id"]
-            )
-            if emp_rec:
-                manager_names[row["l1_manager_id"]] = emp_rec["full_name"]
-        
-        if row["l2_manager_id"] and row["l2_manager_id"] not in manager_names:
-            emp_rec = await db.fetchrow(
-                "SELECT u.full_name FROM employees e JOIN users u ON u.id = e.user_id WHERE e.id = $1",
-                row["l2_manager_id"]
-            )
-            if emp_rec:
-                manager_names[row["l2_manager_id"]] = emp_rec["full_name"]
-    
-    # Format response
+    # ✅ No more loop queries for manager names!
     approved_count = sum(1 for r in rows if r["final_status"] == "approved")
     rejected_count = sum(1 for r in rows if r["final_status"] == "rejected")
     pending_count = sum(1 for r in rows if r["final_status"] == "pending")
@@ -427,11 +408,11 @@ async def list_regularization_requests(
             reason=r["reason"],
             submitted_at=r["submitted_at"],
             l1_status=r["l1_status"],
-            l1_manager_name=manager_names.get(r["l1_manager_id"]),
-            l1_approved_at=None,  # Would need to fetch from DB if needed
+            l1_manager_name=r["l1_manager_name"],  # ✅ Already fetched
+            l1_approved_at=None,
             l2_status=r["l2_status"],
-            l2_manager_name=manager_names.get(r["l2_manager_id"]),
-            l2_approved_at=None,  # Would need to fetch from DB if needed
+            l2_manager_name=r["l2_manager_name"],  # ✅ Already fetched
+            l2_approved_at=None,
             final_status=r["final_status"],
             payroll_impact="present" if r["final_status"] == "approved" else "absent",
         )
@@ -552,22 +533,12 @@ async def get_pending_approvals(
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ) -> PendingApprovalsResponse:
-    """
-    GET /api/attendance/regularization/pending
-    
-    Get pending regularization requests assigned to this manager.
-    
-    Rules:
-    - L1 managers see requests where they are l1_manager AND l1_status='pending'
-    - L2 managers (HR) see requests where they are l2_manager AND l2_status='pending' AND l1_status='approved'
-    - HR role can see all pending requests (both L1 and L2 level)
-    """
     emp = await get_employee_from_user(user["id"], db)
     manager_id = emp["id"]
     is_hr = user["role"] in ("hr", "admin")
     
     if is_hr:
-        # HR sees all pending requests (both L1 and L2 level)
+        # ✅ OPTIMIZED: Get pending requests WITH approved counts in single query
         query = """
             SELECT 
                 r.id as request_id, r.employee_id, r.work_date,
@@ -575,7 +546,15 @@ async def get_pending_approvals(
                 r.submitted_at, r.l1_manager_id, r.l2_manager_id,
                 r.l1_status, r.l2_status,
                 u.full_name as employee_name,
-                l1_mgr.full_name as l1_manager_name
+                l1_mgr.full_name as l1_manager_name,
+                -- ✅ Calculate approved count in same query
+                (
+                    SELECT COUNT(*) 
+                    FROM regularization_requests r2
+                    WHERE r2.employee_id = r.employee_id
+                      AND r2.work_date <= r.work_date
+                      AND r2.final_status = 'approved'
+                ) as approved_count_before
             FROM regularization_requests r
             JOIN employees e ON e.id = r.employee_id
             JOIN users u ON u.id = e.user_id
@@ -591,7 +570,7 @@ async def get_pending_approvals(
         """
         rows = await db.fetch(query)
     else:
-        # Regular managers see only their assigned requests
+        # Same optimization for regular managers
         query = """
             SELECT 
                 r.id as request_id, r.employee_id, r.work_date,
@@ -599,7 +578,15 @@ async def get_pending_approvals(
                 r.submitted_at, r.l1_manager_id, r.l2_manager_id,
                 r.l1_status, r.l2_status,
                 u.full_name as employee_name,
-                NULL as l1_manager_name
+                NULL as l1_manager_name,
+                -- ✅ Calculate approved count in same query
+                (
+                    SELECT COUNT(*) 
+                    FROM regularization_requests r2
+                    WHERE r2.employee_id = r.employee_id
+                      AND r2.work_date <= r.work_date
+                      AND r2.final_status = 'approved'
+                ) as approved_count_before
             FROM regularization_requests r
             JOIN employees e ON e.id = r.employee_id
             JOIN users u ON u.id = e.user_id
@@ -613,20 +600,10 @@ async def get_pending_approvals(
         """
         rows = await db.fetch(query, manager_id)
     
-    # Get request number for each request
+    # ✅ No more loop queries!
     pending_list = []
     for row in rows:
-        # Get approved count for this employee up to this request's date
-        approved_count = await db.fetchval(
-            """
-            SELECT COUNT(*) FROM regularization_requests
-            WHERE employee_id = $1
-              AND work_date <= $2
-              AND final_status = 'approved'
-            """,
-            row["employee_id"], row["work_date"]
-        )
-        
+        approved_count = row["approved_count_before"]  # ✅ Already calculated
         requires_l2 = row["l2_status"] is not None
         
         pending_list.append(

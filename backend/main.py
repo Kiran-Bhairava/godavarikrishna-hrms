@@ -728,13 +728,14 @@ async def punch_in(
         )
         await db.execute(
             """INSERT INTO daily_summary
-               (user_id, work_date, first_punch_in, is_late, late_by_minutes, status)
-               VALUES ($1,(NOW() AT TIME ZONE $2)::date,$3,$4,$5,'present')
-               ON CONFLICT (user_id, work_date) DO UPDATE
-               SET first_punch_in=EXCLUDED.first_punch_in,
-                   is_late=EXCLUDED.is_late,
-                   late_by_minutes=EXCLUDED.late_by_minutes,
-                   status='present'""",
+            (user_id, work_date, first_punch_in, is_late, late_by_minutes, status, payroll_status)
+            VALUES ($1,(NOW() AT TIME ZONE $2)::date,$3,$4,$5,'present','present')
+            ON CONFLICT (user_id, work_date) DO UPDATE
+            SET first_punch_in=EXCLUDED.first_punch_in,
+                is_late=EXCLUDED.is_late,
+                late_by_minutes=EXCLUDED.late_by_minutes,
+                status='present',
+                payroll_status='present'""",
             user["id"], settings.office_timezone, log["punched_at"], is_late, late_min,
         )
 
@@ -786,8 +787,9 @@ async def punch_out(
         if summary and summary["first_punch_in"]:
             total_min = max(0, int((log["punched_at"] - summary["first_punch_in"]).total_seconds() / 60))
         await db.execute(
-            """UPDATE daily_summary SET last_punch_out=$2, total_minutes=$3
-               WHERE user_id=$1 AND work_date=(NOW() AT TIME ZONE $4)::date""",
+            """UPDATE daily_summary 
+            SET last_punch_out=$2, total_minutes=$3, payroll_minutes=$3
+            WHERE user_id=$1 AND work_date=(NOW() AT TIME ZONE $4)::date""",
             user["id"], log["punched_at"], total_min, settings.office_timezone,
         )
 
@@ -907,11 +909,11 @@ async def daily_report(
     target = parse_date_param(date_str)
     q = """
         SELECT u.id, u.email, u.full_name,
-               e.shift_start, e.shift_end,
-               b.name AS branch_name, b.city,
-               s.first_punch_in, s.last_punch_out, s.total_minutes,
-               s.is_late, s.late_by_minutes,
-               COALESCE(s.status,'absent') AS status
+            e.shift_start, e.shift_end,
+            b.name AS branch_name, b.city,
+            s.first_punch_in, s.last_punch_out, s.total_minutes,
+            s.is_late, s.late_by_minutes,
+            COALESCE(s.payroll_status,'absent') AS status
         FROM users u
         JOIN employees e ON e.user_id = u.id
         LEFT JOIN branches b ON b.id = e.branch_id
@@ -949,8 +951,8 @@ async def export_excel(
     target = parse_date_param(date_str)
     q = """
         SELECT u.email, u.full_name, b.name AS branch_name, b.city,
-               s.first_punch_in, s.last_punch_out, s.total_minutes,
-               s.is_late, s.late_by_minutes, COALESCE(s.status,'absent') AS status
+            s.first_punch_in, s.last_punch_out, s.total_minutes,
+            s.is_late, s.late_by_minutes, COALESCE(s.payroll_status,'absent') AS status
         FROM users u
         JOIN employees e ON e.user_id = u.id
         LEFT JOIN branches b ON b.id = e.branch_id
