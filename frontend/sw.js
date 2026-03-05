@@ -2,7 +2,7 @@
 // Handles caching and offline functionality
 
 // IMPORTANT: Increment this version number whenever you deploy new code
-const CACHE_VERSION = 'v4'; // Change this on every deployment (v2, v3, v4, etc.)
+const CACHE_VERSION = 'v5'; // Change this on every deployment (v2, v3, v4, etc.)
 const CACHE_NAME = `attendance-app-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `attendance-runtime-${CACHE_VERSION}`;
 

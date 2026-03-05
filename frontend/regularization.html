@@ -66,8 +66,6 @@
       }
 
       body {
-        display: flex;
-        flex-direction: column;
         font-family:
           "Sora",
           -apple-system,
@@ -76,13 +74,17 @@
           sans-serif;
         background: var(--bg);
         color: var(--text);
-        padding: max(12px, env(safe-area-inset-left))
-          max(12px, env(safe-area-inset-top))
+        /* ✅ FIXED: Proper safe area insets */
+        padding: max(12px, env(safe-area-inset-top))
+          max(12px, env(safe-area-inset-right))
           max(90px, env(safe-area-inset-bottom))
-          max(12px, env(safe-area-inset-right));
+          /* ✅ Changed from 1100px to 90px */
+          max(12px, env(safe-area-inset-left));
         min-height: 100vh;
-        min-height: 100dvh;
+        min-height: 100dvh; /* ✅ Dynamic viewport height */
         overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
       }
 
       /* HEADER */
@@ -325,18 +327,109 @@
       }
 
       .content-view.active {
-        display: block;
+        display: flex;
+        flex-direction: column;
       }
 
       .days-list,
       .approval-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        margin-bottom: 80px;
+        gap: 10px;
+        /* ✅ NEW: Make it scrollable */
         overflow-y: auto;
+        overflow-x: hidden;
         flex: 1;
+        padding-bottom: 20px;
+        /* ✅ Smooth scrolling on iOS */
         -webkit-overflow-scrolling: touch;
+      }
+
+      /* ✅ Hide scrollbar but keep functionality */
+      .days-list::-webkit-scrollbar,
+      .approval-list::-webkit-scrollbar {
+        display: none;
+      }
+
+      .days-list,
+      .approval-list {
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+      }
+
+      /* ✅ NEW: Main container structure */
+      .main-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* ✅ Header stays at top */
+      .header {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        gap: 12px;
+      }
+
+      /* ✅ Tabs stay fixed */
+      .tabs {
+        flex-shrink: 0;
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        background: var(--surface);
+        padding: 4px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+      }
+
+      /* ✅ Month selector stays fixed */
+      .month-selector {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+      }
+
+      /* ✅ Stats stay fixed */
+      .stats-row {
+        flex-shrink: 0;
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      /* ✅ Usage card stays fixed */
+      .usage-card {
+        flex-shrink: 0;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      /* ✅ Content area scrolls */
+      .content-view {
+        flex: 1;
+        min-height: 0; /* Important for flexbox scrolling */
+        overflow: hidden;
+        display: none;
+      }
+
+      .content-view.active {
+        display: flex;
+        flex-direction: column;
       }
 
       .day-card,
@@ -841,12 +934,13 @@
         right: 0;
         background: var(--surface);
         border-top: 1px solid var(--border);
-        padding: 8px max(8px, env(safe-area-inset-right))
-          max(8px, env(safe-area-inset-bottom))
-          max(8px, env(safe-area-inset-left));
         display: flex;
-        gap: 8px;
+        justify-content: space-around;
+        padding: 8px 12px;
+        /* ✅ Safe area for iPhone notch */
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
         z-index: 100;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
       }
 
       .nav-btn {
@@ -854,39 +948,35 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         gap: 4px;
-        padding: 10px;
-        background: transparent;
+        padding: 8px;
+        background: none;
         border: none;
-        border-radius: 10px;
+        border-radius: 8px;
         cursor: pointer;
         transition: all 0.2s ease;
         text-decoration: none;
-        color: inherit;
+        color: var(--text-secondary);
+        max-width: 100px; /* ✅ Prevent stretching */
       }
 
       .nav-btn:active {
         transform: scale(0.95);
+        background: var(--surface-secondary);
       }
 
       .nav-btn.active {
-        background: var(--primary-light);
+        color: var(--primary);
       }
 
       .nav-icon {
-        font-size: 22px;
-        color: var(--text-secondary);
-      }
-
-      .nav-btn.active .nav-icon {
-        color: var(--primary-dark);
+        flex-shrink: 0;
       }
 
       .nav-label {
         font-size: 11px;
         font-weight: 600;
-        color: var(--text-secondary);
+        white-space: nowrap;
       }
 
       .nav-btn.active .nav-label {
