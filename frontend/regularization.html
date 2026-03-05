@@ -66,6 +66,8 @@
       }
 
       body {
+        display: flex;
+        flex-direction: column;
         font-family:
           "Sora",
           -apple-system,
@@ -76,9 +78,10 @@
         color: var(--text);
         padding: max(12px, env(safe-area-inset-left))
           max(12px, env(safe-area-inset-top))
-          max(1100px, env(safe-area-inset-bottom))
+          max(90px, env(safe-area-inset-bottom))
           max(12px, env(safe-area-inset-right));
         min-height: 100vh;
+        min-height: 100dvh;
         overflow-x: hidden;
       }
 
@@ -316,6 +319,8 @@
 
       /* DAY CARDS & APPROVAL CARDS (shared styles) */
       .content-view {
+        flex: 1;
+        overflow: hidden;
         display: none;
       }
 
@@ -329,6 +334,9 @@
         flex-direction: column;
         gap: 12px;
         margin-bottom: 80px;
+        overflow-y: auto;
+        flex: 1;
+        -webkit-overflow-scrolling: touch;
       }
 
       .day-card,
