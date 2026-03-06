@@ -39,7 +39,7 @@ from schemas import LoginResponse
 from api_credentials import generate_temp_password
 
 # ── mandate Include routers ──────────────────────────────────
-from routers import regularization_router
+from routers import regularization_router, leave_router
 
 dotenv.load_dotenv()
 
@@ -83,11 +83,12 @@ if settings.allowed_origins:
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
 app.include_router(regularization_router)
+app.include_router(leave_router)
 # ══════════════════════════════════════════════════════════════
 # SCHEMAS (LOCAL ONLY)
 # ══════════════════════════════════════════════════════════════
@@ -898,6 +899,232 @@ def _ser(e: dict) -> dict:
             e[f] = e[f].strftime("%H:%M")
     return e
 
+async def regularization_audit(
+    employee_id : Optional[int]  = Query(None),
+    from_date   : Optional[str]  = Query(None, description="YYYY-MM-DD"),
+    to_date     : Optional[str]  = Query(None, description="YYYY-MM-DD"),
+    final_status: Optional[str]  = Query(None, description="approved|rejected|pending"),
+    page        : int            = Query(1, ge=1),
+    page_size   : int            = Query(50, ge=1, le=200),
+    _hr         : dict           = Depends(require_hr),
+    db          : asyncpg.Connection = Depends(get_db),
+):
+    """
+    HR audit trail for all regularization requests.
+
+    Returns each request with:
+      - Full approval chain (L1 + L2 actions with timestamps)
+      - Audit log entries (who did what, when, with before/after snapshot)
+      - Final daily_summary state
+
+    Performance:
+      - Single JOIN query — no N+1
+      - Paginated — max 200 rows per call
+      - Filtered by indexed columns only (employee_id, work_date, final_status)
+    """
+
+    # ── Build filter conditions ───────────────────────────────
+    conditions = ["1=1"]
+    params: list = []
+
+    def add(val):
+        params.append(val)
+        return f"${len(params)}"
+
+    if employee_id:
+        conditions.append(f"r.employee_id = {add(employee_id)}")
+    if from_date:
+        try:
+            from datetime import datetime as dt
+            conditions.append(f"r.work_date >= {add(dt.strptime(from_date, '%Y-%m-%d').date())}")
+        except ValueError:
+            raise HTTPException(400, "from_date must be YYYY-MM-DD")
+    if to_date:
+        try:
+            from datetime import datetime as dt
+            conditions.append(f"r.work_date <= {add(dt.strptime(to_date, '%Y-%m-%d').date())}")
+        except ValueError:
+            raise HTTPException(400, "to_date must be YYYY-MM-DD")
+    if final_status:
+        if final_status not in ("approved", "rejected", "pending"):
+            raise HTTPException(400, "final_status must be approved|rejected|pending")
+        conditions.append(f"r.final_status = {add(final_status)}")
+
+    offset = (page - 1) * page_size
+    where  = " AND ".join(conditions)
+
+    # ── Single query — requests + managers + daily_summary ───
+    # Audit log entries fetched separately per request (grouped)
+    rows = await db.fetch(
+        f"""
+        SELECT
+            r.id                    AS request_id,
+            r.work_date,
+            r.actual_worked_minutes,
+            r.requested_minutes,
+            r.reason,
+            r.submitted_at,
+            r.final_status,
+
+            -- Employee
+            emp_u.full_name         AS employee_name,
+            emp_e.emp_id,
+            emp_e.department,
+
+            -- L1 manager
+            r.l1_status,
+            r.l1_comment,
+            r.l1_approved_at,
+            l1u.full_name           AS l1_manager_name,
+
+            -- L2 manager
+            r.l2_status,
+            r.l2_comment,
+            r.l2_approved_at,
+            l2u.full_name           AS l2_manager_name,
+
+            -- Current daily_summary state (what employee actually sees)
+            COALESCE(ds.total_minutes,   0) AS current_total_minutes,
+            COALESCE(ds.payroll_status, 'absent') AS current_payroll_status,
+            ds.is_regularized,
+            ds.payroll_notes
+
+        FROM regularization_requests r
+        JOIN employees emp_e ON emp_e.id = r.employee_id
+        JOIN users     emp_u ON emp_u.id = emp_e.user_id
+        LEFT JOIN employees l1e ON l1e.id = r.l1_manager_id
+        LEFT JOIN users     l1u ON l1u.id = l1e.user_id
+        LEFT JOIN employees l2e ON l2e.id = r.l2_manager_id
+        LEFT JOIN users     l2u ON l2u.id = l2e.user_id
+        LEFT JOIN daily_summary ds
+               ON ds.user_id = emp_e.user_id AND ds.work_date = r.work_date
+        WHERE {where}
+        ORDER BY r.work_date DESC, r.submitted_at DESC
+        LIMIT {add(page_size)} OFFSET {add(offset)}
+        """,
+        *params,
+    )
+
+    if not rows:
+        return {"total": 0, "page": page, "page_size": page_size, "requests": []}
+
+    # ── Fetch audit log entries for all returned requests ─────
+    # One query for all request_ids — no N+1
+    request_ids = [r["request_id"] for r in rows]
+    audit_rows  = await db.fetch(
+        """
+        SELECT
+            al.request_id,
+            al.action_role,
+            al.action_type,
+            al.note,
+            al.minutes_before,
+            al.payroll_status_before,
+            al.minutes_after,
+            al.payroll_status_after,
+            al.created_at,
+            u.full_name AS actioned_by
+        FROM regularization_audit_logs al
+        LEFT JOIN users u ON u.id = al.action_by_user_id
+        WHERE al.request_id = ANY($1::int[])
+        ORDER BY al.created_at ASC
+        """,
+        request_ids,
+    )
+
+    # Group audit entries by request_id
+    audit_map: dict[int, list] = {}
+    for a in audit_rows:
+        rid = a["request_id"]
+        if rid not in audit_map:
+            audit_map[rid] = []
+        audit_map[rid].append({
+            "action_role"          : a["action_role"],
+            "action_type"          : a["action_type"],
+            "actioned_by"          : a["actioned_by"],
+            "note"                 : a["note"],
+            "minutes_before"       : a["minutes_before"],
+            "payroll_status_before": a["payroll_status_before"],
+            "minutes_after"        : a["minutes_after"],
+            "payroll_status_after" : a["payroll_status_after"],
+            "created_at"           : a["created_at"].isoformat(),
+        })
+
+    # ── Count total for pagination ────────────────────────────
+    # params[:-2] strips page_size and offset added for LIMIT/OFFSET
+    count_params = params[:-2]
+    total_row = await db.fetchrow(
+        f"SELECT COUNT(*) AS total FROM regularization_requests r WHERE {where}",
+        *count_params,
+    )
+
+    # ── Build response ────────────────────────────────────────
+    def fmt_min(m: int) -> str:
+        if not m:
+            return "0m"
+        h, mn = divmod(m, 60)
+        return f"{h}h {mn}m" if h else f"{mn}m"
+
+    result = []
+    for r in rows:
+        result.append({
+            "request_id"            : r["request_id"],
+            "work_date"             : r["work_date"].isoformat(),
+            "employee_name"         : r["employee_name"],
+            "emp_id"                : r["emp_id"],
+            "department"            : r["department"],
+
+            "actual_worked"         : fmt_min(r["actual_worked_minutes"]),
+            "requested"             : fmt_min(r["requested_minutes"]),
+            "reason"                : r["reason"],
+            "submitted_at"          : r["submitted_at"].isoformat(),
+            "final_status"          : r["final_status"],
+
+            "l1_manager"            : r["l1_manager_name"],
+            "l1_status"             : r["l1_status"],
+            "l1_comment"            : r["l1_comment"],
+            "l1_approved_at"        : r["l1_approved_at"].isoformat() if r["l1_approved_at"] else None,
+
+            "l2_manager"            : r["l2_manager_name"],
+            "l2_status"             : r["l2_status"],
+            "l2_comment"            : r["l2_comment"],
+            "l2_approved_at"        : r["l2_approved_at"].isoformat() if r["l2_approved_at"] else None,
+
+            # What the employee's record currently shows
+            "current_total_minutes" : r["current_total_minutes"],
+            "current_total_display" : fmt_min(r["current_total_minutes"]),
+            "current_payroll_status": r["current_payroll_status"],
+            "is_regularized"        : r["is_regularized"],
+            "payroll_notes"         : r["payroll_notes"],
+
+            # Full audit trail for this request
+            "audit_trail"           : audit_map.get(r["request_id"], []),
+        })
+
+    return {
+        "total"    : total_row["total"],
+        "page"     : page,
+        "page_size": page_size,
+        "requests" : result,
+    }
+
+
+@app.get("/api/hr/regularization-audit")
+async def hr_regularization_audit(
+    employee_id : Optional[int]  = Query(None),
+    from_date   : Optional[str]  = Query(None),
+    to_date     : Optional[str]  = Query(None),
+    final_status: Optional[str]  = Query(None),
+    page        : int            = Query(1, ge=1),
+    page_size   : int            = Query(50, ge=1, le=200),
+    hr          : dict           = Depends(require_hr),
+    db          : asyncpg.Connection = Depends(get_db),
+):
+    return await regularization_audit(
+        employee_id=employee_id, from_date=from_date, to_date=to_date,
+        final_status=final_status, page=page, page_size=page_size,
+        _hr=hr, db=db,
+    )
 
 @app.get("/api/hr/daily-report")
 async def daily_report(
@@ -1705,6 +1932,14 @@ async def hr_manager_portal():
 @app.get("/regularization")
 async def regularization_page():
     return FileResponse(FRONTEND_DIR / "regularization.html")
+
+@app.get("/leave")
+async def leave_page():
+    return FileResponse(FRONTEND_DIR / "leave.html")
+
+@app.get("/holidays")
+async def holidays_page():
+    return FileResponse(FRONTEND_DIR / "holidays.html")
 
 
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

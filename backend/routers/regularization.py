@@ -71,7 +71,138 @@ def minutes_to_display(minutes: int) -> str:
         return f"{h}h"
     else:
         return f"{h}h {m}m"
+    
+async def _write_audit_log(
+    db: asyncpg.Connection,
+    *,
+    request_id: int,
+    action_by_user_id: int,
+    action_role: str,          # 'l1' | 'l2' | 'system'
+    action_type: str,          # 'submitted' | 'l1_approved' | 'l1_rejected' | 'l2_approved' | 'l2_rejected'
+    note: Optional[str],
+    minutes_before: int,       # daily_summary.total_minutes BEFORE this action
+    minutes_after: int,        # daily_summary.total_minutes AFTER this action
+    payroll_status_before: str,
+    payroll_status_after: str,
+) -> None:
+    """
+    Write one row to regularization_audit_logs.
+    Captures before/after snapshot of daily_summary so HR can see
+    exactly what changed and when.
 
+    Called inside the caller's transaction — no separate commit needed.
+    """
+    await db.execute(
+        """
+        INSERT INTO regularization_audit_logs
+            (request_id, action_by_user_id, action_role, action_type, note,
+             minutes_before, payroll_status_before,
+             minutes_after,  payroll_status_after,
+             created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        """,
+        request_id,
+        action_by_user_id,
+        action_role,
+        action_type,
+        note,
+        minutes_before,
+        payroll_status_before,
+        minutes_after,
+        payroll_status_after,
+    )
+
+
+async def _sync_daily_summary(
+    db: asyncpg.Connection,
+    *,
+    request_id: int,
+    final_status: str,         # 'approved' | 'rejected'
+) -> tuple[int, int, str, str]:
+    """
+    After a regularization reaches final_status, sync daily_summary so
+    total_minutes, payroll_minutes, payroll_status, is_regularized all
+    reflect the correct state. This is what the clock page reads.
+
+    Returns (minutes_before, minutes_after, payroll_status_before, payroll_status_after)
+    so the caller can pass them straight to _write_audit_log.
+
+    Called inside the caller's transaction — no separate commit needed.
+    """
+    # Single query — get everything we need in one round-trip
+    req = await db.fetchrow(
+        """
+        SELECT
+            r.work_date,
+            r.actual_worked_minutes,
+            r.requested_minutes,
+            e.user_id,
+            COALESCE(ds.total_minutes, 0)   AS cur_total,
+            COALESCE(ds.payroll_status, 'absent') AS cur_payroll_status
+        FROM regularization_requests r
+        JOIN employees e ON e.id = r.employee_id
+        LEFT JOIN daily_summary ds
+               ON ds.user_id = e.user_id AND ds.work_date = r.work_date
+        WHERE r.id = $1
+        """,
+        request_id,
+    )
+
+    if not req:
+        # Should never happen — request must exist before approval
+        return (0, 0, "absent", "absent")
+
+    minutes_before       = req["cur_total"]
+    payroll_before       = req["cur_payroll_status"]
+    actual               = req["actual_worked_minutes"]
+    requested            = req["requested_minutes"]
+    user_id              = req["user_id"]
+    work_date            = req["work_date"]
+
+    if final_status == "approved":
+        # Credited = actual worked + approved gap
+        credited         = actual + requested
+        payroll_after    = "present"
+
+        await db.execute(
+            """
+            UPDATE daily_summary
+            SET
+                total_minutes         = $3,
+                payroll_minutes       = $3,
+                payroll_status        = 'present',
+                regularization_status = 'approved',
+                regularization_minutes= $4,
+                is_regularized        = TRUE,
+                payroll_notes         = 'Regularization approved — hours credited'
+            WHERE user_id = $1 AND work_date = $2
+            """,
+            user_id, work_date, credited, requested,
+        )
+        minutes_after = credited
+
+    else:  # rejected
+        # Revert to actual worked only — no bonus minutes
+        payroll_after = "present" if actual > 0 else "absent"
+
+        await db.execute(
+            """
+            UPDATE daily_summary
+            SET
+                total_minutes         = $3,
+                payroll_minutes       = $3,
+                payroll_status        = $4,
+                regularization_status = 'rejected',
+                regularization_minutes= 0,
+                is_regularized        = FALSE,
+                payroll_notes         = 'Regularization rejected — original hours retained'
+            WHERE user_id = $1 AND work_date = $2
+            """,
+            user_id, work_date, actual, payroll_after,
+        )
+        minutes_after = actual
+
+    return (minutes_before, minutes_after, payroll_before, payroll_after)
 
 async def get_employee_from_user(user_id: int, db: asyncpg.Connection) -> dict:
     """Get employee record from user_id."""
@@ -166,6 +297,7 @@ def determine_request_type(punch_in: bool, punch_out: bool) -> str:
         return "both_missing"
 
 
+
 # ══════════════════════════════════════════════════════════════
 # ENDPOINTS: EMPLOYEE
 # ══════════════════════════════════════════════════════════════
@@ -237,15 +369,6 @@ async def create_regularization_request(
     # Validate L1 manager is active
     if not await validate_manager_active(emp["l1_manager_id"], db):
         raise HTTPException(403, "Your L1 manager is inactive. Contact HR.")
-    
-    # Check monthly limit (20h = 1200 minutes) - only approved requests
-    approved_minutes = await get_approved_minutes_this_month(employee_id, db)
-    if approved_minutes + req.requested_minutes > 1200:
-        remaining = 1200 - approved_minutes
-        raise HTTPException(
-            400,
-            f"Monthly limit exceeded. You have {minutes_to_display(remaining)} remaining this month"
-        )
     
     # Get approved request count and determine approval tier
     approved_count = await get_approved_request_count_this_month(employee_id, db)
@@ -538,7 +661,10 @@ async def get_pending_approvals(
     is_hr = user["role"] in ("hr", "admin")
     
     if is_hr:
-        # ✅ OPTIMIZED: Get pending requests WITH approved counts in single query
+        # HR sees only requests where:
+        # - They are the assigned L2 manager AND L1 has approved (ready for L2 action)
+        # - OR they are the assigned L1 manager with pending requests
+        # This avoids HR seeing every employee's pending requests from other managers
         query = """
             SELECT 
                 r.id as request_id, r.employee_id, r.work_date,
@@ -547,7 +673,6 @@ async def get_pending_approvals(
                 r.l1_status, r.l2_status,
                 u.full_name as employee_name,
                 l1_mgr.full_name as l1_manager_name,
-                -- ✅ Calculate approved count in same query
                 (
                     SELECT COUNT(*) 
                     FROM regularization_requests r2
@@ -562,13 +687,13 @@ async def get_pending_approvals(
             LEFT JOIN users l1_mgr ON l1_mgr.id = l1_emp.user_id
             WHERE r.final_status = 'pending'
               AND (
-                  (r.l1_status = 'pending')
+                  (r.l2_manager_id = $1 AND r.l2_status = 'pending' AND r.l1_status = 'approved')
                   OR
-                  (r.l2_status = 'pending' AND r.l1_status = 'approved')
+                  (r.l1_manager_id = $1 AND r.l1_status = 'pending')
               )
             ORDER BY r.submitted_at ASC
         """
-        rows = await db.fetch(query)
+        rows = await db.fetch(query, manager_id)
     else:
         # Same optimization for regular managers
         query = """
@@ -631,225 +756,244 @@ async def get_pending_approvals(
 
 
 @router.post("/requests/{request_id}/approve")
-async def approve_regularization_request(
+async def approve_regularization(
     request_id: int,
-    req: RegularizationApprovalRequest,
+    body: dict = {},           # {comment: str | null}
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
-) -> RegularizationApprovalResponse:
+):
     """
-    POST /api/attendance/regularization/requests/{request_id}/approve
-    
-    Manager approves a regularization request.
-    
-    Approval flow:
-    - L1 approves: l1_status = 'approved'
-    - If L2 not required: final_status = 'approved'
-    - If L2 required: wait for L2 approval
-    - L2 approves (after L1): final_status = 'approved'
+    L1 or L2 manager approves a regularization request.
+
+    Flow:
+      - Determine if current user is L1 or L2 for this request
+      - Update the correct status field
+      - If L1 approves and L2 exists → still pending (awaiting L2)
+      - If L1 approves and no L2 → final_status = approved
+      - If L2 approves → final_status = approved
+      - On final approval: sync daily_summary + write audit log
     """
-    reg_req = await db.fetchrow("SELECT * FROM regularization_requests WHERE id=$1", request_id)
-    if not reg_req:
-        raise HTTPException(404, "Request not found")
-    
-    if reg_req["final_status"] in ("approved", "rejected"):
-        raise HTTPException(409, f"Request already {reg_req['final_status']}")
-    
-    # Get manager employee record
-    emp = await get_employee_from_user(user["id"], db)
-    manager_id = emp["id"]
-    
-    # Validate: is this manager assigned to this request?
-    is_l1 = manager_id == reg_req["l1_manager_id"]
-    is_l2 = manager_id == reg_req["l2_manager_id"]
-    
-    if not (is_l1 or is_l2):
-        raise HTTPException(403, "You are not assigned as approver for this request")
-    
-    # Validate approval order
-    if is_l1:
-        if reg_req["l1_status"] != "pending":
-            raise HTTPException(409, f"L1 approval already {reg_req['l1_status']}")
-    
-    if is_l2:
-        if reg_req["l1_status"] != "approved":
-            raise HTTPException(400, "L1 manager must approve before L2 can review")
-        
-        if reg_req["l2_status"] != "pending":
-            raise HTTPException(409, f"L2 approval already {reg_req['l2_status']}")
-    
-    approved_role = "l1" if is_l1 else "l2"
-    
-    # Update approval status
-    async with db.transaction():
-        if is_l1:
-            await db.execute(
-                """
-                UPDATE regularization_requests
-                SET l1_status='approved', l1_approved_at=NOW(), l1_approved_by_user_id=$1, l1_comment=$2
-                WHERE id=$3
-                """,
-                user["id"], req.comment, request_id
-            )
-        else:  # is_l2
-            await db.execute(
-                """
-                UPDATE regularization_requests
-                SET l2_status='approved', l2_approved_at=NOW(), l2_approved_by_user_id=$1, l2_comment=$2
-                WHERE id=$3
-                """,
-                user["id"], req.comment, request_id
-            )
-        
-        # Fetch updated record to determine final status
-        updated = await db.fetchrow("SELECT * FROM regularization_requests WHERE id=$1", request_id)
-        
-        # Determine final status
-        final_status = "pending"
-        if updated["l1_status"] == "approved":
-            if updated["l2_status"] is None:
-                # L2 not required
-                final_status = "approved"
-            elif updated["l2_status"] == "approved":
-                # Both approved
-                final_status = "approved"
-            elif updated["l2_status"] == "pending":
-                # Waiting for L2
-                final_status = "pending"
-        
-        if final_status != updated["final_status"]:
-            await db.execute(
-                "UPDATE regularization_requests SET final_status=$1 WHERE id=$2",
-                final_status, request_id
-            )
-        
-        # Update daily_summary if fully approved
-        if final_status == "approved":
-            total_payroll_minutes = updated["actual_worked_minutes"] + updated["requested_minutes"]
-            
-            await db.execute(
-                """
-                UPDATE daily_summary
-                SET is_regularized=TRUE, regularization_status='approved',
-                    payroll_status='present', payroll_minutes=$1,
-                    regularization_minutes=$2,
-                    payroll_notes=$3
-                WHERE user_id IN (SELECT user_id FROM employees WHERE id=$4)
-                  AND work_date=$5
-                """,
-                total_payroll_minutes,
-                updated["requested_minutes"],
-                f"Regularized +{minutes_to_display(updated['requested_minutes'])} (L1+L2 approved)",
-                updated["employee_id"],
-                updated["work_date"],
-            )
-        
-        logger.info(
-            f"Regularization request approved: id={request_id}, "
-            f"approved_by_role={approved_role}, final_status={final_status}"
-        )
-    
-    return RegularizationApprovalResponse(
-        request_id=request_id,
-        status="approved",
-        approved_by_role=approved_role,
-        approved_at=datetime.now(),
-        final_status=final_status,
-        message=f"Request approved by {approved_role.upper()}" + (
-            ". Final approval obtained." if final_status == "approved" else ". Awaiting L2 approval."
-        ),
+    comment = (body.get("comment") or "").strip() or None
+
+    # ── 1. Load request + manager assignments in one query ────
+    req = await db.fetchrow(
+        """
+        SELECT
+            r.id, r.employee_id, r.work_date,
+            r.actual_worked_minutes, r.requested_minutes,
+            r.l1_manager_id, r.l2_manager_id,
+            r.l1_status, r.l2_status, r.final_status,
+            l1e.user_id AS l1_user_id,
+            l2e.user_id AS l2_user_id
+        FROM regularization_requests r
+        LEFT JOIN employees l1e ON l1e.id = r.l1_manager_id
+        LEFT JOIN employees l2e ON l2e.id = r.l2_manager_id
+        WHERE r.id = $1
+        """,
+        request_id,
     )
 
+    if not req:
+        raise HTTPException(404, "Request not found")
+    if req["final_status"] != "pending":
+        raise HTTPException(409, f"Request already {req['final_status']}")
+
+    current_user_id = user["id"]
+    is_l1 = req["l1_user_id"] == current_user_id
+    is_l2 = req["l2_user_id"] == current_user_id
+
+    if not is_l1 and not is_l2:
+        raise HTTPException(403, "Not authorised to approve this request")
+
+    # ── 2. All writes in one transaction ──────────────────────
+    async with db.transaction():
+
+        if is_l1 and req["l1_status"] == "pending":
+            # Determine if L2 approval is also required
+            needs_l2    = req["l2_manager_id"] is not None
+            new_final   = "pending" if needs_l2 else "approved"
+            action_type = "l1_approved"
+
+            await db.execute(
+                """
+                UPDATE regularization_requests
+                SET l1_status             = 'approved',
+                    l1_approved_at        = NOW(),
+                    l1_approved_by_user_id= $2,
+                    l1_comment            = $3,
+                    final_status          = $4,
+                    -- If escalation needed, set l2 to pending so L2 sees it
+                    l2_status             = CASE WHEN $5 THEN 'pending' ELSE l2_status END,
+                    updated_at            = NOW()
+                WHERE id = $1
+                """,
+                request_id, current_user_id, comment, new_final, needs_l2,
+            )
+
+        elif is_l2 and req["l2_status"] == "pending":
+            # Guard: L1 must have approved first
+            if req["l1_status"] != "approved":
+                raise HTTPException(400, "L1 manager must approve before you can act")
+
+            # L2 approval always finalises
+            new_final   = "approved"
+            action_type = "l2_approved"
+
+            await db.execute(
+                """
+                UPDATE regularization_requests
+                SET l2_status             = 'approved',
+                    l2_approved_at        = NOW(),
+                    l2_approved_by_user_id= $2,
+                    l2_comment            = $3,
+                    final_status          = 'approved',
+                    updated_at            = NOW()
+                WHERE id = $1
+                """,
+                request_id, current_user_id, comment,
+            )
+
+        else:
+            raise HTTPException(409, "Already actioned at your level")
+
+        # ── 3. If fully approved → sync daily_summary ─────────
+        mins_before = mins_after = 0
+        p_before = p_after = "absent"
+
+        if new_final == "approved":
+            mins_before, mins_after, p_before, p_after = await _sync_daily_summary(
+                db, request_id=request_id, final_status="approved"
+            )
+
+        # ── 4. Write audit log (always, even for partial L1 approve) ──
+        await _write_audit_log(
+            db,
+            request_id         = request_id,
+            action_by_user_id  = current_user_id,
+            action_role        = "l1" if is_l1 else "l2",
+            action_type        = action_type,
+            note               = comment,
+            minutes_before     = mins_before,
+            minutes_after      = mins_after,
+            payroll_status_before = p_before,
+            payroll_status_after  = p_after,
+        )
+
+    return {
+        "request_id"     : request_id,
+        "actioned_by"    : "l1" if is_l1 else "l2",
+        "final_status"   : new_final,
+        "minutes_credited": mins_after if new_final == "approved" else None,
+        "message"        : (
+            "Approved. Awaiting L2 approval." if new_final == "pending"
+            else "Fully approved. Hours credited to employee."
+        ),
+    }
 
 @router.post("/requests/{request_id}/reject")
-async def reject_regularization_request(
+async def reject_regularization(
     request_id: int,
-    req: RegularizationRejectionRequest,
+    body: dict = {},           # {comment: str}
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
-) -> RegularizationApprovalResponse:
+):
     """
-    POST /api/attendance/regularization/requests/{request_id}/reject
-    
-    Manager rejects a regularization request.
-    Rejection by either L1 or L2 = final rejection.
+    L1 or L2 manager rejects a regularization request.
+    Either manager rejecting immediately sets final_status = rejected.
+    daily_summary is reverted to actual worked hours.
     """
-    reg_req = await db.fetchrow("SELECT * FROM regularization_requests WHERE id=$1", request_id)
-    if not reg_req:
+    comment = (body.get("comment") or "").strip()
+    if len(comment) < 5:
+        raise HTTPException(400, "Rejection reason must be at least 5 characters")
+
+    # ── 1. Load request ───────────────────────────────────────
+    req = await db.fetchrow(
+        """
+        SELECT
+            r.id, r.final_status,
+            r.l1_status, r.l2_status,
+            l1e.user_id AS l1_user_id,
+            l2e.user_id AS l2_user_id
+        FROM regularization_requests r
+        LEFT JOIN employees l1e ON l1e.id = r.l1_manager_id
+        LEFT JOIN employees l2e ON l2e.id = r.l2_manager_id
+        WHERE r.id = $1
+        """,
+        request_id,
+    )
+
+    if not req:
         raise HTTPException(404, "Request not found")
-    
-    if reg_req["final_status"] in ("approved", "rejected"):
-        raise HTTPException(409, f"Request already {reg_req['final_status']}")
-    
-    # Get manager
-    emp = await get_employee_from_user(user["id"], db)
-    manager_id = emp["id"]
-    
-    is_l1 = manager_id == reg_req["l1_manager_id"]
-    is_l2 = manager_id == reg_req["l2_manager_id"]
-    
-    if not (is_l1 or is_l2):
-        raise HTTPException(403, "You are not assigned as approver for this request")
-    
-    # Validate rejection order
-    if is_l2 and reg_req["l1_status"] != "approved":
-        raise HTTPException(400, "L1 must approve before L2 can reject")
-    
-    if is_l1 and reg_req["l1_status"] != "pending":
-        raise HTTPException(409, f"L1 approval already {reg_req['l1_status']}")
-    
-    if is_l2 and reg_req["l2_status"] != "pending":
-        raise HTTPException(409, f"L2 approval already {reg_req['l2_status']}")
-    
-    rejected_role = "l1" if is_l1 else "l2"
-    
+    if req["final_status"] != "pending":
+        raise HTTPException(409, f"Request already {req['final_status']}")
+
+    current_user_id = user["id"]
+    is_l1 = req["l1_user_id"] == current_user_id
+    is_l2 = req["l2_user_id"] == current_user_id
+
+    if not is_l1 and not is_l2:
+        raise HTTPException(403, "Not authorised to reject this request")
+
+    action_type = "l1_rejected" if is_l1 else "l2_rejected"
+
+    # ── 2. All writes in one transaction ──────────────────────
     async with db.transaction():
+
         if is_l1:
             await db.execute(
                 """
                 UPDATE regularization_requests
-                SET l1_status='rejected', l1_approved_at=NOW(), l1_approved_by_user_id=$1, l1_comment=$2,
-                    final_status='rejected'
-                WHERE id=$3
+                SET l1_status             = 'rejected',
+                    l1_approved_at        = NOW(),
+                    l1_approved_by_user_id= $2,
+                    l1_comment            = $3,
+                    final_status          = 'rejected',
+                    updated_at            = NOW()
+                WHERE id = $1
                 """,
-                user["id"], req.comment, request_id
+                request_id, current_user_id, comment,
             )
-        else:
+        else:  # l2
             await db.execute(
                 """
                 UPDATE regularization_requests
-                SET l2_status='rejected', l2_approved_at=NOW(), l2_approved_by_user_id=$1, l2_comment=$2,
-                    final_status='rejected'
-                WHERE id=$3
+                SET l2_status             = 'rejected',
+                    l2_approved_at        = NOW(),
+                    l2_approved_by_user_id= $2,
+                    l2_comment            = $3,
+                    final_status          = 'rejected',
+                    updated_at            = NOW()
+                WHERE id = $1
                 """,
-                user["id"], req.comment, request_id
+                request_id, current_user_id, comment,
             )
-        
-        # Update daily_summary (mark as regularization rejected)
-        await db.execute(
-            """
-            UPDATE daily_summary
-            SET is_regularized=FALSE, regularization_status='rejected',
-                payroll_status='absent',
-                payroll_notes=$1
-            WHERE user_id IN (SELECT user_id FROM employees WHERE id=$2)
-              AND work_date=$3
-            """,
-            f"Regularization rejected by {rejected_role.upper()}: {req.comment}. Worked {minutes_to_display(reg_req['actual_worked_minutes'])}",
-            reg_req["employee_id"],
-            reg_req["work_date"],
+
+        # ── 3. Revert daily_summary ───────────────────────────
+        mins_before, mins_after, p_before, p_after = await _sync_daily_summary(
+            db, request_id=request_id, final_status="rejected"
         )
-        
-        logger.info(f"Regularization request rejected: id={request_id}, rejected_by_role={rejected_role}")
-    
-    return RegularizationApprovalResponse(
-        request_id=request_id,
-        status="rejected",
-        approved_by_role=rejected_role,
-        approved_at=datetime.now(),
-        final_status="rejected",
-        message=f"Request rejected by {rejected_role.upper()}. Day marked as absent.",
-    )
+
+        # ── 4. Write audit log ────────────────────────────────
+        await _write_audit_log(
+            db,
+            request_id            = request_id,
+            action_by_user_id     = current_user_id,
+            action_role           = "l1" if is_l1 else "l2",
+            action_type           = action_type,
+            note                  = comment,
+            minutes_before        = mins_before,
+            minutes_after         = mins_after,
+            payroll_status_before = p_before,
+            payroll_status_after  = p_after,
+        )
+
+    return {
+        "request_id"  : request_id,
+        "actioned_by" : "l1" if is_l1 else "l2",
+        "final_status": "rejected",
+        "message"     : "Request rejected. Employee notified.",
+    }
+
 
 
 # ══════════════════════════════════════════════════════════════

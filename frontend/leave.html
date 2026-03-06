@@ -1,0 +1,2815 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="theme-color" content="#0052cc" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SDPL HRMS" />
+    <link rel="apple-touch-icon" href="/appletouchicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/icon192.png" sizes="192x192" />
+    <link rel="icon" type="image/png" href="/icon512.png" sizes="512x512" />
+    <title>Leave | SDPL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
+
+      :root {
+        --primary: #0089d0;
+        --primary-dark: #006faa;
+        --primary-light: #e6f4ff;
+        --danger: #ef4444;
+        --danger-light: #fef2f2;
+        --warning: #f59e0b;
+        --warning-light: #fffbeb;
+        --bg: #f8f9fa;
+        --surface: #ffffff;
+        --surface2: #f3f4f6;
+        --border: #e5e7eb;
+        --border-light: #f0f0f0;
+        --text: #111827;
+        --text-secondary: #6b7280;
+        --text-muted: #9ca3af;
+        --success: #059669;
+        --success-light: #ecfdf5;
+        --purple: #7c3aed;
+        --purple-light: #ede9fe;
+        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --shadow-sm:
+          0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      body {
+        font-family:
+          "Sora",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: max(12px, env(safe-area-inset-top))
+          max(12px, env(safe-area-inset-right))
+          max(90px, env(safe-area-inset-bottom))
+          max(12px, env(safe-area-inset-left));
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+
+      /* ─── HEADER ─────────────────────────────── */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .back-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        text-decoration: none;
+        color: var(--text);
+        transition: background 0.2s;
+      }
+      .back-btn:hover {
+        background: var(--surface2);
+      }
+      .page-title {
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .page-subtitle {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 1px;
+      }
+
+      /* ─── BALANCE CARD ───────────────────────── */
+      .balance-card {
+        background: linear-gradient(135deg, #0089d0 0%, #006faa 100%);
+        border-radius: 12px;
+        padding: 11px 15px;
+        color: #fff;
+        margin-bottom: 14px;
+        box-shadow: var(--shadow-md);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .bal-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+      }
+      .bal-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+      .bal-label {
+        font-size: 9px;
+        opacity: 0.75;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .bal-big {
+        font-size: 20px;
+        font-weight: 700;
+        font-family: "JetBrains Mono", monospace;
+        line-height: 1;
+      }
+      .bal-unit {
+        font-size: 11px;
+        opacity: 0.75;
+      }
+      .bal-pills {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+      }
+      .bal-pill {
+        background: rgba(255, 255, 255, 0.18);
+        border-radius: 10px;
+        padding: 4px 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        text-align: center;
+      }
+      .bal-pill span {
+        opacity: 0.7;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .bal-pill strong {
+        font-size: 14px;
+        font-weight: 700;
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      /* ─── TABS ───────────────────────────────── */
+      .tabs {
+        display: flex;
+        background: var(--surface2);
+        border-radius: 10px;
+        padding: 3px;
+        margin-bottom: 16px;
+        gap: 2px;
+      }
+      .tab {
+        flex: 1;
+        padding: 7px 2px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: all var(--transition);
+        position: relative;
+        line-height: 1.3;
+      }
+      .tab.active {
+        background: var(--surface);
+        color: var(--primary);
+        box-shadow: var(--shadow-xs);
+        font-weight: 600;
+      }
+      .tab-badge {
+        position: absolute;
+        top: 2px;
+        right: 4px;
+        background: var(--danger);
+        color: #fff;
+        font-size: 8px;
+        font-weight: 700;
+        border-radius: 10px;
+        padding: 1px 4px;
+        min-width: 14px;
+        text-align: center;
+      }
+
+      /* ─── VIEWS ──────────────────────────────── */
+      .view {
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .view.active {
+        display: flex;
+      }
+      #applyView {
+        padding-bottom: 80px;
+      }
+
+      /* ─── YEAR / MONTH NAV (shared) ──────────── */
+      .period-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 10px 14px;
+        box-shadow: var(--shadow-xs);
+        border: 1px solid var(--border-light);
+      }
+      .pnav-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+        transition: all 0.2s;
+      }
+      .pnav-btn:hover {
+        background: var(--primary-light);
+        border-color: var(--primary);
+      }
+      .pnav-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+      .pnav-label {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      /* ─── FILTER CHIPS ───────────────────────── */
+      .filter-chips {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+        scrollbar-width: none;
+      }
+      .filter-chips::-webkit-scrollbar {
+        display: none;
+      }
+      .chip {
+        flex-shrink: 0;
+        padding: 5px 12px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+      .chip.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+
+      /* ─── LEAVE CARDS ────────────────────────── */
+      .leave-card {
+        background: var(--surface);
+        border-radius: 14px;
+        border: 1px solid var(--border-light);
+        padding: 14px 16px;
+        box-shadow: var(--shadow-xs);
+      }
+      .lc-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .lc-dates {
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .lc-days {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 2px;
+        font-family: "JetBrains Mono", monospace;
+      }
+      .lc-reason {
+        font-size: 12px;
+        color: var(--text-secondary);
+        font-style: italic;
+        margin-bottom: 10px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .lc-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 10px;
+        border-top: 1px solid var(--border-light);
+      }
+      .type-badge {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .type-badge.paid {
+        background: var(--success-light);
+        color: var(--success);
+      }
+      .type-badge.unpaid {
+        background: var(--warning-light);
+        color: var(--warning);
+      }
+      .status-badge {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .status-badge.pending {
+        background: var(--warning-light);
+        color: var(--warning);
+      }
+      .status-badge.approved {
+        background: var(--success-light);
+        color: var(--success);
+      }
+      .status-badge.rejected {
+        background: var(--danger-light);
+        color: var(--danger);
+      }
+      .status-badge.cancelled {
+        background: var(--surface2);
+        color: var(--text-muted);
+      }
+      .approval-steps {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      }
+      .step-dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        font-weight: 700;
+      }
+      .step-dot.pending {
+        background: var(--warning-light);
+        color: var(--warning);
+      }
+      .step-dot.approved {
+        background: var(--success-light);
+        color: var(--success);
+      }
+      .step-dot.rejected {
+        background: var(--danger-light);
+        color: var(--danger);
+      }
+      .step-dot.na {
+        background: var(--surface2);
+        color: var(--text-muted);
+      }
+      .step-arrow {
+        color: var(--text-muted);
+        font-size: 10px;
+      }
+      .cancel-btn {
+        font-size: 11px;
+        color: var(--danger);
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      /* ─── APPLY TYPE TOGGLE ──────────────────── */
+      .type-toggle {
+        display: flex;
+        gap: 8px;
+      }
+      .type-btn {
+        flex: 1;
+        padding: 12px 8px;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface2);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        text-align: center;
+        transition: all 0.2s;
+        line-height: 1.4;
+      }
+      .type-btn .ticon {
+        font-size: 20px;
+        display: block;
+        margin-bottom: 3px;
+      }
+      .type-btn.active.paid {
+        border-color: var(--success);
+        background: var(--success-light);
+        color: var(--success);
+      }
+      .type-btn.active.unpaid {
+        border-color: var(--warning);
+        background: var(--warning-light);
+        color: var(--warning);
+      }
+
+      /* ─── APPLY CALENDAR ─────────────────────── */
+      .cal-card {
+        background: var(--surface);
+        border-radius: 16px;
+        border: 1px solid var(--border-light);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+      }
+      .cal-nav-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 14px 8px;
+      }
+      .cal-nav-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text);
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .cal-nav-btn:hover {
+        background: var(--primary-light);
+        border-color: var(--primary);
+      }
+      .cal-nav-btn:disabled {
+        opacity: 0.3;
+        pointer-events: none;
+      }
+      .cal-month-label {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .cal-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        padding: 0 6px 4px;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .cal-wd {
+        text-align: center;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 5px 0;
+      }
+      .cal-wd.we {
+        color: rgba(239, 68, 68, 0.55);
+      } /* Sunday only */
+      .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        padding: 4px 6px 8px;
+        row-gap: 1px;
+      }
+      .cal-cell {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+      }
+      /* range strip */
+      .cal-cell.has-range::before {
+        content: "";
+        position: absolute;
+        inset: 4px 0;
+        background: var(--primary-light);
+        z-index: 0;
+      }
+      .cal-cell.is-start::before {
+        left: 50%;
+      }
+      .cal-cell.is-end::before {
+        right: 50%;
+      }
+      .cal-cell.is-start.is-end::before {
+        display: none;
+      }
+      .cal-cell.has-range.is-off::before {
+        background: rgba(239, 68, 68, 0.07);
+      }
+      /* day circle */
+      .cal-day {
+        position: relative;
+        z-index: 1;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s,
+          transform 0.1s;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        flex-shrink: 0;
+      }
+      .cal-day:active {
+        transform: scale(0.9);
+      }
+      .cal-day.other-month {
+        opacity: 0.2;
+        pointer-events: none;
+      }
+      .cal-day.past {
+        opacity: 0.28;
+        pointer-events: none;
+      }
+      .cal-day.is-off {
+        color: var(--danger);
+      }
+      .cal-day.is-holiday::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--danger);
+      }
+      .cal-day.is-today::before {
+        content: "";
+        position: absolute;
+        bottom: 2px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--primary);
+      }
+      .cal-day.sel-start,
+      .cal-day.sel-end {
+        background: var(--primary) !important;
+        color: #fff !important;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(0, 137, 208, 0.4);
+      }
+      .cal-day.in-range {
+        color: var(--primary-dark);
+        font-weight: 600;
+      }
+      .cal-day.in-range.is-off {
+        color: var(--danger);
+      }
+      .cal-day:not(.past):not(.other-month):not(.sel-start):not(
+          .sel-end
+        ):hover {
+        background: var(--surface2);
+      }
+      /* legend */
+      .cal-legend {
+        display: flex;
+        gap: 10px;
+        padding: 6px 12px 10px;
+        border-top: 1px solid var(--border-light);
+        flex-wrap: wrap;
+      }
+      .leg {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+      .leg-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      /* ─── SELECTION SUMMARY ──────────────────── */
+      .sel-hint {
+        text-align: center;
+        font-size: 12px;
+        color: var(--text-muted);
+        padding: 4px 0;
+      }
+      .sel-summary {
+        background: linear-gradient(135deg, var(--primary-light), #dbeeff);
+        border: 1px solid rgba(0, 137, 208, 0.2);
+        border-radius: 14px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sel-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+      }
+      .sel-info {
+        flex: 1;
+      }
+      .sel-dates {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--primary-dark);
+      }
+      .sel-days {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 2px;
+      }
+      .sel-clear {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 11px;
+        color: var(--text-muted);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        flex-shrink: 0;
+      }
+
+      /* ─── REASON CARD ────────────────────────── */
+      .reason-card {
+        background: var(--surface);
+        border-radius: 14px;
+        border: 1px solid var(--border-light);
+        padding: 14px 16px;
+        box-shadow: var(--shadow-xs);
+      }
+      .reason-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-secondary);
+        display: block;
+        margin-bottom: 8px;
+      }
+      .reason-ta {
+        width: 100%;
+        padding: 11px 13px;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        font-size: 10px;
+        font-family: inherit;
+        color: var(--text);
+        background: var(--surface);
+        resize: none;
+        height: 88px;
+        transition: border-color 0.2s;
+      }
+      .reason-ta:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(0, 137, 208, 0.08);
+      }
+      .char-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 5px;
+      }
+
+      /* ─── STICKY APPLY BAR ───────────────────── */
+      .apply-bar {
+        position: fixed;
+        bottom: 58px;
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 10px 16px;
+        z-index: 49;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+      }
+      .apply-bar-inner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 480px;
+        margin: 0 auto;
+      }
+      .apply-bar-info {
+        flex: 1;
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.3;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .apply-bar-btn {
+        flex-shrink: 0;
+        padding: 11px 20px;
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+      }
+      .apply-bar-btn:hover {
+        background: var(--primary-dark);
+      }
+      .apply-bar-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      /* ─── MY ACTIVITY CALENDAR ───────────────── */
+      .act-month-card {
+        background: var(--surface);
+        border-radius: 16px;
+        border: 1px solid var(--border-light);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+      }
+      .act-cal-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        padding: 0 6px 4px;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .act-cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        padding: 4px 4px 8px;
+        gap: 2px;
+      }
+
+      .act-cell {
+        aspect-ratio: 1;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        cursor: pointer;
+        transition: transform 0.15s;
+        -webkit-tap-highlight-color: transparent;
+        padding: 2px;
+      }
+      .act-cell:active {
+        transform: scale(0.92);
+      }
+      .act-cell.other-month {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .act-cell.future {
+        background: transparent;
+        cursor: default;
+      }
+      .act-cell.future .act-day-num {
+        color: var(--text-muted);
+        opacity: 0.5;
+      }
+
+      /* Status backgrounds */
+      .act-cell.present {
+        background: var(--success-light);
+      }
+      .act-cell.absent {
+        background: var(--danger-light);
+      }
+      .act-cell.leave {
+        background: #ede9fe;
+      } /* purple-light */
+      .act-cell.holiday {
+        background: #fff7ed;
+      } /* orange-light */
+      .act-cell.weekly-off {
+        background: var(--surface2);
+      }
+      .act-cell.regularized {
+        background: #e0f2fe;
+      } /* light blue */
+      .act-cell.today-cell {
+        outline: 2px solid var(--primary);
+        outline-offset: -2px;
+      }
+
+      .act-day-num {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1;
+        color: var(--text);
+      }
+      .act-status-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        margin-top: 3px;
+        flex-shrink: 0;
+      }
+      .present .act-status-dot {
+        background: var(--success);
+      }
+      .absent .act-status-dot {
+        background: var(--danger);
+      }
+      .leave .act-status-dot {
+        background: #7c3aed;
+      }
+      .holiday .act-status-dot {
+        background: #ea580c;
+      }
+      .weekly-off .act-status-dot {
+        background: var(--text-muted);
+      }
+      .regularized .act-status-dot {
+        background: #0284c7;
+      }
+
+      /* ─── ACTIVITY STATS ROW ─────────────────── */
+      .act-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .stat-chip {
+        background: var(--surface);
+        border-radius: 12px;
+        border: 1px solid var(--border-light);
+        padding: 10px 10px 8px;
+        text-align: center;
+        box-shadow: var(--shadow-xs);
+      }
+      .stat-num {
+        font-size: 20px;
+        font-weight: 700;
+        font-family: "JetBrains Mono", monospace;
+        line-height: 1;
+      }
+      .stat-lbl {
+        font-size: 10px;
+        color: var(--text-secondary);
+        margin-top: 3px;
+      }
+      .stat-chip.s-present .stat-num {
+        color: var(--success);
+      }
+      .stat-chip.s-absent .stat-num {
+        color: var(--danger);
+      }
+      .stat-chip.s-leave .stat-num {
+        color: #7c3aed;
+      }
+      .stat-chip.s-reg .stat-num {
+        color: #0284c7;
+      }
+      .stat-chip.s-holiday .stat-num {
+        color: #ea580c;
+      }
+      .stat-chip.s-late .stat-num {
+        color: var(--warning);
+      }
+
+      /* ─── ACTIVITY LEGEND ────────────────────── */
+      .act-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        background: var(--surface);
+        border-radius: 12px;
+        border: 1px solid var(--border-light);
+        padding: 10px 12px;
+      }
+      .act-leg-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+      .act-leg-swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+
+      /* ─── DAY DETAIL SHEET ───────────────────── */
+      .day-detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .day-detail-row:last-child {
+        border-bottom: none;
+      }
+      .day-detail-lbl {
+        color: var(--text-secondary);
+      }
+      .day-detail-val {
+        font-weight: 600;
+      }
+      .day-status-pill {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      /* ─── APPROVAL CARDS ─────────────────────── */
+      .appr-card {
+        background: var(--surface);
+        border-radius: 14px;
+        border: 1px solid var(--border-light);
+        padding: 14px 16px;
+        box-shadow: var(--shadow-xs);
+      }
+      .appr-emp {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .appr-meta {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+      .appr-reason {
+        background: var(--surface2);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        font-style: italic;
+        margin-bottom: 10px;
+      }
+      .appr-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+      }
+      .appr-row strong {
+        color: var(--text);
+      }
+      .appr-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .btn-reject {
+        flex: 1;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1.5px solid var(--danger);
+        background: var(--danger-light);
+        color: var(--danger);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-approve {
+        flex: 2;
+        padding: 10px;
+        border-radius: 10px;
+        border: none;
+        background: var(--primary);
+        color: #fff;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-reject:hover {
+        background: var(--danger);
+        color: #fff;
+      }
+      .btn-approve:hover {
+        background: var(--primary-dark);
+      }
+
+      /* ─── EMPTY / SPINNER ────────────────────── */
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        background: var(--surface);
+        border-radius: 14px;
+        border: 1px solid var(--border-light);
+      }
+      .empty-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+      }
+      .empty-title {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .empty-text {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
+      .spinner-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+      }
+      .spinner {
+        width: 26px;
+        height: 26px;
+        border: 3px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ─── BOTTOM SHEET ───────────────────────── */
+      .sheet-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 100;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--transition);
+        backdrop-filter: blur(2px);
+      }
+      .sheet-overlay.active {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .bottom-sheet {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border-radius: 20px 20px 0 0;
+        padding: 0 16px max(20px, env(safe-area-inset-bottom));
+        z-index: 101;
+        transform: translateY(100%);
+        transition: transform var(--transition);
+        max-height: 90dvh;
+        overflow-y: auto;
+      }
+      .bottom-sheet.active {
+        transform: translateY(0);
+      }
+      .sheet-handle {
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border);
+        margin: 12px auto 14px;
+      }
+      .sheet-title {
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .sheet-sub {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 14px;
+      }
+      .sheet-section {
+        margin-bottom: 14px;
+      }
+      .sheet-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+      }
+      .sheet-ta {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--text);
+        resize: none;
+        height: 80px;
+        transition: border-color 0.2s;
+      }
+      .sheet-ta:focus {
+        outline: none;
+        border-color: var(--primary);
+      }
+      .info-card {
+        background: var(--surface2);
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        padding: 4px 0;
+      }
+      .info-row:not(:last-child) {
+        border-bottom: 1px solid var(--border-light);
+      }
+      .info-label {
+        color: var(--text-secondary);
+      }
+      .info-value {
+        font-weight: 600;
+      }
+      .sheet-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        padding-bottom: 4px;
+      }
+      .btn {
+        padding: 12px 16px;
+        border-radius: 10px;
+        border: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-dng {
+        background: var(--danger);
+        color: #fff;
+        flex: 1;
+      }
+      .btn-pri {
+        background: var(--primary);
+        color: #fff;
+        flex: 2;
+      }
+
+      /* ─── BOTTOM NAV ─────────────────────────── */
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        display: flex;
+        padding: 8px 0;
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+        z-index: 50;
+      }
+      .nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 6px 8px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        text-decoration: none;
+        color: var(--text-muted);
+        font-family: inherit;
+        transition: color 0.2s;
+      }
+      .nav-btn:active {
+        transform: scale(0.95);
+      }
+      .nav-btn.active {
+        color: var(--primary);
+      }
+      .nav-btn.active .nav-icon {
+        stroke: var(--primary);
+      }
+      .nav-icon {
+        stroke: var(--text-muted);
+        transition: stroke 0.2s;
+      }
+      .nav-label {
+        font-size: 10px;
+        font-weight: 500;
+      }
+
+      /* ─── TOAST ──────────────────────────────── */
+      .toast {
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%) translateY(14px);
+        background: #1f2937;
+        color: #fff;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        opacity: 0;
+        transition: all 0.3s;
+        pointer-events: none;
+        z-index: 200;
+        white-space: nowrap;
+        max-width: 90vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      .toast.success {
+        background: #059669;
+      }
+      .toast.error {
+        background: #dc2626;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-left">
+        <a href="/employee" class="back-btn">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M19 12H5M12 5l-7 7 7 7" />
+          </svg>
+        </a>
+        <div>
+          <div class="page-title">Attendance</div>
+          <div class="page-subtitle" id="userNameSub">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BALANCE CARD -->
+    <div class="balance-card">
+      <div class="bal-left">
+        <div class="bal-icon"></div>
+        <div>
+          <div class="bal-label">
+            Paid Leave Balance &nbsp;<span
+              id="balYear"
+              style="opacity: 0.6"
+            ></span>
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: baseline;
+              gap: 5px;
+              margin-top: 2px;
+            "
+          >
+            <div class="bal-big" id="balRemaining">—</div>
+            <div class="bal-unit">days left</div>
+          </div>
+        </div>
+      </div>
+      <div class="bal-pills">
+        <div class="bal-pill">
+          <span>Total</span><strong id="balTotal">—</strong>
+        </div>
+        <div class="bal-pill">
+          <span>Used</span><strong id="balUsed">—</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS (4) -->
+    <div class="tabs">
+      <button class="tab active" data-tab="mine" onclick="switchTab('mine')">
+        My Leaves
+      </button>
+      <button class="tab" data-tab="apply" onclick="switchTab('apply')">
+        Apply
+      </button>
+      <button class="tab" data-tab="activity" onclick="switchTab('activity')">
+        Activity
+      </button>
+      <button class="tab" data-tab="approvals" onclick="switchTab('approvals')">
+        Approvals
+        <span class="tab-badge" id="pendingBadge" style="display: none">0</span>
+      </button>
+    </div>
+
+    <!-- ═══════ MY LEAVES ═══════ -->
+    <div class="view active" id="mineView">
+      <div class="period-nav">
+        <button class="pnav-btn" onclick="changeYear(-1)">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <span class="pnav-label" id="yearDisplay">—</span>
+        <button
+          class="pnav-btn"
+          id="nextYearBtn"
+          disabled
+          onclick="changeYear(1)"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+      </div>
+      <div class="filter-chips" id="statusFilters">
+        <div
+          class="chip active"
+          data-status="all"
+          onclick="setFilter('all', this)"
+        >
+          All
+        </div>
+        <div
+          class="chip"
+          data-status="pending"
+          onclick="setFilter('pending', this)"
+        >
+          Pending
+        </div>
+        <div
+          class="chip"
+          data-status="approved"
+          onclick="setFilter('approved', this)"
+        >
+          Approved
+        </div>
+        <div
+          class="chip"
+          data-status="rejected"
+          onclick="setFilter('rejected', this)"
+        >
+          Rejected
+        </div>
+        <div
+          class="chip"
+          data-status="cancelled"
+          onclick="setFilter('cancelled', this)"
+        >
+          Cancelled
+        </div>
+      </div>
+      <div id="myLeavesList">
+        <div class="spinner-wrap"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- ═══════ APPLY ═══════ -->
+    <div class="view" id="applyView">
+      <div class="type-toggle">
+        <button
+          class="type-btn active paid"
+          id="btnPaid"
+          onclick="selectType('paid')"
+        >
+          <span class="ticon"></span>Paid Leave
+        </button>
+        <button
+          class="type-btn unpaid"
+          id="btnUnpaid"
+          onclick="selectType('unpaid')"
+        >
+          <span class="ticon"></span>Unpaid Leave
+        </button>
+      </div>
+
+      <div class="cal-card">
+        <div class="cal-nav-row">
+          <button class="cal-nav-btn" id="calPrev" onclick="calMove(-1)">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <span class="cal-month-label" id="calMonthLabel">—</span>
+          <button class="cal-nav-btn" id="calNext" onclick="calMove(1)">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+        <div class="cal-weekdays">
+          <div class="cal-wd we">Su</div>
+          <div class="cal-wd">Mo</div>
+          <div class="cal-wd">Tu</div>
+          <div class="cal-wd">We</div>
+          <div class="cal-wd">Th</div>
+          <div class="cal-wd">Fr</div>
+          <div class="cal-wd">Sa</div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-legend">
+          <div class="leg">
+            <div class="leg-dot" style="background: var(--primary)"></div>
+            Selected
+          </div>
+          <div class="leg">
+            <div
+              class="leg-dot"
+              style="
+                background: var(--primary-light);
+                border: 1px solid var(--primary);
+              "
+            ></div>
+            Range
+          </div>
+          <div class="leg">
+            <div class="leg-dot" style="background: var(--danger)"></div>
+            Holiday / Sunday
+          </div>
+          <div class="leg">
+            <div
+              class="leg-dot"
+              style="
+                background: var(--surface2);
+                border: 1px solid var(--border);
+              "
+            ></div>
+            Today
+          </div>
+        </div>
+      </div>
+
+      <div class="sel-hint" id="selHint">
+        Tap a date to start your selection
+      </div>
+      <div class="sel-summary" id="selSummary" style="display: none">
+        <div class="sel-icon"></div>
+        <div class="sel-info">
+          <div class="sel-dates" id="selDatesText">—</div>
+          <div class="sel-days" id="selDaysText">—</div>
+        </div>
+        <button class="sel-clear" onclick="clearSelection()">Clear</button>
+      </div>
+
+      <div class="reason-card">
+        <label class="reason-label"
+          >Reason <span style="color: var(--danger)">*</span></label
+        >
+        <textarea
+          class="reason-ta"
+          id="leaveReason"
+          placeholder="Briefly explain your reason (min 5 characters)…"
+          maxlength="500"
+          oninput="updateCharCount()"
+        ></textarea>
+        <div class="char-hint"><span id="charCount">0</span>/500</div>
+      </div>
+    </div>
+
+    <!-- ═══════ ACTIVITY ═══════ -->
+    <div class="view" id="activityView">
+      <div class="period-nav">
+        <button class="pnav-btn" onclick="actMove(-1)">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <span class="pnav-label" id="actMonthLabel">—</span>
+        <button class="pnav-btn" id="actNext" onclick="actMove(1)">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Stats row -->
+      <div class="act-stats" id="actStats">
+        <div class="stat-chip s-present">
+          <div class="stat-num" id="statPresent">—</div>
+          <div class="stat-lbl">Present</div>
+        </div>
+        <div class="stat-chip s-absent">
+          <div class="stat-num" id="statAbsent">—</div>
+          <div class="stat-lbl">Absent</div>
+        </div>
+        <div class="stat-chip s-leave">
+          <div class="stat-num" id="statLeave">—</div>
+          <div class="stat-lbl">Leave</div>
+        </div>
+        <div class="stat-chip s-reg">
+          <div class="stat-num" id="statReg">—</div>
+          <div class="stat-lbl">Regularized</div>
+        </div>
+        <div class="stat-chip s-holiday">
+          <div class="stat-num" id="statHoliday">—</div>
+          <div class="stat-lbl">Holidays</div>
+        </div>
+        <div class="stat-chip s-late">
+          <div class="stat-num" id="statLate">—</div>
+          <div class="stat-lbl">Late Days</div>
+        </div>
+      </div>
+
+      <!-- Activity calendar -->
+      <div class="act-month-card">
+        <div class="act-cal-weekdays">
+          <div class="cal-wd we">Su</div>
+          <div class="cal-wd">Mo</div>
+          <div class="cal-wd">Tu</div>
+          <div class="cal-wd">We</div>
+          <div class="cal-wd">Th</div>
+          <div class="cal-wd">Fr</div>
+          <div class="cal-wd">Sa</div>
+        </div>
+        <div class="act-cal-grid" id="actGrid">
+          <div class="spinner-wrap" style="grid-column: span 7">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="act-legend">
+        <div class="act-leg-item">
+          <div
+            class="act-leg-swatch"
+            style="
+              background: var(--success-light);
+              border: 1px solid var(--success);
+            "
+          ></div>
+          Present
+        </div>
+        <div class="act-leg-item">
+          <div
+            class="act-leg-swatch"
+            style="
+              background: var(--danger-light);
+              border: 1px solid var(--danger);
+            "
+          ></div>
+          Absent
+        </div>
+        <div class="act-leg-item">
+          <div
+            class="act-leg-swatch"
+            style="background: #ede9fe; border: 1px solid #7c3aed"
+          ></div>
+          Leave
+        </div>
+        <div class="act-leg-item">
+          <div
+            class="act-leg-swatch"
+            style="background: #e0f2fe; border: 1px solid #0284c7"
+          ></div>
+          Regularized
+        </div>
+        <div class="act-leg-item">
+          <div
+            class="act-leg-swatch"
+            style="background: #fff7ed; border: 1px solid #ea580c"
+          ></div>
+          Holiday
+        </div>
+        <div class="act-leg-item">
+          <div
+            class="act-leg-swatch"
+            style="background: var(--surface2); border: 1px solid var(--border)"
+          ></div>
+          Week Off
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ APPROVALS ═══════ -->
+    <div class="view" id="approvalsView">
+      <div id="approvalsList">
+        <div class="spinner-wrap"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- BOTTOM SHEET: APPROVAL ACTION -->
+    <div
+      class="sheet-overlay"
+      id="actionOverlay"
+      onclick="closeActionSheet()"
+    ></div>
+    <div class="bottom-sheet" id="actionSheet">
+      <div class="sheet-handle"></div>
+      <h2 class="sheet-title" id="actionTitle">Review Request</h2>
+      <p class="sheet-sub" id="actionSubtitle"></p>
+      <div class="sheet-section">
+        <div class="sheet-label">Details</div>
+        <div class="info-card">
+          <div class="info-row">
+            <span class="info-label">Employee</span
+            ><span class="info-value" id="actionEmp">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Dates</span>
+            <span class="info-value" id="actionDates">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Days</span>
+            <span class="info-value" id="actionDays">—</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Type</span>
+            <span class="info-value" id="actionType">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="sheet-section">
+        <div class="sheet-label">Reason</div>
+        <div class="appr-reason" id="actionReason">—</div>
+      </div>
+      <div class="sheet-section">
+        <div class="sheet-label">
+          Comment
+          <span id="commentRequired" style="color: var(--danger); display: none"
+            >*</span
+          >
+        </div>
+        <textarea
+          class="sheet-ta"
+          id="actionComment"
+          placeholder="Add a comment…"
+          maxlength="500"
+        ></textarea>
+      </div>
+      <div class="sheet-actions">
+        <button
+          class="btn btn-dng"
+          id="rejectBtn"
+          onclick="submitAction('reject')"
+        >
+          Reject
+        </button>
+        <button
+          class="btn btn-pri"
+          id="approveBtn"
+          onclick="submitAction('approve')"
+        >
+          Approve
+        </button>
+      </div>
+    </div>
+
+    <!-- BOTTOM SHEET: DAY DETAIL -->
+    <div class="sheet-overlay" id="dayOverlay" onclick="closeDaySheet()"></div>
+    <div class="bottom-sheet" id="daySheet">
+      <div class="sheet-handle"></div>
+      <h2 class="sheet-title" id="daySheetTitle">—</h2>
+      <p class="sheet-sub" id="daySheetSub"></p>
+      <div id="daySheetContent"></div>
+    </div>
+
+    <!-- STICKY APPLY BAR -->
+    <div class="apply-bar" id="applyBar" style="display: none">
+      <div class="apply-bar-inner">
+        <div class="apply-bar-info" id="applyBarInfo">
+          Select dates to apply
+        </div>
+        <button
+          class="apply-bar-btn"
+          id="applyBtn"
+          onclick="submitLeave()"
+          disabled
+        >
+          Submit Leave
+        </button>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottom-nav">
+      <a href="/employee" class="nav-btn">
+        <svg
+          class="nav-icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+        <span class="nav-label">Clock</span>
+      </a>
+      <a href="/regularization" class="nav-btn">
+        <svg
+          class="nav-icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span class="nav-label">Regularization</span>
+      </a>
+      <button class="nav-btn active">
+        <svg
+          class="nav-icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        <span class="nav-label">Attendance</span>
+      </button>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ══════════════════════════════════════════
+      // STATE
+      // ══════════════════════════════════════════
+      const API_BASE = "/api";
+      const token = localStorage.getItem("token");
+      let user = null;
+
+      // My Leaves
+      let currentYear = new Date().getFullYear();
+      let currentFilter = "all";
+      let myLeaves = [];
+
+      // Approvals
+      let pendingApprovals = [];
+      let selectedApproval = null;
+      let actionRole = null,
+        actionType = null,
+        actionReqId = null;
+
+      // Apply calendar
+      let calYear = new Date().getFullYear();
+      let calMonth = new Date().getMonth();
+      let selStart = null,
+        selEnd = null,
+        pickStep = 0;
+      let holidays = new Set();
+      let selectedType = "paid";
+
+      // Activity calendar
+      let actYear = new Date().getFullYear();
+      let actMonth = new Date().getMonth();
+      let actData = {}; // { "YYYY-MM-DD": { status, punch_in, punch_out, ... } }
+      let actLeaves = []; // leave requests for the month
+
+      // SUNDAY ONLY = weekly off (dow === 0)
+      const WEEKLY_OFF_DOW = 0;
+
+      // ══════════════════════════════════════════
+      // AUTH
+      // ══════════════════════════════════════════
+      async function checkAccess() {
+        if (!token) {
+          window.location.href = "/login";
+          return null;
+        }
+        try {
+          user = await apiFetch("/auth/me");
+          return user;
+        } catch {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          return null;
+        }
+      }
+
+      // ══════════════════════════════════════════
+      // HELPERS
+      // ══════════════════════════════════════════
+      async function apiFetch(endpoint, method = "GET", body = null) {
+        const opts = {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(`${API_BASE}${endpoint}`, opts);
+        const data = await res.json();
+        if (!res.ok)
+          throw new Error(data.detail || data.message || "Request failed");
+        return data;
+      }
+
+      function showToast(msg, type = "success") {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.className = `toast ${type}`;
+        setTimeout(() => t.classList.add("show"), 10);
+        setTimeout(() => t.classList.remove("show"), 3200);
+      }
+
+      function isoToDate(s) {
+        const [y, m, d] = s.split("-").map(Number);
+        return new Date(y, m - 1, d);
+      }
+      function toISO(y, m, d) {
+        return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      }
+      function todayISO() {
+        return new Date().toISOString().split("T")[0];
+      }
+      function fmtDate(s) {
+        if (!s) return "—";
+        return isoToDate(s).toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+      }
+      function fmtRange(a, b) {
+        if (!a) return "—";
+        if (!b || a === b) return fmtDate(a);
+        return `${fmtDate(a)} – ${fmtDate(b)}`;
+      }
+      function fmtTime(t) {
+        if (!t) return "—";
+        const [h, m] = t.split(":");
+        const hr = +h;
+        return `${hr % 12 || 12}:${m} ${hr >= 12 ? "PM" : "AM"}`;
+      }
+      function cap(s) {
+        return s ? s[0].toUpperCase() + s.slice(1) : "";
+      }
+
+      // Working days: Mon–Sat (exclude Sunday + holidays)
+      function countWorkDays(from, to) {
+        let n = 0;
+        const cur = isoToDate(from),
+          end = isoToDate(to);
+        while (cur <= end) {
+          const dow = cur.getDay(),
+            iso = cur.toISOString().split("T")[0];
+          if (dow !== WEEKLY_OFF_DOW && !holidays.has(iso)) n++;
+          cur.setDate(cur.getDate() + 1);
+        }
+        return n;
+      }
+
+      // ══════════════════════════════════════════
+      // TABS
+      // ══════════════════════════════════════════
+      function switchTab(tab) {
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) => t.classList.toggle("active", t.dataset.tab === tab));
+        ["mine", "apply", "activity", "approvals"].forEach((v) =>
+          document
+            .getElementById(v + "View")
+            .classList.toggle("active", v === tab),
+        );
+        document.getElementById("applyBar").style.display =
+          tab === "apply" ? "block" : "none";
+        if (tab === "approvals") loadApprovals();
+        if (tab === "activity") loadActivity();
+        if (tab === "apply") updateApplyBar();
+      }
+
+      // ══════════════════════════════════════════
+      // BALANCE
+      // ══════════════════════════════════════════
+      async function loadBalance() {
+        try {
+          const b = await apiFetch(`/leave/balance?year=${currentYear}`);
+          document.getElementById("balRemaining").textContent =
+            b.remaining_paid_days;
+          document.getElementById("balTotal").textContent = b.total_paid_days;
+          document.getElementById("balUsed").textContent = b.used_paid_days;
+          document.getElementById("balYear").textContent = currentYear;
+        } catch {}
+      }
+
+      // ══════════════════════════════════════════
+      // MY LEAVES
+      // ══════════════════════════════════════════
+      function changeYear(delta) {
+        const max = new Date().getFullYear();
+        currentYear = Math.min(currentYear + delta, max);
+        document.getElementById("yearDisplay").textContent = currentYear;
+        document.getElementById("nextYearBtn").disabled = currentYear >= max;
+        loadMyLeaves();
+        loadBalance();
+      }
+      function setFilter(status, el) {
+        currentFilter = status;
+        document
+          .querySelectorAll("#statusFilters .chip")
+          .forEach((c) =>
+            c.classList.toggle("active", c.dataset.status === status),
+          );
+        renderMyLeaves();
+      }
+      async function loadMyLeaves() {
+        document.getElementById("myLeavesList").innerHTML =
+          `<div class="spinner-wrap"><div class="spinner"></div></div>`;
+        try {
+          const d = await apiFetch(
+            `/leave/requests?year=${currentYear}&status=all`,
+          );
+          myLeaves = d.requests || [];
+          renderMyLeaves();
+        } catch (e) {
+          document.getElementById("myLeavesList").innerHTML =
+            `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-text">${e.message}</div></div>`;
+        }
+      }
+      function renderMyLeaves() {
+        const filtered =
+          currentFilter === "all"
+            ? myLeaves
+            : myLeaves.filter((r) => r.final_status === currentFilter);
+        const el = document.getElementById("myLeavesList");
+        if (!filtered.length) {
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No leaves found</div><div class="empty-text">${currentFilter === "all" ? "No leave applications this year." : `No ${currentFilter} leaves.`}</div></div>`;
+          return;
+        }
+        const today = todayISO();
+        el.innerHTML = filtered
+          .map((r) => {
+            const canCancel =
+              r.final_status === "pending" ||
+              (r.final_status === "approved" && r.date_from > today);
+            return `
+          <div class="leave-card">
+            <div class="lc-header">
+              <div>
+                <div class="lc-dates">${fmtRange(r.date_from, r.date_to)}</div>
+                <div class="lc-days">${r.num_days} working day${r.num_days !== 1 ? "s" : ""}</div>
+              </div>
+              <span class="type-badge ${r.leave_type}">${cap(r.leave_type)}</span>
+            </div>
+            <div class="lc-reason">"${r.reason}"</div>
+            <div class="lc-footer">
+              <span class="status-badge ${r.final_status}">${cap(r.final_status)}</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="approval-steps">
+                  <div class="step-dot ${r.l1_status}" title="L1">L1</div>
+                  <span class="step-arrow">›</span>
+                  <div class="step-dot ${r.l2_status === "na" ? "na" : r.l2_status}" title="HR">HR</div>
+                </div>
+                ${canCancel ? `<button class="cancel-btn" onclick="cancelLeave(${r.request_id})">Cancel</button>` : ""}
+              </div>
+            </div>
+          </div>`;
+          })
+          .join("");
+      }
+      async function cancelLeave(id) {
+        if (!confirm("Cancel this leave request?")) return;
+        try {
+          await apiFetch(`/leave/requests/${id}/cancel`, "POST");
+          showToast("Leave cancelled");
+          loadMyLeaves();
+          loadBalance();
+        } catch (e) {
+          showToast(e.message, "error");
+        }
+      }
+
+      // ══════════════════════════════════════════
+      // APPLY CALENDAR
+      // ══════════════════════════════════════════
+      async function loadHolidays() {
+        try {
+          const yr = new Date().getFullYear();
+          const [h1, h2] = await Promise.all([
+            apiFetch(`/leave/holidays?year=${yr}`),
+            apiFetch(`/leave/holidays?year=${yr + 1}`),
+          ]);
+          holidays = new Set([...h1, ...h2].map((h) => h.holiday_date));
+        } catch {
+          holidays = new Set();
+        }
+      }
+
+      function renderCalendar() {
+        const today = todayISO();
+        const firstDow = new Date(calYear, calMonth, 1).getDay();
+        const daysInM = new Date(calYear, calMonth + 1, 0).getDate();
+        const daysInPrev = new Date(calYear, calMonth, 0).getDate();
+        const [pY, pM] =
+          calMonth === 0 ? [calYear - 1, 11] : [calYear, calMonth - 1];
+        const [nY, nM] =
+          calMonth === 11 ? [calYear + 1, 0] : [calYear, calMonth + 1];
+
+        document.getElementById("calMonthLabel").textContent = new Date(
+          calYear,
+          calMonth,
+          1,
+        ).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
+        const now = new Date();
+        document.getElementById("calPrev").disabled =
+          calYear < now.getFullYear() ||
+          (calYear === now.getFullYear() && calMonth <= now.getMonth());
+        document.getElementById("calNext").disabled =
+          new Date(calYear, calMonth + 1, 1) >=
+          new Date(now.getFullYear(), now.getMonth() + 13, 1);
+
+        const cells = [];
+        for (let i = firstDow - 1; i >= 0; i--)
+          cells.push({
+            day: daysInPrev - i,
+            iso: toISO(pY, pM, daysInPrev - i),
+            filler: true,
+          });
+        for (let d = 1; d <= daysInM; d++) {
+          const iso = toISO(calYear, calMonth, d);
+          const dow = new Date(calYear, calMonth, d).getDay();
+          // Sunday = weekly off; public holidays = red dot
+          cells.push({
+            day: d,
+            iso,
+            isOff: dow === WEEKLY_OFF_DOW || holidays.has(iso),
+            isHoliday: holidays.has(iso),
+            isToday: iso === today,
+            isPast: iso < today,
+          });
+        }
+        const rem = 42 - cells.length;
+        for (let d = 1; d <= rem; d++)
+          cells.push({ day: d, iso: toISO(nY, nM, d), filler: true });
+
+        document.getElementById("calGrid").innerHTML = cells
+          .map((c, idx) => {
+            if (c.filler)
+              return `<div class="cal-cell"><div class="cal-day other-month">${c.day}</div></div>`;
+            const isStart = selStart && c.iso === selStart;
+            const isEnd = selEnd && c.iso === selEnd;
+            const inRange =
+              selStart && selEnd && c.iso > selStart && c.iso < selEnd;
+            let cellCls = "cal-cell";
+            if (isStart && selEnd)
+              cellCls += " has-range is-start" + (c.isOff ? " is-off" : "");
+            else if (isEnd)
+              cellCls += " has-range is-end" + (c.isOff ? " is-off" : "");
+            else if (inRange)
+              cellCls += " has-range" + (c.isOff ? " is-off" : "");
+            let dayCls = "cal-day";
+            if (c.isPast) dayCls += " past";
+            if (c.isOff) dayCls += " is-off";
+            if (c.isHoliday) dayCls += " is-holiday";
+            if (c.isToday) dayCls += " is-today";
+            if (isStart) dayCls += " sel-start";
+            if (isEnd) dayCls += " sel-end";
+            if (inRange) dayCls += " in-range" + (c.isOff ? " is-off" : "");
+            const click = !c.isPast ? `onclick="calTap('${c.iso}')"` : "";
+            return `<div class="${cellCls}"><div class="${dayCls}" ${click}>${c.day}</div></div>`;
+          })
+          .join("");
+
+        updateSelSummary();
+      }
+
+      function calTap(iso) {
+        if (pickStep === 0) {
+          selStart = iso;
+          selEnd = null;
+          pickStep = 1;
+          document.getElementById("selHint").textContent =
+            "Now tap the end date";
+          document.getElementById("selHint").style.display = "block";
+        } else {
+          if (iso <= selStart) {
+            selStart = iso;
+            selEnd = null;
+            document.getElementById("selHint").textContent =
+              "Now tap the end date";
+          } else {
+            selEnd = iso;
+            pickStep = 0;
+            document.getElementById("selHint").style.display = "none";
+          }
+        }
+        renderCalendar();
+        if (document.getElementById("applyBar").style.display !== "none")
+          updateApplyBar();
+      }
+
+      function calMove(delta) {
+        calMonth += delta;
+        if (calMonth > 11) {
+          calMonth = 0;
+          calYear++;
+        }
+        if (calMonth < 0) {
+          calMonth = 11;
+          calYear--;
+        }
+        renderCalendar();
+      }
+
+      function clearSelection() {
+        selStart = null;
+        selEnd = null;
+        pickStep = 0;
+        document.getElementById("selHint").textContent =
+          "Tap a date to start your selection";
+        document.getElementById("selHint").style.display = "block";
+        renderCalendar();
+      }
+
+      function updateSelSummary() {
+        const summary = document.getElementById("selSummary");
+        if (!selStart) {
+          summary.style.display = "none";
+          document.getElementById("selHint").style.display = "block";
+          return;
+        }
+        const end = selEnd || selStart;
+        const days = countWorkDays(selStart, end);
+        document.getElementById("selDatesText").textContent = selEnd
+          ? fmtRange(selStart, selEnd)
+          : fmtDate(selStart);
+        document.getElementById("selDaysText").textContent = selEnd
+          ? `~${days} working day${days !== 1 ? "s" : ""} (server confirms exact count)`
+          : "Tap end date to complete range";
+        summary.style.display = "flex";
+        document.getElementById("selHint").style.display = selEnd
+          ? "none"
+          : "block";
+      }
+
+      function updateApplyBar() {
+        const info = document.getElementById("applyBarInfo");
+        const btn = document.getElementById("applyBtn");
+        if (!selStart) {
+          info.textContent = "Tap calendar to select dates";
+          btn.disabled = true;
+        } else if (!selEnd) {
+          info.textContent = `From ${fmtDate(selStart)} — tap end date`;
+          btn.disabled = true;
+        } else {
+          const days = countWorkDays(selStart, selEnd);
+          info.textContent = `${fmtDate(selStart)} – ${fmtDate(selEnd)} · ${days} day${days !== 1 ? "s" : ""}`;
+          btn.disabled = false;
+        }
+      }
+
+      function selectType(type) {
+        selectedType = type;
+        ["paid", "unpaid"].forEach((t) => {
+          const b = document.getElementById(
+            t === "paid" ? "btnPaid" : "btnUnpaid",
+          );
+          b.classList.toggle("active", t === type);
+          b.classList.toggle(t, t === type);
+        });
+        updateApplyBar();
+      }
+
+      function updateCharCount() {
+        document.getElementById("charCount").textContent =
+          document.getElementById("leaveReason").value.length;
+      }
+
+      async function submitLeave() {
+        if (!selStart || !selEnd) {
+          showToast("Please select a date range on the calendar", "error");
+          return;
+        }
+        const reason = document.getElementById("leaveReason").value.trim();
+        if (reason.length < 5) {
+          showToast("Reason must be at least 5 characters", "error");
+          return;
+        }
+        const btn = document.getElementById("applyBtn");
+        btn.disabled = true;
+        btn.textContent = "Submitting…";
+        try {
+          const res = await apiFetch("/leave/request", "POST", {
+            date_from: selStart,
+            date_to: selEnd,
+            leave_type: selectedType,
+            reason,
+          });
+          showToast(`Leave submitted — ${res.num_days} working day(s) ✓`);
+          clearSelection();
+          document.getElementById("leaveReason").value = "";
+          document.getElementById("charCount").textContent = "0";
+          loadBalance();
+          loadMyLeaves();
+          switchTab("mine");
+        } catch (e) {
+          showToast(e.message, "error");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Submit Leave";
+        }
+      }
+
+      // ══════════════════════════════════════════
+      // MY ACTIVITY CALENDAR
+      // ══════════════════════════════════════════
+      function actMove(delta) {
+        actMonth += delta;
+        if (actMonth > 11) {
+          actMonth = 0;
+          actYear++;
+        }
+        if (actMonth < 0) {
+          actMonth = 11;
+          actYear--;
+        }
+        const now = new Date();
+        document.getElementById("actNext").disabled =
+          actYear > now.getFullYear() ||
+          (actYear === now.getFullYear() && actMonth >= now.getMonth());
+        loadActivity();
+      }
+
+      async function loadActivity() {
+        const monthStr = toISO(actYear, actMonth, 1).slice(0, 7); // "YYYY-MM"
+        document.getElementById("actMonthLabel").textContent = new Date(
+          actYear,
+          actMonth,
+          1,
+        ).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+        document.getElementById("actGrid").innerHTML =
+          `<div class="spinner-wrap" style="grid-column:span 7"><div class="spinner"></div></div>`;
+
+        try {
+          // Fetch attendance calendar + leave requests for this month in parallel
+          const [calResp, leaveResp, holResp] = await Promise.all([
+            apiFetch(`/attendance/regularization/calendar?month=${monthStr}`),
+            apiFetch(`/leave/requests?year=${actYear}&status=all`),
+            apiFetch(`/leave/holidays?year=${actYear}`),
+          ]);
+
+          // Build day map
+          actData = {};
+          for (const d of calResp.days || []) {
+            actData[d.date] = d;
+          }
+
+          // Build holiday set for this year
+          const monthHolidays = new Set(
+            (holResp || []).map((h) => h.holiday_date),
+          );
+
+          // Build leave date map: date → leave info
+          const leaveMap = {};
+          for (const lr of leaveResp.requests || []) {
+            if (
+              lr.final_status === "approved" ||
+              lr.final_status === "pending"
+            ) {
+              const cur = isoToDate(lr.date_from),
+                end = isoToDate(lr.date_to);
+              const c2 = new Date(cur);
+              while (c2 <= end) {
+                const iso = c2.toISOString().split("T")[0];
+                leaveMap[iso] = {
+                  type: lr.leave_type,
+                  status: lr.final_status,
+                };
+                c2.setDate(c2.getDate() + 1);
+              }
+            }
+          }
+
+          renderActivityCalendar(monthHolidays, leaveMap);
+        } catch (e) {
+          document.getElementById("actGrid").innerHTML =
+            `<div style="grid-column:span 7" class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-text">${e.message}</div></div>`;
+        }
+      }
+
+      function renderActivityCalendar(monthHolidays, leaveMap) {
+        const today = todayISO();
+        const firstDow = new Date(actYear, actMonth, 1).getDay();
+        const daysInM = new Date(actYear, actMonth + 1, 0).getDate();
+        const [pY, pM] =
+          actMonth === 0 ? [actYear - 1, 11] : [actYear, actMonth - 1];
+        const daysInPrev = new Date(actYear, actMonth, 0).getDate();
+
+        // Build stats
+        let cPresent = 0,
+          cAbsent = 0,
+          cLeave = 0,
+          cReg = 0,
+          cHoliday = 0,
+          cLate = 0;
+
+        const cells = [];
+        // filler
+        for (let i = firstDow - 1; i >= 0; i--)
+          cells.push({ day: daysInPrev - i, filler: true });
+
+        for (let d = 1; d <= daysInM; d++) {
+          const iso = toISO(actYear, actMonth, d);
+          const dow = new Date(actYear, actMonth, d).getDay();
+          const isFuture = iso > today;
+          const isToday = iso === today;
+          const isWeekOff = dow === WEEKLY_OFF_DOW;
+          const isHoliday = monthHolidays.has(iso);
+          const dayData = actData[iso];
+          const leaveInfo = leaveMap[iso];
+
+          // Determine display status
+          let status = "future";
+          let extra = {};
+
+          if (!isFuture || isToday) {
+            if (isHoliday) {
+              status = "holiday";
+              cHoliday++;
+            } else if (isWeekOff) {
+              status = "weekly-off";
+            } else if (leaveInfo) {
+              status = "leave";
+              cLeave++;
+              extra = leaveInfo;
+            } else if (dayData) {
+              const ps = dayData.payroll_status || dayData.status || "absent";
+              if (ps === "present") {
+                if (
+                  dayData.regularization &&
+                  dayData.regularization.status === "approved"
+                ) {
+                  status = "regularized";
+                  cReg++;
+                } else {
+                  status = "present";
+                  cPresent++;
+                }
+                if (dayData.is_late) cLate++;
+              } else {
+                status = "absent";
+                cAbsent++;
+              }
+            } else if (!isFuture) {
+              // Working day with no record = absent (exclude week-off & holidays)
+              if (!isWeekOff && !isHoliday) {
+                status = "absent";
+                cAbsent++;
+              } else if (isWeekOff) status = "weekly-off";
+              else status = "holiday";
+            }
+          }
+
+          cells.push({
+            day: d,
+            iso,
+            status,
+            isFuture,
+            isToday,
+            isWeekOff,
+            isHoliday,
+            dayData,
+            leaveInfo,
+            extra,
+          });
+        }
+
+        // Pad to multiple of 7
+        const rem = (7 - (cells.length % 7)) % 7;
+        for (let d = 1; d <= rem; d++) cells.push({ day: d, filler: true });
+
+        // Update stats
+        document.getElementById("statPresent").textContent = cPresent;
+        document.getElementById("statAbsent").textContent = cAbsent;
+        document.getElementById("statLeave").textContent = cLeave;
+        document.getElementById("statReg").textContent = cReg;
+        document.getElementById("statHoliday").textContent = cHoliday;
+        document.getElementById("statLate").textContent = cLate;
+
+        // Render grid
+        document.getElementById("actGrid").innerHTML = cells
+          .map((c) => {
+            if (c.filler) return `<div class="act-cell other-month"></div>`;
+
+            let cls = `act-cell ${c.status}`;
+            if (c.isToday) cls += " today-cell";
+            if (c.isFuture && !c.isToday) cls += " future";
+
+            const clickable = !c.isFuture || c.isToday;
+            const click = clickable ? `onclick="openDaySheet('${c.iso}')"` : "";
+
+            return `
+          <div class="${cls}" ${click}>
+            <span class="act-day-num">${c.day}</span>
+            <div class="act-status-dot"></div>
+          </div>`;
+          })
+          .join("");
+
+        // Store for day detail
+        window._actCells = cells;
+        window._actLeaveMap = leaveMap;
+        window._actHolidays = monthHolidays;
+      }
+
+      // ── Day detail bottom sheet ──
+      function openDaySheet(iso) {
+        const cell = (window._actCells || []).find((c) => c.iso === iso);
+        if (!cell) return;
+
+        const dow = new Date(actYear, actMonth, cell.day).getDay();
+        const dayName = isoToDate(iso).toLocaleDateString("en-IN", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        });
+
+        document.getElementById("daySheetTitle").textContent = dayName;
+
+        const rows = [];
+        const statusColors = {
+          present: "var(--success)",
+          absent: "var(--danger)",
+          leave: "#7c3aed",
+          regularized: "#0284c7",
+          holiday: "#ea580c",
+          "weekly-off": "var(--text-muted)",
+          future: "var(--text-muted)",
+        };
+        const statusLabels = {
+          present: "Present",
+          absent: "Absent",
+          leave: "On Leave",
+          regularized: "Present (Regularized)",
+          holiday: "Public Holiday",
+          "weekly-off": "Weekly Off (Sunday)",
+          future: "Upcoming",
+        };
+
+        const color = statusColors[cell.status] || "var(--text-muted)";
+        const label = statusLabels[cell.status] || cap(cell.status);
+
+        rows.push(
+          `<div class="day-detail-row"><span class="day-detail-lbl">Status</span><span class="day-status-pill" style="background:${color}20;color:${color}">${label}</span></div>`,
+        );
+
+        if (cell.dayData) {
+          const d = cell.dayData;
+          if (d.punch_in)
+            rows.push(
+              `<div class="day-detail-row"><span class="day-detail-lbl">Punch In</span><span class="day-detail-val">${fmtTime(d.punch_in)}</span></div>`,
+            );
+          if (d.punch_out)
+            rows.push(
+              `<div class="day-detail-row"><span class="day-detail-lbl">Punch Out</span><span class="day-detail-val">${fmtTime(d.punch_out)}</span></div>`,
+            );
+          if (d.actual_worked)
+            rows.push(
+              `<div class="day-detail-row"><span class="day-detail-lbl">Worked</span><span class="day-detail-val">${d.actual_worked}</span></div>`,
+            );
+          if (d.is_late)
+            rows.push(
+              `<div class="day-detail-row"><span class="day-detail-lbl">Late by</span><span class="day-detail-val" style="color:var(--warning)">${d.late_by_minutes} min</span></div>`,
+            );
+          if (d.regularization) {
+            const reg = d.regularization;
+            rows.push(
+              `<div class="day-detail-row"><span class="day-detail-lbl">Regularization</span><span class="day-status-pill" style="background:${reg.status === "approved" ? "var(--success-light)" : "var(--warning-light)"};color:${reg.status === "approved" ? "var(--success)" : "var(--warning)"}">${cap(reg.status)}</span></div>`,
+            );
+          }
+        }
+
+        if (cell.leaveInfo) {
+          rows.push(
+            `<div class="day-detail-row"><span class="day-detail-lbl">Leave Type</span><span class="day-detail-val">${cap(cell.leaveInfo.type)}</span></div>`,
+          );
+          rows.push(
+            `<div class="day-detail-row"><span class="day-detail-lbl">Leave Status</span><span class="day-detail-val">${cap(cell.leaveInfo.status)}</span></div>`,
+          );
+        }
+
+        if ((window._actHolidays || new Set()).has(iso)) {
+          rows.push(
+            `<div class="day-detail-row"><span class="day-detail-lbl">Holiday</span><span class="day-detail-val">Public Holiday</span></div>`,
+          );
+        }
+
+        document.getElementById("daySheetContent").innerHTML =
+          `<div class="info-card">${rows.join("")}</div>`;
+        document.getElementById("daySheetSub").textContent = "";
+
+        document.getElementById("dayOverlay").classList.add("active");
+        document.getElementById("daySheet").classList.add("active");
+        document.body.style.overflow = "hidden";
+      }
+
+      function closeDaySheet() {
+        document.getElementById("dayOverlay").classList.remove("active");
+        document.getElementById("daySheet").classList.remove("active");
+        document.body.style.overflow = "";
+      }
+
+      // ══════════════════════════════════════════
+      // APPROVALS
+      // ══════════════════════════════════════════
+      async function loadApprovals() {
+        document.getElementById("approvalsList").innerHTML =
+          `<div class="spinner-wrap"><div class="spinner"></div></div>`;
+        try {
+          const d = await apiFetch("/leave/pending");
+          pendingApprovals = d.pending_requests || [];
+          const badge = document.getElementById("pendingBadge");
+          badge.textContent = pendingApprovals.length;
+          badge.style.display = pendingApprovals.length ? "block" : "none";
+          renderApprovals();
+        } catch (e) {
+          document.getElementById("approvalsList").innerHTML =
+            `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-text">${e.message}</div></div>`;
+        }
+      }
+      function renderApprovals() {
+        const el = document.getElementById("approvalsList");
+        if (!pendingApprovals.length) {
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">All caught up!</div><div class="empty-text">No pending leave approvals</div></div>`;
+          return;
+        }
+        el.innerHTML = pendingApprovals
+          .map(
+            (r) => `
+          <div class="appr-card">
+            <div class="appr-emp">${r.employee_name}</div>
+            <div class="appr-meta">
+              ${fmtRange(r.date_from, r.date_to)} &nbsp;•&nbsp;
+              ${r.num_days} day${r.num_days !== 1 ? "s" : ""} &nbsp;•&nbsp;
+              <span class="type-badge ${r.leave_type}" style="padding:2px 8px;font-size:10px">${cap(r.leave_type)}</span>
+            </div>
+            <div class="appr-reason">"${r.reason}"</div>
+            ${r.l1_manager_name ? `<div class="appr-row"><span>L1 by</span><strong>${r.l1_manager_name}</strong></div>` : ""}
+            <div class="appr-row"><span>Awaiting</span><strong>${r.awaiting_role === "l2" ? "HR (Final)" : "L1 Manager"}</strong></div>
+            <div class="appr-actions">
+              <button class="btn-reject"  onclick="openActionSheet(${r.request_id},'${r.awaiting_role}','reject')">Reject</button>
+              <button class="btn-approve" onclick="openActionSheet(${r.request_id},'${r.awaiting_role}','approve')">Approve</button>
+            </div>
+          </div>`,
+          )
+          .join("");
+      }
+
+      // ══════════════════════════════════════════
+      // ACTION SHEET (Approval)
+      // ══════════════════════════════════════════
+      function openActionSheet(requestId, role, type) {
+        selectedApproval = pendingApprovals.find(
+          (r) => r.request_id === requestId,
+        );
+        if (!selectedApproval) return;
+        actionReqId = requestId;
+        actionRole = role;
+        actionType = type;
+        const isReject = type === "reject";
+        document.getElementById("actionTitle").textContent = isReject
+          ? "Reject Leave"
+          : "Approve Leave";
+        document.getElementById("actionSubtitle").textContent =
+          `${selectedApproval.employee_name} • ${fmtRange(selectedApproval.date_from, selectedApproval.date_to)}`;
+        document.getElementById("actionEmp").textContent =
+          selectedApproval.employee_name;
+        document.getElementById("actionDates").textContent = fmtRange(
+          selectedApproval.date_from,
+          selectedApproval.date_to,
+        );
+        document.getElementById("actionDays").textContent =
+          `${selectedApproval.num_days} day${selectedApproval.num_days !== 1 ? "s" : ""}`;
+        document.getElementById("actionType").textContent = cap(
+          selectedApproval.leave_type,
+        );
+        document.getElementById("actionReason").textContent =
+          selectedApproval.reason;
+        document.getElementById("actionComment").value = "";
+        document.getElementById("commentRequired").style.display = isReject
+          ? "inline"
+          : "none";
+        document.getElementById("approveBtn").style.display = isReject
+          ? "none"
+          : "block";
+        document.getElementById("rejectBtn").style.display = isReject
+          ? "block"
+          : "none";
+        document.getElementById(
+          isReject ? "rejectBtn" : "approveBtn",
+        ).textContent = isReject ? "Confirm Rejection" : "Confirm Approval";
+        document.getElementById("actionOverlay").classList.add("active");
+        document.getElementById("actionSheet").classList.add("active");
+        document.body.style.overflow = "hidden";
+      }
+      function closeActionSheet() {
+        document.getElementById("actionOverlay").classList.remove("active");
+        document.getElementById("actionSheet").classList.remove("active");
+        document.body.style.overflow = "";
+        selectedApproval = actionReqId = actionRole = actionType = null;
+      }
+      async function submitAction(type) {
+        const comment = document.getElementById("actionComment").value.trim();
+        if (type === "reject" && comment.length < 5) {
+          showToast("Please provide a rejection reason (min 5 chars)", "error");
+          return;
+        }
+        const btn = document.getElementById(
+          type === "reject" ? "rejectBtn" : "approveBtn",
+        );
+        btn.disabled = true;
+        btn.textContent = "Processing…";
+        try {
+          await apiFetch(
+            `/leave/requests/${actionReqId}/${actionRole}-${type}`,
+            "POST",
+            { comment: comment || null },
+          );
+          showToast(type === "approve" ? "Leave approved ✓" : "Leave rejected");
+          closeActionSheet();
+          loadApprovals();
+        } catch (e) {
+          showToast(e.message, "error");
+          btn.disabled = false;
+          btn.textContent =
+            type === "reject" ? "Confirm Rejection" : "Confirm Approval";
+        }
+      }
+
+      // ══════════════════════════════════════════
+      // INIT
+      // ══════════════════════════════════════════
+      async function init() {
+        const u = await checkAccess();
+        if (!u) return;
+        document.getElementById("userNameSub").textContent = u.full_name;
+        document.getElementById("yearDisplay").textContent = currentYear;
+
+        // Disable future month in activity nav
+        const now = new Date();
+        document.getElementById("actNext").disabled = true;
+
+        await loadHolidays();
+        renderCalendar();
+        loadBalance();
+        loadMyLeaves();
+
+        try {
+          const d = await apiFetch("/leave/pending");
+          const c = d.pending_count || 0;
+          if (c) {
+            const b = document.getElementById("pendingBadge");
+            b.textContent = c;
+            b.style.display = "block";
+          }
+        } catch {}
+      }
+
+      document.addEventListener("DOMContentLoaded", init);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeActionSheet();
+          closeDaySheet();
+        }
+      });
+    </script>
+  </body>
+</html>

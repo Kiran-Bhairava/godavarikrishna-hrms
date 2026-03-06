@@ -1011,6 +1011,48 @@
             <span id="userDisplayName">Loading</span>
           </div>
 
+          <!-- Holiday calendar icon -->
+          <button
+            class="icon-btn"
+            onclick="openHolidaySheet()"
+            title="Holiday Calendar"
+            aria-label="View holidays"
+            style="position: relative"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <path
+                d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"
+              />
+            </svg>
+            <span
+              id="holidayDot"
+              style="
+                display: none;
+                position: absolute;
+                top: 6px;
+                right: 6px;
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #ef4444;
+                border: 1.5px solid #fff;
+              "
+            ></span>
+          </button>
+
           <!-- Logout icon button -->
           <button
             class="icon-btn logout-btn"
@@ -1103,7 +1145,24 @@
             </div>
             <div class="summary-card">
               <div class="summary-value" id="sumTotal">0h 0m</div>
-              <div class="summary-label">Total</div>
+              <div class="summary-label">
+                Total
+                <span
+                  id="regBadge"
+                  style="
+                    display: none;
+                    font-size: 10px;
+                    background: #e6f4ea;
+                    color: #137333;
+                    border-radius: 4px;
+                    padding: 1px 5px;
+                    font-weight: 600;
+                    margin-left: 4px;
+                    vertical-align: middle;
+                  "
+                  >✓ REG</span
+                >
+              </div>
             </div>
           </div>
         </div>
@@ -1218,6 +1277,22 @@
           <line x1="16" y1="2" x2="16" y2="6" />
           <line x1="8" y1="2" x2="8" y2="6" />
           <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span class="nav-label">Regularization</span>
+      </a>
+      <a href="/leave" class="nav-btn">
+        <svg
+          class="nav-icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
         <span class="nav-label">Attendance</span>
       </a>
@@ -1448,13 +1523,22 @@
             document.getElementById("sumOut").textContent =
               data.summary.last_punch_out || "—";
 
-            //  Declare variables FIRST
-            const h = Math.floor((data.summary.total_minutes || 0) / 60);
-            const m = (data.summary.total_minutes || 0) % 60;
+            // Use payroll_minutes if regularized, else total_minutes
+            // payroll_minutes reflects approved regularization credits
+            const isRegularized = data.summary.is_regularized;
+            const displayMinutes = isRegularized
+              ? data.summary.payroll_minutes || data.summary.total_minutes || 0
+              : data.summary.total_minutes || 0;
 
-            //  Use them AFTER declaration
+            const h = Math.floor(displayMinutes / 60);
+            const m = displayMinutes % 60;
             totalWorkTime = `${h}h ${m}m`;
             document.getElementById("sumTotal").textContent = totalWorkTime;
+
+            // Show green "REG" badge if hours were credited via regularization
+            const regBadge = document.getElementById("regBadge");
+            if (regBadge)
+              regBadge.style.display = isRegularized ? "inline" : "none";
           }
 
           hideError();
@@ -1855,6 +1939,170 @@
           navigator.serviceWorker.register("/sw.js");
         });
       }
+    </script>
+
+    <!-- HOLIDAY CALENDAR SHEET -->
+    <div
+      class="modal-overlay"
+      id="holidayModal"
+      onclick="if (event.target === this) closeHolidaySheet();"
+    >
+      <div
+        class="modal-sheet"
+        style="max-height: 75vh; display: flex; flex-direction: column"
+      >
+        <div class="modal-handle"></div>
+        <div
+          class="modal-content"
+          style="flex: 1; overflow-y: auto; padding-bottom: 8px"
+        >
+          <h2 class="modal-title">Holiday Calendar</h2>
+          <p class="modal-subtitle" id="hlSheetSubtitle">
+            Upcoming holidays this year
+          </p>
+          <div
+            id="hlSheetBody"
+            style="display: flex; flex-direction: column; gap: 8px"
+          >
+            <div
+              style="
+                text-align: center;
+                padding: 32px;
+                color: var(--text-secondary);
+                font-size: 14px;
+              "
+            >
+              Loading…
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      async function openHolidaySheet() {
+        document.getElementById("holidayModal").classList.add("open");
+        await loadHolidaySheet();
+      }
+
+      function closeHolidaySheet() {
+        document.getElementById("holidayModal").classList.remove("open");
+      }
+
+      async function loadHolidaySheet() {
+        const body = document.getElementById("hlSheetBody");
+        const year = new Date().getFullYear();
+        try {
+          const holidays = await apiFetch(`/leave/holidays?year=${year}`);
+          const active = holidays
+            .filter((h) => h.is_active)
+            .sort(
+              (a, b) => new Date(a.holiday_date) - new Date(b.holiday_date),
+            );
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const upcoming = active.filter(
+            (h) => new Date(h.holiday_date) >= today,
+          );
+          const past = active.filter((h) => new Date(h.holiday_date) < today);
+
+          // Red dot if holiday is today or within 7 days
+          const soon = upcoming.filter((h) => {
+            const diff = (new Date(h.holiday_date) - today) / 86400000;
+            return diff <= 7;
+          });
+          document.getElementById("holidayDot").style.display = soon.length
+            ? "block"
+            : "none";
+
+          document.getElementById("hlSheetSubtitle").textContent =
+            upcoming.length
+              ? `${upcoming.length} upcoming in ${year}`
+              : `All holidays for ${year}`;
+
+          if (active.length === 0) {
+            body.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-secondary);font-size:14px">No holidays declared for ${year}</div>`;
+            return;
+          }
+
+          const typeColor = {
+            national: "#0089d0",
+            regional: "#10b981",
+            optional: "#f59e0b",
+          };
+          const typeBg = {
+            national: "#eff6ff",
+            regional: "#ecfdf5",
+            optional: "#fffbeb",
+          };
+
+          const renderGroup = (list, label) => {
+            if (!list.length) return "";
+            return `
+              <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;padding:12px 0 6px">${label}</div>
+              ${list
+                .map((h) => {
+                  const d = new Date(h.holiday_date);
+                  const isToday = d.getTime() === today.getTime();
+                  const dayName = d.toLocaleDateString("en-IN", {
+                    weekday: "short",
+                  });
+                  const dateStr = d.toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                  });
+                  const diff = Math.round((d - today) / 86400000);
+                  const diffStr = isToday
+                    ? "Today! 🎉"
+                    : diff === 1
+                      ? "Tomorrow"
+                      : diff > 0
+                        ? `In ${diff} days`
+                        : "";
+
+                  return `
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:${isToday ? typeBg[h.holiday_type] : "#f9fafb"};border:1px solid ${isToday ? typeColor[h.holiday_type] + "33" : "#f3f4f6"}">
+                    <div style="text-align:center;min-width:40px;flex-shrink:0">
+                      <div style="font-size:11px;color:#9ca3af;font-weight:600">${dayName}</div>
+                      <div style="font-size:16px;font-weight:800;color:${isToday ? typeColor[h.holiday_type] : "#111827"};line-height:1.1">${d.getDate()}</div>
+                      <div style="font-size:10px;color:#9ca3af">${d.toLocaleDateString("en-IN", { month: "short" })}</div>
+                    </div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:13px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.name}</div>
+                      ${diffStr ? `<div style="font-size:11px;color:${typeColor[h.holiday_type]};font-weight:600;margin-top:2px">${diffStr}</div>` : ""}
+                    </div>
+                    <span style="font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;background:${typeBg[h.holiday_type]};color:${typeColor[h.holiday_type]};text-transform:capitalize;flex-shrink:0">${h.holiday_type}</span>
+                  </div>`;
+                })
+                .join("")}`;
+          };
+
+          body.innerHTML =
+            renderGroup(upcoming, upcoming.length ? "Upcoming" : "") +
+            renderGroup(past, "Past");
+        } catch (e) {
+          body.innerHTML = `<div style="text-align:center;padding:32px;color:#ef4444;font-size:13px">Failed to load holidays</div>`;
+        }
+      }
+
+      // Show dot on page load if holidays are coming up soon
+      (async () => {
+        try {
+          const year = new Date().getFullYear();
+          const holidays = await apiFetch(`/leave/holidays?year=${year}`);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const soon = holidays.filter((h) => {
+            if (!h.is_active) return false;
+            const diff = (new Date(h.holiday_date) - today) / 86400000;
+            return diff >= 0 && diff <= 7;
+          });
+          if (soon.length)
+            document.getElementById("holidayDot").style.display = "block";
+        } catch (_) {}
+      })();
     </script>
   </body>
 </html>

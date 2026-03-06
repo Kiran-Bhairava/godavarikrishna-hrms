@@ -423,3 +423,168 @@ class CalendarDayView(BaseModel):
 class AttendanceCalendarResponse(BaseModel):
     month: str  # "2024-12"
     days: list[CalendarDayView]
+
+from datetime import date, datetime
+from typing import Optional
+from pydantic import BaseModel, field_validator
+
+
+class LeaveRequestCreate(BaseModel):
+    date_from:  date
+    date_to:    date
+    leave_type: str   # 'paid' | 'unpaid'
+    reason:     str
+
+    @field_validator("leave_type")
+    @classmethod
+    def valid_type(cls, v: str) -> str:
+        if v not in ("paid", "unpaid"):
+            raise ValueError("leave_type must be 'paid' or 'unpaid'")
+        return v
+
+    @field_validator("reason")
+    @classmethod
+    def valid_reason(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 5:
+            raise ValueError("Reason must be at least 5 characters")
+        if len(v) > 500:
+            raise ValueError("Reason must be at most 500 characters")
+        return v
+
+
+class LeaveApprovalRequest(BaseModel):
+    comment: Optional[str] = None
+
+    @field_validator("comment")
+    @classmethod
+    def valid_comment(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 500:
+            raise ValueError("Comment must be at most 500 characters")
+        return v
+
+
+class LeaveRejectionRequest(BaseModel):
+    comment: str
+
+    @field_validator("comment")
+    @classmethod
+    def valid_comment(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 5:
+            raise ValueError("Rejection comment must be at least 5 characters")
+        if len(v) > 500:
+            raise ValueError("Comment must be at most 500 characters")
+        return v
+
+
+class LeaveRequestRow(BaseModel):
+    request_id:       int
+    date_from:        date
+    date_to:          date
+    num_days:         int
+    leave_type:       str
+    reason:           str
+    submitted_at:     datetime
+    l1_status:        str
+    l1_manager_name:  Optional[str] = None
+    l1_comment:       Optional[str] = None
+    l1_approved_at:   Optional[datetime] = None
+    l2_status:        Optional[str] = None
+    l2_manager_name:  Optional[str] = None
+    l2_comment:       Optional[str] = None
+    l2_approved_at:   Optional[datetime] = None
+    final_status:     str
+    cancelled_at:     Optional[datetime] = None
+    payroll_impact:   str   # 'present' (paid) | 'absent' (unpaid)
+
+
+class LeaveRequestsListResponse(BaseModel):
+    year:                   int
+    total:                  int
+    approved:               int
+    rejected:               int
+    pending:                int
+    cancelled:              int
+    paid_balance_total:     int
+    paid_balance_used:      int
+    paid_balance_remaining: int
+    requests:               list[LeaveRequestRow]
+
+
+class LeavePendingApprovalRow(BaseModel):
+    request_id:      int
+    employee_id:     int
+    employee_name:   str
+    date_from:       date
+    date_to:         date
+    num_days:        int
+    leave_type:      str
+    reason:          str
+    submitted_at:    datetime
+    l1_status:       str
+    l1_manager_name: Optional[str] = None
+    awaiting_role:   str   # 'l1' | 'l2'
+
+
+class LeavePendingApprovalsResponse(BaseModel):
+    pending_count:    int
+    pending_requests: list[LeavePendingApprovalRow]
+
+
+class LeaveApprovalResponse(BaseModel):
+    request_id:     int
+    status:         str       # 'approved' | 'rejected'
+    approved_by_role: str     # 'l1' | 'l2'
+    approved_at:    datetime
+    final_status:   str
+    message:        str
+
+
+class LeaveBalanceResponse(BaseModel):
+    employee_id:         int
+    year:                int
+    total_paid_days:     int
+    used_paid_days:      int
+    remaining_paid_days: int
+
+
+class HolidayRow(BaseModel):
+    id:           int
+    holiday_date: date
+    name:         str
+    holiday_type: str   # 'national' | 'regional' | 'optional'
+    is_active:    bool
+
+
+class HolidayCreate(BaseModel):
+    holiday_date: date
+    name:         str
+    holiday_type: str = "national"
+
+    @field_validator("holiday_type")
+    @classmethod
+    def valid_type(cls, v: str) -> str:
+        if v not in ("national", "regional", "optional"):
+            raise ValueError("holiday_type must be national, regional, or optional")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def valid_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Holiday name must be at least 2 characters")
+        return v
+
+
+class LeaveBalanceAdjust(BaseModel):
+    total_paid_days: int
+    year:            Optional[int] = None
+
+    @field_validator("total_paid_days")
+    @classmethod
+    def valid_days(cls, v: int) -> int:
+        if v < 0 or v > 365:
+            raise ValueError("total_paid_days must be between 0 and 365")
+        return v

@@ -1,0 +1,1771 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0052cc" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="SDPL HRMS" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192" />
+    <link rel="icon" type="image/png" href="/icon-512.png" sizes="512x512" />
+    <title>GodavariKrishna · Holiday Calendar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        overflow-x: hidden;
+      }
+
+      :root {
+        --bg: #f0f2f5;
+        --surface: #fff;
+        --surface2: #f8f9fb;
+        --border: #e5e7eb;
+        --primary: #0089d0;
+        --primary-hover: #0081ea;
+        --primary-light: #eff3ff;
+        --success: #10b981;
+        --success-light: #ecfdf5;
+        --success-border: rgba(16, 185, 129, 0.2);
+        --danger: #ef4444;
+        --danger-light: #fef2f2;
+        --danger-border: rgba(239, 68, 68, 0.2);
+        --warning: #f59e0b;
+        --warning-light: #fffbeb;
+        --warning-border: rgba(245, 158, 11, 0.2);
+        --purple: #8b5cf6;
+        --purple-light: #f5f3ff;
+        --text: #111827;
+        --text-dim: #6b7280;
+        --text-muted: #9ca3af;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 4px 16px rgba(0, 0, 0, 0.05);
+        --shadow-lg:
+          0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 20px 40px rgba(0, 0, 0, 0.09);
+        --radius: 16px;
+        --sidebar-w: 224px;
+      }
+
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* ── SIDEBAR ─────────────────────────────────────────────── */
+      .sidebar {
+        width: var(--sidebar-w);
+        min-height: 100vh;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding: 20px 12px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 100;
+        gap: 2px;
+      }
+      .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 8px 16px;
+        text-decoration: none;
+        color: var(--text);
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 8px;
+      }
+      .brand-icon {
+        width: 32px;
+        height: 32px;
+        background: var(--primary);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .brand-name {
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .sidebar-section-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 10px 8px 4px;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-dim);
+        background: none;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+        text-align: left;
+        transition:
+          background 0.15s,
+          color 0.15s;
+        text-decoration: none;
+      }
+      .nav-item:hover {
+        background: var(--bg);
+        color: var(--text);
+      }
+      .nav-item.active {
+        background: var(--primary-light);
+        color: var(--primary);
+        font-weight: 600;
+      }
+      .sidebar-footer {
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+      .sidebar-user {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+      }
+      .sidebar-avatar {
+        width: 32px;
+        height: 32px;
+        background: linear-gradient(135deg, var(--primary), #00b4d8);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+        flex-shrink: 0;
+      }
+      .sidebar-user-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .sidebar-user-name {
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sidebar-user-role {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+      .logout-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        transition: color 0.15s;
+      }
+      .logout-btn:hover {
+        color: var(--danger);
+      }
+
+      /* ── MAIN ────────────────────────────────────────────────── */
+      .main {
+        margin-left: var(--sidebar-w);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* ── TOPBAR ──────────────────────────────────────────────── */
+      .topbar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 50;
+      }
+      .topbar-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        height: 56px;
+      }
+      .topbar-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--text-dim);
+      }
+      .topbar-breadcrumb .breadcrumb-page {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .topbar-breadcrumb .breadcrumb-sep {
+        color: var(--text-muted);
+      }
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .icon-btn {
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 7px;
+        cursor: pointer;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        transition: background 0.15s;
+      }
+      .icon-btn:hover {
+        background: var(--bg);
+      }
+
+      /* ── PAGE CONTENT ────────────────────────────────────────── */
+      .page {
+        padding: 28px 24px;
+        max-width: 1100px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+      }
+      .page-title h1 {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .page-title p {
+        font-size: 13px;
+        color: var(--text-dim);
+        margin-top: 3px;
+      }
+
+      /* ── BUTTONS ─────────────────────────────────────────────── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 16px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+      }
+      .btn-secondary {
+        background: var(--surface);
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        background: var(--bg);
+      }
+      .btn-danger {
+        background: var(--danger-light);
+        color: var(--danger);
+        border: 1px solid var(--danger-border);
+      }
+      .btn-danger:hover {
+        background: #fee2e2;
+      }
+      .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* ── YEAR SELECTOR ───────────────────────────────────────── */
+      .year-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 4px;
+      }
+      .year-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-dim);
+        padding: 5px 8px;
+        border-radius: 7px;
+        font-size: 13px;
+        transition: background 0.15s;
+        display: flex;
+        align-items: center;
+      }
+      .year-btn:hover {
+        background: var(--bg);
+        color: var(--text);
+      }
+      .year-label {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        padding: 0 4px;
+        min-width: 48px;
+        text-align: center;
+      }
+
+      /* ── STATS ROW ───────────────────────────────────────────── */
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .stat-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .stat-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--text);
+        line-height: 1.1;
+      }
+      .stat-value.blue {
+        color: var(--primary);
+      }
+      .stat-value.green {
+        color: var(--success);
+      }
+      .stat-value.amber {
+        color: var(--warning);
+      }
+      .stat-value.purple {
+        color: var(--purple);
+      }
+      .stat-sub {
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+
+      /* ── MONTH GRID ──────────────────────────────────────────── */
+      .month-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .month-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .month-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .month-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .month-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        background: var(--bg);
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .month-count.has-holidays {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .month-body {
+        padding: 10px 12px;
+        min-height: 44px;
+      }
+      .month-empty {
+        font-size: 12px;
+        color: var(--text-muted);
+        padding: 6px 4px;
+      }
+
+      /* ── HOLIDAY PILL ────────────────────────────────────────── */
+      .holiday-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+        transition: background 0.15s;
+        cursor: default;
+      }
+      .holiday-pill:hover {
+        background: var(--bg);
+      }
+      .hpill-date {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted);
+        min-width: 32px;
+      }
+      .hpill-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .hpill-dot.national {
+        background: var(--primary);
+      }
+      .hpill-dot.regional {
+        background: var(--success);
+      }
+      .hpill-dot.optional {
+        background: var(--warning);
+      }
+      .hpill-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+        flex: 1;
+      }
+      .hpill-type {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 20px;
+        text-transform: capitalize;
+      }
+      .hpill-type.national {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .hpill-type.regional {
+        background: var(--success-light);
+        color: var(--success);
+      }
+      .hpill-type.optional {
+        background: var(--warning-light);
+        color: var(--warning);
+      }
+      .hpill-actions {
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .holiday-pill:hover .hpill-actions {
+        opacity: 1;
+      }
+      .pill-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 3px;
+        border-radius: 5px;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        transition:
+          color 0.15s,
+          background 0.15s;
+      }
+      .pill-btn:hover.edit {
+        color: var(--primary);
+        background: var(--primary-light);
+      }
+      .pill-btn:hover.del {
+        color: var(--danger);
+        background: var(--danger-light);
+      }
+
+      /* ── LIST VIEW ───────────────────────────────────────────── */
+      .list-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .list-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .list-header-title {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 10px 20px;
+        background: var(--surface2);
+        border-bottom: 1px solid var(--border);
+      }
+      td {
+        padding: 13px 20px;
+        font-size: 13px;
+        border-bottom: 1px solid var(--border);
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      tr:hover td {
+        background: var(--surface2);
+      }
+      .badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 20px;
+        text-transform: capitalize;
+      }
+      .badge.national {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .badge.regional {
+        background: var(--success-light);
+        color: var(--success);
+      }
+      .badge.optional {
+        background: var(--warning-light);
+        color: var(--warning);
+      }
+      .badge.inactive {
+        background: var(--bg);
+        color: var(--text-muted);
+      }
+      .action-btns {
+        display: flex;
+        gap: 6px;
+      }
+
+      /* ── VIEW TOGGLE ─────────────────────────────────────────── */
+      .view-toggle {
+        display: flex;
+        background: var(--bg);
+        border-radius: 10px;
+        padding: 3px;
+        gap: 2px;
+      }
+      .view-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 6px 12px;
+        border-radius: 7px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.15s;
+      }
+      .view-btn.active {
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+
+      /* ── MODAL ───────────────────────────────────────────────── */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 200;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .modal-overlay.open {
+        display: flex;
+      }
+      .modal {
+        background: var(--surface);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        width: 100%;
+        max-width: 440px;
+        padding: 28px;
+      }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .modal-title {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .modal-close {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-muted);
+        padding: 4px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+      }
+      .modal-close:hover {
+        color: var(--text);
+        background: var(--bg);
+      }
+      .form-group {
+        margin-bottom: 16px;
+      }
+      .form-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-dim);
+        margin-bottom: 6px;
+      }
+      .form-input {
+        width: 100%;
+        padding: 9px 12px;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        font-size: 13px;
+        font-family: inherit;
+        background: var(--surface);
+        color: var(--text);
+        transition: border-color 0.15s;
+        outline: none;
+      }
+      .form-input:focus {
+        border-color: var(--primary);
+      }
+      .type-picker {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .type-option {
+        position: relative;
+      }
+      .type-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+      }
+      .type-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 8px;
+        border: 2px solid var(--border);
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-dim);
+        transition: all 0.15s;
+        text-align: center;
+        gap: 4px;
+      }
+      .type-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .type-dot.national {
+        background: var(--primary);
+      }
+      .type-dot.regional {
+        background: var(--success);
+      }
+      .type-dot.optional {
+        background: var(--warning);
+      }
+      .type-option input:checked + .type-label {
+        border-color: var(--primary);
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .modal-footer {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 20px;
+      }
+
+      /* ── CONFIRM MODAL ───────────────────────────────────────── */
+      .confirm-modal {
+        background: var(--surface);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        width: 100%;
+        max-width: 380px;
+        padding: 28px;
+        text-align: center;
+      }
+      .confirm-icon {
+        width: 52px;
+        height: 52px;
+        background: var(--danger-light);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        color: var(--danger);
+      }
+      .confirm-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+      .confirm-msg {
+        font-size: 13px;
+        color: var(--text-dim);
+        margin-bottom: 20px;
+        line-height: 1.6;
+      }
+      .confirm-footer {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      /* ── TOAST ───────────────────────────────────────────────── */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--text);
+        color: #fff;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+        z-index: 999;
+        white-space: nowrap;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+      .toast.success {
+        background: var(--success);
+      }
+      .toast.error {
+        background: var(--danger);
+      }
+
+      /* ── LEGEND ──────────────────────────────────────────────── */
+      .legend {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      /* ── EMPTY STATE ─────────────────────────────────────────── */
+      .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--text-dim);
+      }
+      .empty-icon {
+        width: 56px;
+        height: 56px;
+        background: var(--bg);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        color: var(--text-muted);
+      }
+      .empty-state h3 {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .empty-state p {
+        font-size: 13px;
+      }
+
+      /* ── LOADING ─────────────────────────────────────────────── */
+      .skeleton {
+        background: linear-gradient(
+          90deg,
+          var(--bg) 25%,
+          #e8eaed 50%,
+          var(--bg) 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite;
+        border-radius: 6px;
+      }
+      @keyframes shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+
+      /* ── RESPONSIVE ──────────────────────────────────────────── */
+      @media (max-width: 900px) {
+        :root {
+          --sidebar-w: 0px;
+        }
+        .sidebar {
+          display: none;
+        }
+        .month-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .stats-row {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 560px) {
+        .month-grid {
+          grid-template-columns: 1fr;
+        }
+        .stats-row {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .page {
+          padding: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <a class="sidebar-brand" href="#">
+        <div class="brand-icon">
+          <img
+            src="icon-51.png"
+            alt="Logo"
+            style="width: 100%; height: 100%; object-fit: contain"
+          />
+        </div>
+        <span class="brand-name">SDPL</span>
+      </a>
+
+      <a class="nav-item" href="/hr-manager">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to HR
+      </a>
+
+      <div class="sidebar-section-label">Admin</div>
+
+      <a class="nav-item active" href="/holidays">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <path
+            d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"
+          />
+        </svg>
+        Holidays
+      </a>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-avatar" id="sidebarAvatar">H</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name" id="sidebarName">Loading…</div>
+            <div class="sidebar-user-role">HR Administrator</div>
+          </div>
+          <button class="logout-btn" onclick="logout()" title="Logout">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <nav class="topbar">
+        <div class="topbar-inner">
+          <div class="topbar-breadcrumb">
+            <span>GodavariKrishna HR</span>
+            <span class="breadcrumb-sep">›</span>
+            <span class="breadcrumb-page">Holiday Calendar</span>
+          </div>
+          <div class="topbar-right">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 5px 12px 5px 5px;
+                border: 1px solid var(--border);
+                border-radius: 40px;
+                background: var(--surface);
+              "
+            >
+              <div
+                class="sidebar-avatar"
+                style="width: 28px; height: 28px; font-size: 12px"
+                id="topbarAvatar"
+              >
+                H
+              </div>
+              <span
+                style="font-size: 13px; font-weight: 600; color: var(--text)"
+                id="topbarName"
+                >Loading…</span
+              >
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- PAGE -->
+      <div class="page">
+        <!-- Header -->
+        <div class="page-header">
+          <div class="page-title">
+            <h1>Holiday Calendar</h1>
+            <p>
+              Declare and manage company holidays. All active employees are
+              synced automatically.
+            </p>
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              flex-wrap: wrap;
+            "
+          >
+            <div class="year-nav">
+              <button class="year-btn" onclick="changeYear(-1)">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <span class="year-label" id="yearLabel">2025</span>
+              <button class="year-btn" onclick="changeYear(1)">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </div>
+            <div class="view-toggle">
+              <button
+                class="view-btn active"
+                id="btnGrid"
+                onclick="setView('grid')"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="3" width="7" height="7" />
+                  <rect x="14" y="3" width="7" height="7" />
+                  <rect x="14" y="14" width="7" height="7" />
+                  <rect x="3" y="14" width="7" height="7" />
+                </svg>
+                Calendar
+              </button>
+              <button class="view-btn" id="btnList" onclick="setView('list')">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="8" y1="6" x2="21" y2="6" />
+                  <line x1="8" y1="12" x2="21" y2="12" />
+                  <line x1="8" y1="18" x2="21" y2="18" />
+                  <line x1="3" y1="6" x2="3.01" y2="6" />
+                  <line x1="3" y1="12" x2="3.01" y2="12" />
+                  <line x1="3" y1="18" x2="3.01" y2="18" />
+                </svg>
+                List
+              </button>
+            </div>
+            <button class="btn btn-primary" onclick="openAddModal()">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add Holiday
+            </button>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow">
+          <div class="stat-card">
+            <div class="stat-label">Total Holidays</div>
+            <div class="stat-value blue" id="statTotal">—</div>
+            <div class="stat-sub" id="statYear">
+              Year <span id="statYearVal">—</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">National</div>
+            <div class="stat-value" id="statNational">—</div>
+            <div class="stat-sub">Gazetted holidays</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Regional</div>
+            <div class="stat-value green" id="statRegional">—</div>
+            <div class="stat-sub">Local / state holidays</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Optional</div>
+            <div class="stat-value amber" id="statOptional">—</div>
+            <div class="stat-sub">Flexible / restricted</div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+          "
+        >
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--primary)"></div>
+              National
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--success)"></div>
+              Regional
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--warning)"></div>
+              Optional
+            </div>
+          </div>
+          <div
+            style="font-size: 12px; color: var(--text-muted)"
+            id="syncNote"
+          ></div>
+        </div>
+
+        <!-- GRID VIEW -->
+        <div id="gridView">
+          <div class="month-grid" id="monthGrid">
+            <!-- filled by JS -->
+          </div>
+        </div>
+
+        <!-- LIST VIEW (hidden by default) -->
+        <div id="listView" style="display: none">
+          <div class="list-card">
+            <div class="list-header">
+              <span class="list-header-title" id="listTitle">All Holidays</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Holiday Name</th>
+                  <th>Type</th>
+                  <th>Day</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="listBody"></tbody>
+            </table>
+            <div id="listEmpty" class="empty-state" style="display: none">
+              <div class="empty-icon">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </div>
+              <h3>No holidays yet</h3>
+              <p>
+                Add your first holiday for
+                <span id="emptyYear">this year</span>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD / EDIT MODAL -->
+    <div class="modal-overlay" id="formModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="formModalTitle">Add Holiday</span>
+          <button class="modal-close" onclick="closeFormModal()">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Holiday Date *</label>
+          <input class="form-input" type="date" id="fDate" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Holiday Name *</label>
+          <input
+            class="form-input"
+            type="text"
+            id="fName"
+            placeholder="e.g. Diwali, Republic Day"
+            maxlength="100"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Type</label>
+          <div class="type-picker">
+            <div class="type-option">
+              <input
+                type="radio"
+                name="htype"
+                id="tNational"
+                value="national"
+                checked
+              />
+              <label class="type-label" for="tNational">
+                <div class="type-dot national"></div>
+                National
+              </label>
+            </div>
+            <div class="type-option">
+              <input
+                type="radio"
+                name="htype"
+                id="tRegional"
+                value="regional"
+              />
+              <label class="type-label" for="tRegional">
+                <div class="type-dot regional"></div>
+                Regional
+              </label>
+            </div>
+            <div class="type-option">
+              <input
+                type="radio"
+                name="htype"
+                id="tOptional"
+                value="optional"
+              />
+              <label class="type-label" for="tOptional">
+                <div class="type-dot optional"></div>
+                Optional
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeFormModal()">
+            Cancel
+          </button>
+          <button
+            class="btn btn-primary"
+            id="formSubmitBtn"
+            onclick="submitForm()"
+          >
+            Add Holiday
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIRM DELETE MODAL -->
+    <div class="modal-overlay" id="confirmModal">
+      <div class="confirm-modal">
+        <div class="confirm-icon">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4h6v2" />
+          </svg>
+        </div>
+        <div class="confirm-title">Remove Holiday?</div>
+        <div class="confirm-msg" id="confirmMsg">
+          This will revert all employees' attendance status for this date.
+          Employees with approved leave on this day are unaffected.
+        </div>
+        <div class="confirm-footer">
+          <button class="btn btn-secondary" onclick="closeConfirmModal()">
+            Cancel
+          </button>
+          <button
+            class="btn btn-danger"
+            id="confirmDeleteBtn"
+            onclick="confirmDelete()"
+          >
+            Remove Holiday
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const API = "/api";
+      let token = localStorage.getItem("token");
+      let user = null;
+      let currentYear = new Date().getFullYear();
+      let holidays = []; // all holidays for current year
+      let currentView = "grid";
+      let editingId = null; // null = add, number = edit
+      let deletingId = null;
+
+      const MONTHS = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+      const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+      // ── API ────────────────────────────────────────────────────
+      async function apiFetch(url, method = "GET", body = null) {
+        const opts = {
+          method,
+          headers: { "Content-Type": "application/json" },
+        };
+        if (token) opts.headers["Authorization"] = `Bearer ${token}`;
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(API + url, opts);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Request failed");
+        return data;
+      }
+
+      function toast(msg, type = "success") {
+        const el = document.getElementById("toast");
+        el.textContent = msg;
+        el.className = `toast ${type} show`;
+        setTimeout(() => el.classList.remove("show"), 3500);
+      }
+
+      // ── AUTH ───────────────────────────────────────────────────
+      async function init() {
+        if (!token) {
+          window.location.href = "/login";
+          return;
+        }
+        try {
+          user = await apiFetch("/auth/me");
+        } catch {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          return;
+        }
+
+        if (user.role !== "hr" && user.role !== "admin") {
+          window.location.href = "/employee";
+          return;
+        }
+
+        const ini = user.full_name[0].toUpperCase();
+        ["sidebarAvatar", "topbarAvatar"].forEach(
+          (id) => (document.getElementById(id).textContent = ini),
+        );
+        ["sidebarName", "topbarName"].forEach(
+          (id) => (document.getElementById(id).textContent = user.full_name),
+        );
+
+        await loadHolidays();
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
+
+      // ── LOAD ───────────────────────────────────────────────────
+      async function loadHolidays() {
+        document.getElementById("yearLabel").textContent = currentYear;
+        document.getElementById("statYearVal").textContent = currentYear;
+        document.getElementById("emptyYear").textContent = currentYear;
+
+        try {
+          holidays = await apiFetch(`/leave/holidays?year=${currentYear}`);
+          renderStats();
+          renderGrid();
+          renderList();
+        } catch (e) {
+          toast("Failed to load holidays: " + e.message, "error");
+        }
+      }
+
+      // ── STATS ──────────────────────────────────────────────────
+      function renderStats() {
+        const active = holidays.filter((h) => h.is_active);
+        document.getElementById("statTotal").textContent = active.length;
+        document.getElementById("statNational").textContent = active.filter(
+          (h) => h.holiday_type === "national",
+        ).length;
+        document.getElementById("statRegional").textContent = active.filter(
+          (h) => h.holiday_type === "regional",
+        ).length;
+        document.getElementById("statOptional").textContent = active.filter(
+          (h) => h.holiday_type === "optional",
+        ).length;
+      }
+
+      // ── GRID VIEW ──────────────────────────────────────────────
+      function renderGrid() {
+        const grid = document.getElementById("monthGrid");
+        const active = holidays.filter((h) => h.is_active);
+
+        grid.innerHTML = MONTHS.map((name, idx) => {
+          const monthHols = active
+            .filter((h) => new Date(h.holiday_date).getMonth() === idx)
+            .sort(
+              (a, b) => new Date(a.holiday_date) - new Date(b.holiday_date),
+            );
+
+          const pillsHTML =
+            monthHols.length === 0
+              ? `<div class="month-empty">No holidays</div>`
+              : monthHols
+                  .map((h) => {
+                    const d = new Date(h.holiday_date);
+                    const dayStr = String(d.getDate()).padStart(2, "0");
+                    return `
+                  <div class="holiday-pill">
+                    <span class="hpill-date">${dayStr}</span>
+                    <div class="hpill-dot ${h.holiday_type}"></div>
+                    <span class="hpill-name">${h.name}</span>
+                    <span class="hpill-type ${h.holiday_type}">${h.holiday_type}</span>
+                    <div class="hpill-actions">
+                      <button class="pill-btn edit" onclick="openEditModal(${h.id})" title="Edit">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </button>
+                      <button class="pill-btn del" onclick="openDeleteConfirm(${h.id}, '${h.name.replace(/'/g, "&#39;")}')" title="Remove">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                      </button>
+                    </div>
+                  </div>`;
+                  })
+                  .join("");
+
+          return `
+            <div class="month-card">
+              <div class="month-header">
+                <span class="month-name">${name}</span>
+                <span class="month-count ${monthHols.length > 0 ? "has-holidays" : ""}">${monthHols.length} holiday${monthHols.length !== 1 ? "s" : ""}</span>
+              </div>
+              <div class="month-body">${pillsHTML}</div>
+            </div>`;
+        }).join("");
+      }
+
+      // ── LIST VIEW ──────────────────────────────────────────────
+      function renderList() {
+        const active = holidays
+          .filter((h) => h.is_active)
+          .sort((a, b) => new Date(a.holiday_date) - new Date(b.holiday_date));
+
+        const tbody = document.getElementById("listBody");
+        const empty = document.getElementById("listEmpty");
+        document.getElementById("listTitle").textContent =
+          `All Holidays — ${currentYear}`;
+
+        if (active.length === 0) {
+          tbody.innerHTML = "";
+          empty.style.display = "block";
+          return;
+        }
+        empty.style.display = "none";
+        tbody.innerHTML = active
+          .map((h) => {
+            const d = new Date(h.holiday_date);
+            const dateStr = d.toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            });
+            const dayName = DAYS[d.getDay()];
+            return `
+            <tr>
+              <td style="font-weight:600;font-variant-numeric:tabular-nums">${dateStr}</td>
+              <td>${h.name}</td>
+              <td><span class="badge ${h.holiday_type}">${h.holiday_type}</span></td>
+              <td style="color:var(--text-dim)">${dayName}</td>
+              <td><span class="badge" style="background:var(--success-light);color:var(--success)">Active</span></td>
+              <td>
+                <div class="action-btns">
+                  <button class="btn btn-secondary btn-sm" onclick="openEditModal(${h.id})">Edit</button>
+                  <button class="btn btn-danger btn-sm" onclick="openDeleteConfirm(${h.id}, '${h.name.replace(/'/g, "&#39;")}')">Remove</button>
+                </div>
+              </td>
+            </tr>`;
+          })
+          .join("");
+      }
+
+      // ── YEAR NAV ───────────────────────────────────────────────
+      function changeYear(delta) {
+        currentYear += delta;
+        loadHolidays();
+      }
+
+      // ── VIEW TOGGLE ────────────────────────────────────────────
+      function setView(v) {
+        currentView = v;
+        document.getElementById("gridView").style.display =
+          v === "grid" ? "block" : "none";
+        document.getElementById("listView").style.display =
+          v === "list" ? "block" : "none";
+        document
+          .getElementById("btnGrid")
+          .classList.toggle("active", v === "grid");
+        document
+          .getElementById("btnList")
+          .classList.toggle("active", v === "list");
+      }
+
+      // ── ADD MODAL ──────────────────────────────────────────────
+      function openAddModal() {
+        editingId = null;
+        document.getElementById("formModalTitle").textContent = "Add Holiday";
+        document.getElementById("formSubmitBtn").textContent = "Add Holiday";
+        document.getElementById("fDate").value = "";
+        document.getElementById("fName").value = "";
+        document.getElementById("tNational").checked = true;
+        document.getElementById("formModal").classList.add("open");
+        setTimeout(() => document.getElementById("fDate").focus(), 50);
+      }
+
+      function closeFormModal() {
+        document.getElementById("formModal").classList.remove("open");
+        editingId = null;
+      }
+
+      // ── EDIT MODAL ─────────────────────────────────────────────
+      function openEditModal(id) {
+        const h = holidays.find((x) => x.id === id);
+        if (!h) return;
+        editingId = id;
+        document.getElementById("formModalTitle").textContent = "Edit Holiday";
+        document.getElementById("formSubmitBtn").textContent = "Save Changes";
+        document.getElementById("fDate").value = h.holiday_date;
+        document.getElementById("fName").value = h.name;
+        document.querySelector(
+          `input[name="htype"][value="${h.holiday_type}"]`,
+        ).checked = true;
+        document.getElementById("formModal").classList.add("open");
+        setTimeout(() => document.getElementById("fName").focus(), 50);
+      }
+
+      // ── SUBMIT ─────────────────────────────────────────────────
+      async function submitForm() {
+        const date = document.getElementById("fDate").value.trim();
+        const name = document.getElementById("fName").value.trim();
+        const type = document.querySelector(
+          'input[name="htype"]:checked',
+        ).value;
+
+        if (!date) {
+          toast("Please select a date", "error");
+          return;
+        }
+        if (!name || name.length < 2) {
+          toast("Holiday name must be at least 2 characters", "error");
+          return;
+        }
+
+        const btn = document.getElementById("formSubmitBtn");
+        btn.disabled = true;
+        btn.textContent = editingId ? "Saving…" : "Adding…";
+
+        try {
+          if (editingId) {
+            const res = await apiFetch(`/leave/holidays/${editingId}`, "PUT", {
+              holiday_date: date,
+              name,
+              holiday_type: type,
+            });
+            toast(
+              `"${name}" updated — ${res.employees_synced} employee(s) re-synced`,
+            );
+          } else {
+            const res = await apiFetch("/leave/holidays", "POST", {
+              holiday_date: date,
+              name,
+              holiday_type: type,
+            });
+            toast(
+              `"${name}" added — ${res.employees_synced} employee(s) marked present`,
+            );
+          }
+          closeFormModal();
+          await loadHolidays();
+        } catch (e) {
+          toast(e.message, "error");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = editingId ? "Save Changes" : "Add Holiday";
+        }
+      }
+
+      // ── DELETE ─────────────────────────────────────────────────
+      function openDeleteConfirm(id, name) {
+        deletingId = id;
+        document.getElementById("confirmMsg").textContent =
+          `Remove "${name}"? All active employees will be reverted to their attendance-based status for this date. Employees on approved leave are unaffected.`;
+        document.getElementById("confirmModal").classList.add("open");
+      }
+
+      function closeConfirmModal() {
+        document.getElementById("confirmModal").classList.remove("open");
+        deletingId = null;
+      }
+
+      async function confirmDelete() {
+        if (!deletingId) return;
+        const btn = document.getElementById("confirmDeleteBtn");
+        btn.disabled = true;
+        btn.textContent = "Removing…";
+        try {
+          const res = await apiFetch(`/leave/holidays/${deletingId}`, "DELETE");
+          toast(
+            `Holiday removed — ${res.employees_reverted} employee(s) reverted`,
+          );
+          closeConfirmModal();
+          await loadHolidays();
+        } catch (e) {
+          toast(e.message, "error");
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Remove Holiday";
+        }
+      }
+
+      // ── KEYBOARD ───────────────────────────────────────────────
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeFormModal();
+          closeConfirmModal();
+        }
+        if (
+          e.key === "Enter" &&
+          document.getElementById("formModal").classList.contains("open")
+        ) {
+          submitForm();
+        }
+      });
+
+      // ── BOOT ───────────────────────────────────────────────────
+      init();
+    </script>
+  </body>
+</html>

@@ -8,15 +8,20 @@ IMPROVEMENTS:
 3. Unique Constraint on Employee.user_id — Enforce 1-to-1 relationship
 4. Credential Status — Track temporary vs permanent passwords
 5. Onboarding Blocking — Mark when employee must reset password
+6. Leave Management — holiday_calendar, leave_policies, leave_balances, leave_requests
 
 Tables:
   users                 — auth only (email, password, role, active)
   branches              — office locations with geofence
   employees             — HR profile: one per user, all people-data
-  credential_audits     — NEW: password generation/reset history
-  login_audits          — NEW: login attempt tracking
+  credential_audits     — password generation/reset history
+  login_audits          — login attempt tracking
   attendance_logs       — every punch-in / punch-out
   daily_summary         — aggregated per-user per-day rollup
+  holiday_calendar      — NEW: company holidays
+  leave_policies        — NEW: paid days per year (company default + per-employee)
+  leave_balances        — NEW: yearly leave balance per employee
+  leave_requests        — NEW: employee leave applications with L1/L2 approval
 """
 from __future__ import annotations
 
@@ -305,7 +310,11 @@ class DailySummary(Base):
     regularization_status   = Column(String(20), server_default="not_requested")  # not_requested, pending, approved, rejected
     regularization_minutes  = Column(Integer, server_default="0")
     is_regularized          = Column(Boolean, server_default="false")
-    
+
+    # ── Leave fields ───────────────────────────────────────────
+    # Set when a leave request is approved for this day
+    leave_request_id        = Column(Integer, ForeignKey("leave_requests.id", ondelete="SET NULL"))
+
     # ── Payroll fields ─────────────────────────────────────────
     payroll_status          = Column(String(20), server_default="absent")  # present, partial, absent
     payroll_minutes         = Column(Integer, server_default="0")
@@ -313,6 +322,7 @@ class DailySummary(Base):
 
     user = relationship("User", back_populates="daily_summaries")
     regularization_request = relationship("RegularizationRequest", back_populates="daily_summary")
+    leave_request = relationship("LeaveRequest", back_populates="daily_summaries")
 
     __table_args__ = (
         UniqueConstraint("user_id", "work_date", name="uq_daily_summary_user_date"),
@@ -405,14 +415,204 @@ Index("idx_reg_req_final_status", RegularizationRequest.final_status)
 Index("idx_reg_req_created", RegularizationRequest.created_at)
 
 class RegularizationAuditLog(Base):
+    """
+    Immutable audit trail for every action on a regularization request.
+
+    One row per action — submitted, l1_approved, l1_rejected, l2_approved, l2_rejected.
+    Before/after columns capture the daily_summary state at the moment of the action
+    so HR can see exactly what changed and reconstruct the full history.
+    """
     __tablename__ = "regularization_audit_logs"
 
-    id = Column(Integer, primary_key=True)
-    request_id = Column(Integer, ForeignKey("regularization_requests.id", ondelete="CASCADE"))
-
+    id                = Column(Integer, primary_key=True)
+    request_id        = Column(Integer, ForeignKey("regularization_requests.id", ondelete="CASCADE"), nullable=False)
     action_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
-    action_role = Column(String(10))  # l1 / l2 / system
-    action_type = Column(String(30))  # submitted / l1_approved / etc
-    note = Column(Text)
+
+    # What happened
+    action_role = Column(String(10),  nullable=False)  # l1 | l2 | system
+    action_type = Column(String(30),  nullable=False)  # submitted | l1_approved | l1_rejected | l2_approved | l2_rejected
+    note        = Column(Text)                          # optional comment from the manager
+
+    # Snapshot of daily_summary BEFORE this action
+    minutes_before        = Column(Integer)
+    payroll_status_before = Column(String(20))
+
+    # Snapshot of daily_summary AFTER this action
+    minutes_after         = Column(Integer)
+    payroll_status_after  = Column(String(20))
+
+    created_at = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False)
+
+    # Relationships
+    request         = relationship("RegularizationRequest")
+    action_by_user  = relationship("User")
+
+
+Index("idx_reg_audit_request_id",  RegularizationAuditLog.request_id)
+Index("idx_reg_audit_created_at",  RegularizationAuditLog.created_at)
+
+
+# ── holiday_calendar ──────────────────────────────────────────
+class HolidayCalendar(Base):
+    """
+    Company holiday calendar.
+    Blocks leave requests on these dates (they don't count as working days).
+    """
+    __tablename__ = "holiday_calendar"
+
+    id           = Column(Integer, primary_key=True)
+    holiday_date = Column(Date, nullable=False, unique=True)
+    name         = Column(String(150), nullable=False)
+    holiday_type = Column(String(20), nullable=False, server_default="national")  # national | regional | optional
+    is_active    = Column(Boolean, server_default="true")
+    created_at   = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "holiday_type IN ('national', 'regional', 'optional')",
+            name="holiday_type_values",
+        ),
+    )
+
+
+Index("idx_holiday_date",   HolidayCalendar.holiday_date)
+Index("idx_holiday_active", HolidayCalendar.is_active)
+
+
+# ── leave_policies ────────────────────────────────────────────
+class LeavePolicy(Base):
+    """
+    Paid leave entitlement per year.
+    employee_id = NULL  → company-wide default
+    employee_id = <id>  → employee-specific override (takes priority)
+    """
+    __tablename__ = "leave_policies"
+
+    id                 = Column(Integer, primary_key=True)
+    employee_id        = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"))  # NULL = default
+    paid_days_per_year = Column(Integer, nullable=False, server_default="12")
+    effective_from     = Column(Date, nullable=False, server_default="2024-01-01")
+    created_at         = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+    updated_at         = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
+
+    employee = relationship("Employee")
+
+    __table_args__ = (
+        UniqueConstraint("employee_id", name="uq_leave_policies_employee_id"),
+    )
+
+
+Index("idx_leave_policy_emp", LeavePolicy.employee_id)
+
+
+# ── leave_balances ────────────────────────────────────────────
+class LeaveBalance(Base):
+    """
+    Yearly leave balance per employee.
+    Lazy-created on first access via _get_or_init_balance() in the router.
+    Deducted on L2 approval; refunded on cancellation.
+    """
+    __tablename__ = "leave_balances"
+
+    id                   = Column(Integer, primary_key=True)
+    employee_id          = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    year                 = Column(Integer, nullable=False)
+    total_paid_days      = Column(Integer, nullable=False, server_default="12")
+    used_paid_days       = Column(Integer, nullable=False, server_default="0")
+    remaining_paid_days  = Column(Integer, nullable=False, server_default="12")
+    created_at           = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+    updated_at           = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
+
+    employee = relationship("Employee")
+
+    __table_args__ = (
+        UniqueConstraint("employee_id", "year", name="uq_leave_balances_employee_year"),
+        CheckConstraint("used_paid_days >= 0",      name="used_days_non_negative"),
+        CheckConstraint("remaining_paid_days >= 0", name="remaining_days_non_negative"),
+    )
+
+
+Index("idx_leave_balance_emp",  LeaveBalance.employee_id)
+Index("idx_leave_balance_year", LeaveBalance.year)
+
+
+# ── leave_requests ────────────────────────────────────────────
+class LeaveRequest(Base):
+    """
+    Employee leave applications.
+
+    Approval workflow (unconditional L1 → L2 for every request):
+    - Employee submits → l1_status='pending', l2_status='pending'
+    - L1 approves      → l1_status='approved', forwarded to HR
+    - L1 rejects       → l1_status='rejected', l2_status='na', final_status='rejected'
+    - L2 (HR) approves → l2_status='approved', final_status='approved'
+                         daily_summary updated, paid balance deducted
+    - L2 rejects       → l2_status='rejected', final_status='rejected'
+
+    Cancellation:
+    - Pending: just cancel, no balance impact
+    - Approved (future): cancel + refund paid days + revert daily_summary
+    """
+    __tablename__ = "leave_requests"
+
+    id          = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+
+    # ── Date range ─────────────────────────────────────────────
+    date_from = Column(Date, nullable=False)
+    date_to   = Column(Date, nullable=False)
+    num_days  = Column(Integer, nullable=False)   # working days only, pre-calculated
+
+    # ── Leave details ──────────────────────────────────────────
+    leave_type = Column(String(10), nullable=False)   # paid | unpaid
+    reason     = Column(Text, nullable=False)
+
+    # ── Submission ─────────────────────────────────────────────
+    submitted_at         = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+    submitted_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+
+    # ── L1 Manager approval ────────────────────────────────────
+    l1_manager_id          = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"))
+    l1_status              = Column(String(20), nullable=False, server_default="pending")
+    l1_approved_at         = Column(TIMESTAMP(timezone=True))
+    l1_approved_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    l1_comment             = Column(Text)
+
+    # ── L2 / HR approval ───────────────────────────────────────
+    l2_manager_id          = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"))
+    l2_status              = Column(String(20), nullable=False, server_default="pending")  # pending | approved | rejected | na
+    l2_approved_at         = Column(TIMESTAMP(timezone=True))
+    l2_approved_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    l2_comment             = Column(Text)
+
+    # ── Final ──────────────────────────────────────────────────
+    final_status = Column(String(20), nullable=False, server_default="pending")
+    cancelled_at = Column(TIMESTAMP(timezone=True))
 
     created_at = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
+
+    # ── Relationships ──────────────────────────────────────────
+    employee             = relationship("Employee", foreign_keys=[employee_id])
+    l1_manager           = relationship("Employee", foreign_keys=[l1_manager_id])
+    l2_manager           = relationship("Employee", foreign_keys=[l2_manager_id])
+    submitted_by_user    = relationship("User", foreign_keys=[submitted_by_user_id])
+    l1_approved_by_user  = relationship("User", foreign_keys=[l1_approved_by_user_id])
+    l2_approved_by_user  = relationship("User", foreign_keys=[l2_approved_by_user_id])
+    daily_summaries      = relationship("DailySummary", back_populates="leave_request")
+
+    __table_args__ = (
+        CheckConstraint("leave_type IN ('paid', 'unpaid')",                              name="leave_type_values"),
+        CheckConstraint("date_from <= date_to",                                          name="leave_dates_order"),
+        CheckConstraint("num_days > 0",                                                  name="leave_num_days_positive"),
+        CheckConstraint("l1_status IN ('pending', 'approved', 'rejected')",              name="l1_leave_status_values"),
+        CheckConstraint("l2_status IN ('pending', 'approved', 'rejected', 'na')",        name="l2_leave_status_values"),
+        CheckConstraint("final_status IN ('pending', 'approved', 'rejected', 'cancelled')", name="leave_final_status_values"),
+    )
+
+
+Index("idx_leave_req_employee",     LeaveRequest.employee_id)
+Index("idx_leave_req_date_from",    LeaveRequest.date_from)
+Index("idx_leave_req_final_status", LeaveRequest.final_status)
+Index("idx_leave_req_l1_manager",   LeaveRequest.l1_manager_id)
+Index("idx_leave_req_l2_manager",   LeaveRequest.l2_manager_id)

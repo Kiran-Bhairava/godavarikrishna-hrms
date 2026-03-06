@@ -97,7 +97,8 @@
       }
 
       /* Ensure all table cells vertically center to row height */
-      #obTable td {
+      .table-card th,
+      .table-card td {
         vertical-align: middle;
       }
 
@@ -243,19 +244,30 @@
         background: var(--danger-light);
       }
 
+      .topbar-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        height: 100%;
+        gap: 16px;
+      }
+
       /* MAIN */
       .main {
         margin-left: var(--sidebar-w);
         flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         min-height: 100vh;
       }
       .topbar {
-        background: var(--surface);
+        background: #ffffff;
         border-bottom: 1px solid var(--border);
         padding: 0 28px;
         height: 60px;
+        min-height: 60px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -263,21 +275,42 @@
         top: 0;
         z-index: 100;
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        flex-shrink: 0;
       }
       .topbar-breadcrumb {
         font-size: 13px;
-        color: var(--text-muted);
         display: flex;
         align-items: center;
         gap: 6px;
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
       }
       .topbar-breadcrumb span {
         color: var(--text-dim);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .topbar-breadcrumb span:first-child {
+        color: var(--text-muted);
+        flex-shrink: 1;
+        min-width: 0;
+      }
+      .topbar-breadcrumb .breadcrumb-sep {
+        flex-shrink: 0;
+        color: var(--border);
+      }
+      .topbar-breadcrumb .breadcrumb-page {
+        flex-shrink: 0;
+        color: var(--text);
+        font-weight: 600;
       }
       .topbar-right {
         display: flex;
         align-items: center;
         gap: 10px;
+        flex-shrink: 0;
       }
       .icon-btn {
         width: 36px;
@@ -297,8 +330,16 @@
         color: var(--text);
       }
       .page {
-        padding: 28px 28px 60px;
+        padding: 40px 28px 60px;
+        width: 100%;
+        background: var(--bg);
+        position: relative;
+      }
+
+      .container {
         max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
       }
 
       /* BUTTONS */
@@ -356,15 +397,19 @@
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
+        /* margin-top: 8px; */
         margin-bottom: 24px;
         flex-wrap: wrap;
         gap: 16px;
+        position: relative;
+        z-index: 1;
       }
       .page-title h1 {
         font-size: 24px;
         font-weight: 800;
         letter-spacing: -0.5px;
         margin-bottom: 4px;
+        line-height: 1.2;
       }
       .page-title p {
         font-size: 14px;
@@ -703,6 +748,23 @@
         padding: 56px 24px;
         color: var(--text-muted);
         font-size: 14px;
+      }
+      .loading-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 56px 24px;
+      }
+      .spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
 
       /* ONBOARDING */
@@ -1454,11 +1516,12 @@
         /* Topbar adjustments */
         .topbar {
           padding: 0 16px;
-          height: 56px;
-          width: 100%;
         }
 
-        .topbar-breadcrumb {
+        .topbar-breadcrumb span:first-child {
+          display: none;
+        }
+        .topbar-breadcrumb .breadcrumb-sep {
           display: none;
         }
 
@@ -1790,6 +1853,169 @@
           font-size: 11px;
         }
       }
+
+      /* ── Regularization Audit View ─────────────────────── */
+      .stat-mini {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px 20px;
+        min-width: 90px;
+      }
+      .stat-mini .stat-num {
+        font-size: 22px;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1;
+      }
+      .stat-mini .stat-lbl {
+        font-size: 11px;
+        color: #6b7280;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .approved-bg {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+      .approved-bg .stat-num {
+        color: #15803d;
+      }
+      .rejected-bg {
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+      .rejected-bg .stat-num {
+        color: #dc2626;
+      }
+      .pending-bg {
+        border-color: #fde68a;
+        background: #fffbeb;
+      }
+      .pending-bg .stat-num {
+        color: #d97706;
+      }
+
+      .audit-status-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 100px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: capitalize;
+      }
+      .audit-status-badge.approved {
+        background: #dcfce7;
+        color: #15803d;
+      }
+      .audit-status-badge.rejected {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+      .audit-status-badge.pending {
+        background: #fef9c3;
+        color: #92400e;
+      }
+
+      .trail-btn {
+        background: none;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        color: #374151;
+        white-space: nowrap;
+      }
+      .trail-btn:hover {
+        background: #f3f4f6;
+      }
+
+      .trail-entry {
+        padding: 14px 0;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .trail-entry:last-child {
+        border-bottom: none;
+      }
+      .trail-entry-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .trail-role-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .trail-role-badge.l1 {
+        background: #dbeafe;
+        color: #1d4ed8;
+      }
+      .trail-role-badge.l2 {
+        background: #ede9fe;
+        color: #6d28d9;
+      }
+      .trail-role-badge.system {
+        background: #f3f4f6;
+        color: #6b7280;
+      }
+      .trail-action-type {
+        font-size: 13px;
+        font-weight: 600;
+        color: #111827;
+      }
+      .trail-time {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-left: auto;
+      }
+      .trail-actor {
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .trail-note {
+        font-size: 13px;
+        color: #374151;
+        margin-top: 4px;
+        font-style: italic;
+      }
+      .trail-snapshot {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+        font-size: 12px;
+      }
+      .snap-before,
+      .snap-after {
+        padding: 4px 10px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .snap-before {
+        background: #fef2f2;
+        color: #dc2626;
+      }
+      .snap-after {
+        background: #f0fdf4;
+        color: #15803d;
+      }
+      .snap-arrow {
+        color: #9ca3af;
+        font-size: 16px;
+        align-self: center;
+      }
     </style>
   </head>
   <body>
@@ -1863,6 +2089,25 @@
         Attendance
       </button>
 
+      <button
+        class="nav-item"
+        id="navRegAudit"
+        onclick="switchView('regAudit')"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+        </svg>
+        Regularizations
+      </button>
+
       <!-- <div class="sidebar-section-label">Reports</div>
 
       <button class="nav-item" onclick="exportExcel()">
@@ -1882,6 +2127,24 @@
       </button> -->
 
       <div class="sidebar-section-label">Admin</div>
+
+      <a class="nav-item" href="/holidays" style="text-decoration:none">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01" />
+        </svg>
+        Holidays
+      </a>
 
       <button class="nav-item">
         <svg
@@ -1928,81 +2191,87 @@
     <!-- MAIN -->
     <div class="main">
       <nav class="topbar">
-        <div class="topbar-breadcrumb">
-          <span>GodavariKrishna HR</span>
-          <span style="color: var(--border)">›</span>
-          <span id="topbarSection" style="color: var(--text); font-weight: 600"
-            >Onboarding</span
-          >
-        </div>
-        <div class="topbar-right">
-          <button class="icon-btn" title="Notifications">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </button>
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              gap: 8px;
-              padding: 5px 12px 5px 5px;
-              border: 1px solid var(--border);
-              border-radius: 40px;
-              background: var(--surface);
-            "
-          >
-            <div
-              class="sidebar-avatar"
-              style="width: 28px; height: 28px; font-size: 12px"
-              id="topbarAvatar"
-            >
-              H
-            </div>
+        <div class="topbar-inner">
+          <div class="topbar-breadcrumb">
+            <span>GodavariKrishna HR</span>
+            <span class="breadcrumb-sep">›</span>
             <span
-              style="font-size: 13px; font-weight: 600; color: var(--text)"
-              id="topbarName"
-              >Loading…</span
+              id="topbarSection"
+              class="breadcrumb-page"
+              >Onboarding</span
             >
+          </div>
+          <div class="topbar-right">
+            <button class="icon-btn" title="Notifications">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </button>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 5px 12px 5px 5px;
+                border: 1px solid var(--border);
+                border-radius: 40px;
+                background: var(--surface);
+              "
+            >
+              <div
+                class="sidebar-avatar"
+                style="width: 28px; height: 28px; font-size: 12px"
+                id="topbarAvatar"
+              >
+                H
+              </div>
+              <span
+                style="font-size: 13px; font-weight: 600; color: var(--text)"
+                id="topbarName"
+                >Loading…</span
+              >
+            </div>
           </div>
         </div>
       </nav>
 
       <!-- ═══ ATTENDANCE VIEW ═══ -->
       <div class="view page" id="attendanceView">
-        <div class="page-header">
-          <div class="page-title">
-            <h1>Attendance Report</h1>
-            <p>Daily staff check-in, duration and compliance overview.</p>
-          </div>
-          <div class="kpi-row" style="margin-bottom: 0; min-width: 280px">
-            <div class="kpi-card hours">
-              <div class="kpi-label">Total Hours</div>
-              <div style="display: flex; align-items: baseline; gap: 6px">
-                <div class="kpi-value" id="totalHours">—</div>
-                <span
-                  style="
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: var(--text-dim);
-                  "
-                  >hrs</span
-                >
-              </div>
-              <div class="kpi-trend up" id="hoursChange"></div>
+        <div class="container">
+          <div class="page-header">
+            <div class="page-title">
+              <h1>Attendance Report</h1>
+              <p>Daily staff check-in, duration and compliance overview.</p>
             </div>
-            <div class="kpi-card staff">
-              <div class="kpi-label">Active Staff</div>
-              <div class="kpi-value" id="activeStaff">—</div>
-              <div class="kpi-sub"><span id="staffFraction">—</span></div>
+            <div class="kpi-row" style="margin-bottom: 0; min-width: 280px">
+              <div class="kpi-card hours">
+                <div class="kpi-label">Total Hours</div>
+                <div style="display: flex; align-items: baseline; gap: 6px">
+                  <div class="kpi-value" id="totalHours">—</div>
+                  <span
+                    style="
+                      font-size: 13px;
+                      font-weight: 600;
+                      color: var(--text-dim);
+                    "
+                    >hrs</span
+                  >
+                </div>
+                <div class="kpi-trend up" id="hoursChange"></div>
+              </div>
+              <div class="kpi-card staff">
+                <div class="kpi-label">Active Staff</div>
+                <div class="kpi-value" id="activeStaff">—</div>
+                <div class="kpi-sub"><span id="staffFraction">—</span></div>
+              </div>
             </div>
           </div>
         </div>
@@ -3570,6 +3839,216 @@
         </div>
       </div>
     </div>
+    <!-- end editModal -->
+
+    <!-- REGULARIZATION AUDIT VIEW -->
+    <div class="view page" id="regAuditView">
+      <div class="container">
+        <div class="page-header">
+          <div class="page-title">
+            <h1>Regularization Audit</h1>
+            <p>
+              Full history of regularization requests — approval chain and
+              attendance impact
+            </p>
+          </div>
+        </div>
+
+        <!-- Filters bar -->
+        <div
+          style="
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 20px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            box-shadow: var(--shadow);
+          "
+        >
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <label class="form-label">From Date</label>
+            <input
+              type="date"
+              id="auditFromDate"
+              class="form-input"
+              style="width: 155px"
+            />
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <label class="form-label">To Date</label>
+            <input
+              type="date"
+              id="auditToDate"
+              class="form-input"
+              style="width: 155px"
+            />
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <label class="form-label">Status</label>
+            <select id="auditStatus" class="form-select" style="width: 155px">
+              <option value="">All Statuses</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 8px; padding-top: 20px">
+            <button class="btn btn-primary" onclick="loadRegAudit(1)">
+              Apply
+            </button>
+            <button class="btn btn-secondary" onclick="clearAuditFilters()">
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI cards — use the site's own kpi-row / kpi-card classes -->
+        <div class="stat-chips" style="margin-bottom: 20px">
+          <div class="stat-chip">
+            <div class="chip-label">Total Requests</div>
+            <div class="chip-value blue" id="auditTotalCount">—</div>
+          </div>
+          <div class="stat-chip" style="border-top: 3px solid var(--success)">
+            <div class="chip-label">Approved</div>
+            <div class="chip-value green" id="auditApprovedCount">—</div>
+          </div>
+          <div class="stat-chip" style="border-top: 3px solid var(--danger)">
+            <div class="chip-label">Rejected</div>
+            <div class="chip-value red" id="auditRejectedCount">—</div>
+          </div>
+          <div class="stat-chip" style="border-top: 3px solid var(--warning)">
+            <div class="chip-label">Pending</div>
+            <div class="chip-value amber" id="auditPendingCount">—</div>
+          </div>
+        </div>
+        <!-- Table -->
+        <div class="table-card" style="overflow-x: auto">
+          <div id="auditTableWrap">
+            <div class="loading-state" id="auditLoading">
+              <div class="spinner"></div>
+            </div>
+            <table class="data-table" id="auditTable" style="display: none">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Date</th>
+                  <th>Actual</th>
+                  <th>Requested</th>
+                  <th>L1</th>
+                  <th>L2</th>
+                  <th>Status</th>
+                  <th>Hours After</th>
+                  <th>Trail</th>
+                </tr>
+              </thead>
+              <tbody id="auditTbody"></tbody>
+            </table>
+            <div
+              id="auditEmpty"
+              style="
+                display: none;
+                text-align: center;
+                padding: 48px;
+                color: #6b7280;
+                font-size: 14px;
+              "
+            >
+              No regularization records found.
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="table-footer" id="auditPagination" style="display: none">
+            <span
+              id="auditPageInfo"
+              style="font-size: 13px; color: #6b7280"
+            ></span>
+            <div style="display: flex; gap: 8px">
+              <button
+                class="btn btn-secondary"
+                id="auditPrevBtn"
+                onclick="loadRegAudit(auditCurrentPage - 1)"
+              >
+                ← Prev
+              </button>
+              <button
+                class="btn btn-secondary"
+                id="auditNextBtn"
+                onclick="loadRegAudit(auditCurrentPage + 1)"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- close container -->
+
+      <!-- Audit Trail Drawer -->
+      <div
+        id="auditDrawerOverlay"
+        style="
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.4);
+          z-index: 200;
+        "
+        onclick="closeAuditDrawer()"
+      ></div>
+      <div
+        id="auditDrawer"
+        style="
+          display: none;
+          position: fixed;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: min(440px, 100vw);
+          background: #fff;
+          z-index: 201;
+          overflow-y: auto;
+          box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+        "
+      >
+        <div
+          style="
+            padding: 20px 24px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h3
+            style="font-size: 16px; font-weight: 700; margin: 0"
+            id="drawerTitle"
+          >
+            Audit Trail
+          </h3>
+          <button
+            onclick="closeAuditDrawer()"
+            style="
+              background: none;
+              border: none;
+              font-size: 20px;
+              cursor: pointer;
+              color: #6b7280;
+            "
+          >
+            ×
+          </button>
+        </div>
+        <div id="drawerContent" style="padding: 20px 24px"></div>
+      </div>
+    </div>
+
+    </div>
+    <!-- end .main -->
 
     <div class="toast" id="toast"></div>
     <!-- Credentials Modal (MUST be at root level) -->
@@ -3694,6 +4173,7 @@
           attendance: "Attendance Report",
           onboarding: "Onboarding",
           addEmployee: "Add New Employee",
+          regAudit: "Regularizations",
         };
         document.getElementById("topbarSection").textContent =
           labels[name] || name;
@@ -3703,12 +4183,15 @@
           document
             .querySelector(".nav-item[onclick=\"switchView('attendance')\"]")
             ?.classList.add("active");
+        if (name === "regAudit")
+          document.getElementById("navRegAudit")?.classList.add("active");
         if (name === "addEmployee") {
           goToStep(1);
           populateBranchDropdown();
           populateManagerDropdowns();
         }
         if (name === "onboarding") loadOnboarding();
+        if (name === "regAudit") loadRegAudit(1);
         window.scrollTo(0, 0);
       }
 
@@ -4634,6 +5117,277 @@
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/sw.js");
         });
+      }
+
+      // ══════════════════════════════════════════════════════════════
+      // REGULARIZATION AUDIT
+      // ══════════════════════════════════════════════════════════════
+
+      let auditCurrentPage = 1;
+      let auditTotalPages = 1;
+      const AUDIT_PAGE_SIZE = 50;
+
+      function clearAuditFilters() {
+        document.getElementById("auditFromDate").value = "";
+        document.getElementById("auditToDate").value = "";
+        document.getElementById("auditStatus").value = "";
+        loadRegAudit(1);
+      }
+
+      async function loadRegAudit(page = 1) {
+        auditCurrentPage = page;
+
+        const fromDate = document.getElementById("auditFromDate").value;
+        const toDate = document.getElementById("auditToDate").value;
+        const statusVal = document.getElementById("auditStatus").value;
+
+        const params = new URLSearchParams({
+          page,
+          page_size: AUDIT_PAGE_SIZE,
+        });
+        if (fromDate) params.set("from_date", fromDate);
+        if (toDate) params.set("to_date", toDate);
+        if (statusVal) params.set("final_status", statusVal);
+
+        const loading = document.getElementById("auditLoading");
+        const table = document.getElementById("auditTable");
+        const empty = document.getElementById("auditEmpty");
+        const paging = document.getElementById("auditPagination");
+
+        loading.style.display = "flex";
+        table.style.display = "none";
+        empty.style.display = "none";
+        paging.style.display = "none";
+
+        try {
+          const data = await apiFetch(`/hr/regularization-audit?${params}`);
+
+          // Stats
+          const reqs = data.requests || [];
+          let approved = 0,
+            rejected = 0,
+            pending = 0;
+          reqs.forEach((r) => {
+            if (r.final_status === "approved") approved++;
+            else if (r.final_status === "rejected") rejected++;
+            else pending++;
+          });
+          document.getElementById("auditTotalCount").textContent =
+            data.total ?? reqs.length;
+          document.getElementById("auditApprovedCount").textContent = approved;
+          document.getElementById("auditRejectedCount").textContent = rejected;
+          document.getElementById("auditPendingCount").textContent = pending;
+
+          loading.style.display = "none";
+
+          if (!reqs.length) {
+            empty.style.display = "block";
+            return;
+          }
+
+          // ── Helpers ────────────────────────────────────────────
+          const fmtMin = (m) => {
+            if (m == null) return "—";
+            const h = Math.floor(m / 60),
+              mn = m % 60;
+            return h ? `${h}h ${mn}m` : `${mn}m`;
+          };
+          const fmtDate = (s) => {
+            if (!s) return "—";
+            const [y, mo, d] = s.split("-");
+            const M = [
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec",
+            ];
+            return `${parseInt(d)} ${M[parseInt(mo) - 1]} ${y}`;
+          };
+          const COLORS = [
+            "#4f46e5",
+            "#0891b2",
+            "#059669",
+            "#d97706",
+            "#dc2626",
+            "#7c3aed",
+          ];
+          const empColor = (n) =>
+            COLORS[(n?.charCodeAt(0) || 65) % COLORS.length];
+
+          // ── Render rows ────────────────────────────────────────
+          const tbody = document.getElementById("auditTbody");
+          tbody.innerHTML = reqs
+            .map((r) => {
+              const letter = (r.employee_name || "?")[0].toUpperCase();
+              const color = empColor(r.employee_name);
+
+              const statusBadge = `<span class="audit-status-badge ${r.final_status}">${r.final_status}</span>`;
+
+              // L1 cell — badge + manager name below
+              const l1Cell = r.l1_status
+                ? `<span class="audit-status-badge ${r.l1_status}">${r.l1_status}</span>
+                   <div style="font-size:11px;color:#9ca3af;margin-top:3px;">${r.l1_manager || ""}</div>`
+                : `<span style="color:#d1d5db;">—</span>`;
+
+              // L2 cell — "Not required" when null (no L2 assigned)
+              const l2Cell = r.l2_status
+                ? `<span class="audit-status-badge ${r.l2_status}">${r.l2_status}</span>
+                   <div style="font-size:11px;color:#9ca3af;margin-top:3px;">${r.l2_manager || ""}</div>`
+                : `<span style="color:#9ca3af;font-size:12px;font-style:italic;">Not required</span>`;
+
+              // Hours before = first audit entry that has a snapshot
+              const snap = r.audit_trail?.find((a) => a.minutes_before != null);
+              const beforeMin = snap?.minutes_before ?? null;
+              // Hours after = current state (only meaningful once decided)
+              const afterMin =
+                r.final_status !== "pending" ? r.current_total_minutes : null;
+
+              const trailCount = (r.audit_trail || []).length;
+
+              return `<tr>
+              <td>
+                <div class="emp-cell">
+                  <div class="emp-avatar" style="background:${color};flex-shrink:0;">${letter}</div>
+                  <div>
+                    <div class="emp-name">${r.employee_name}</div>
+                    <div class="emp-role">${[r.emp_id, r.department].filter(Boolean).join(" · ")}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="white-space:nowrap;font-size:13px;">${fmtDate(r.work_date)}</td>
+              <td><span class="hours-val">${r.actual_worked}</span></td>
+              <td><span class="hours-val">${r.requested}</span></td>
+              <td>${l1Cell}</td>
+              <td>${l2Cell}</td>
+              <td>${statusBadge}</td>
+              <td style="font-weight:600;color:${afterMin != null ? "#15803d" : "#9ca3af"};">${fmtMin(afterMin)}</td>
+              <td>
+                <button class="trail-btn" onclick='openAuditDrawer(${JSON.stringify(r).replace(/'/g, "&#39;")})'>
+                  ${trailCount} action${trailCount !== 1 ? "s" : ""}
+                </button>
+              </td>
+            </tr>`;
+            })
+            .join("");
+
+          table.style.display = "table";
+
+          // Pagination
+          const total = data.total || reqs.length;
+          auditTotalPages = Math.ceil(total / AUDIT_PAGE_SIZE);
+          const start = (page - 1) * AUDIT_PAGE_SIZE + 1;
+          const end = Math.min(page * AUDIT_PAGE_SIZE, total);
+          document.getElementById("auditPageInfo").textContent =
+            `${start}–${end} of ${total}`;
+          document.getElementById("auditPrevBtn").disabled = page <= 1;
+          document.getElementById("auditNextBtn").disabled =
+            page >= auditTotalPages;
+          paging.style.display = total > AUDIT_PAGE_SIZE ? "flex" : "none";
+        } catch (e) {
+          loading.style.display = "none";
+          empty.style.display = "block";
+          empty.textContent =
+            "Failed to load: " + (e.message || "Unknown error");
+          toast("Failed to load audit data", "error");
+        }
+      }
+
+      function openAuditDrawer(req) {
+        const fmt = (s) => {
+          if (!s) return "—";
+          const d = new Date(s);
+          return (
+            d.toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            }) +
+            " " +
+            d.toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          );
+        };
+        const fmtMin = (m) => {
+          if (m == null) return "—";
+          const h = Math.floor(m / 60),
+            mn = m % 60;
+          return h ? `${h}h ${mn}m` : `${mn}m`;
+        };
+        const actionLabel = {
+          submitted: "Submitted",
+          l1_approved: "L1 Approved",
+          l1_rejected: "L1 Rejected",
+          l2_approved: "L2 Approved",
+          l2_rejected: "L2 Rejected",
+        };
+
+        document.getElementById("drawerTitle").textContent =
+          `Audit Trail — ${req.employee_name} · ${req.work_date}`;
+
+        const trail = req.audit_trail || [];
+        const summary = `
+          <div style="background:#f9fafb;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+            <div style="font-size:12px;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Request Summary</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+              <div><span style="color:#9ca3af;">Actual:</span> ${req.actual_worked}</div>
+              <div><span style="color:#9ca3af;">Requested:</span> ${req.requested}</div>
+              <div><span style="color:#9ca3af;">Reason:</span> ${req.reason}</div>
+              <div><span style="color:#9ca3af;">Final:</span> <span class="audit-status-badge ${req.final_status}">${req.final_status}</span></div>
+            </div>
+            <div style="margin-top:10px;font-size:13px;">
+              <span style="color:#9ca3af;">Attendance change:</span>
+              <span style="color:#dc2626;">${fmtMin(trail[0]?.minutes_before)}</span>
+              <span style="color:#9ca3af;margin:0 6px;">→</span>
+              <span style="color:#15803d;">${fmtMin(req.current_total_minutes)}</span>
+              <span style="color:#9ca3af;margin-left:6px;">(${req.current_payroll_status})</span>
+            </div>
+          </div>`;
+
+        const entries = trail.length
+          ? trail
+              .map(
+                (a) => `
+            <div class="trail-entry">
+              <div class="trail-entry-header">
+                <span class="trail-role-badge ${a.action_role}">${a.action_role.toUpperCase()}</span>
+                <span class="trail-action-type">${actionLabel[a.action_type] || a.action_type}</span>
+                <span class="trail-time">${fmt(a.created_at)}</span>
+              </div>
+              <div class="trail-actor">by ${a.actioned_by || "System"}</div>
+              ${a.note ? `<div class="trail-note">"${a.note}"</div>` : ""}
+              ${
+                a.minutes_before != null && a.minutes_after != null
+                  ? `
+                <div class="trail-snapshot">
+                  <div class="snap-before">⏮ ${fmtMin(a.minutes_before)} · ${a.payroll_status_before || "—"}</div>
+                  <span class="snap-arrow">→</span>
+                  <div class="snap-after">✓ ${fmtMin(a.minutes_after)} · ${a.payroll_status_after || "—"}</div>
+                </div>`
+                  : ""
+              }
+            </div>`,
+              )
+              .join("")
+          : `<div style="text-align:center;padding:32px;color:#9ca3af;font-size:13px;">No audit entries yet</div>`;
+
+        document.getElementById("drawerContent").innerHTML = summary + entries;
+        document.getElementById("auditDrawerOverlay").style.display = "block";
+        document.getElementById("auditDrawer").style.display = "block";
+      }
+
+      function closeAuditDrawer() {
+        document.getElementById("auditDrawerOverlay").style.display = "none";
+        document.getElementById("auditDrawer").style.display = "none";
       }
     </script>
   </body>
