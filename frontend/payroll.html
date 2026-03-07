@@ -1,0 +1,1765 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0052cc" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192" />
+    <title>GodavariKrishna · Payroll</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ── Design tokens (match hr-styles.css exactly) ─────── */
+      :root {
+        --bg: #f0f2f5;
+        --surface: #fff;
+        --surface2: #f8f9fb;
+        --border: #e5e7eb;
+        --primary: #0089d0;
+        --primary-hover: #0081ea;
+        --primary-light: #eff3ff;
+        --success: #10b981;
+        --success-light: #ecfdf5;
+        --success-border: rgba(16, 185, 129, 0.2);
+        --danger: #ef4444;
+        --danger-light: #fef2f2;
+        --warning: #f59e0b;
+        --warning-light: #fffbeb;
+        --text: #111827;
+        --text-dim: #6b7280;
+        --text-muted: #9ca3af;
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.07), 0 4px 16px rgba(0, 0, 0, 0.05);
+        --shadow-lg:
+          0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 20px 40px rgba(0, 0, 0, 0.09);
+        --radius: 16px;
+        --sidebar-w: 224px;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+        display: flex;
+        min-height: 100dvh;
+      }
+
+      /* ── Sidebar ─────────────────────────────────────────── */
+      .sidebar {
+        width: var(--sidebar-w);
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 200;
+        overflow-y: auto;
+      }
+      .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 20px 18px 16px;
+        border-bottom: 1px solid var(--border);
+        text-decoration: none;
+      }
+      .brand-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .brand-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.3px;
+      }
+      .sidebar-section-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: var(--text-muted);
+        padding: 16px 18px 6px;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 18px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text-dim);
+        cursor: pointer;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+        font-family: inherit;
+        text-decoration: none;
+        transition: all 0.15s;
+      }
+      .nav-item svg {
+        flex-shrink: 0;
+      }
+      .nav-item:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .nav-item.active {
+        background: var(--primary-light);
+        color: var(--primary);
+        font-weight: 600;
+      }
+      .sidebar-footer {
+        margin-top: auto;
+        padding: 14px 18px;
+        border-top: 1px solid var(--border);
+      }
+      .sidebar-user {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sidebar-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), #6366f1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+      .sidebar-user-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .sidebar-user-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sidebar-user-role {
+        font-size: 11px;
+        color: var(--text-dim);
+      }
+      .logout-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: none;
+        cursor: pointer;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+      }
+      .logout-btn:hover {
+        background: var(--danger-light);
+        color: var(--danger);
+        border-color: transparent;
+      }
+
+      /* ── Main ────────────────────────────────────────────── */
+      .main {
+        margin-left: var(--sidebar-w);
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* ── Topbar ──────────────────────────────────────────── */
+      .topbar {
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        padding: 0 28px;
+        height: 60px;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        flex-shrink: 0;
+      }
+      .topbar-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+      }
+      .topbar-breadcrumb {
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        overflow: hidden;
+      }
+      .topbar-breadcrumb span {
+        color: var(--text-dim);
+        white-space: nowrap;
+      }
+      .topbar-breadcrumb .breadcrumb-sep {
+        color: var(--border);
+        flex-shrink: 0;
+      }
+      .topbar-breadcrumb .breadcrumb-page {
+        color: var(--text);
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--text-dim);
+        transition: all 0.2s;
+      }
+      .icon-btn:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+
+      /* ── Page ────────────────────────────────────────────── */
+      .page {
+        padding: 40px 28px 60px;
+        width: 100%;
+        background: var(--bg);
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 28px;
+        gap: 20px;
+      }
+      .page-title h1 {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: -0.4px;
+      }
+      .page-title p {
+        font-size: 13.5px;
+        color: var(--text-dim);
+        margin-top: 3px;
+      }
+
+      /* ── Buttons ─────────────────────────────────────────── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 18px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.2s;
+        border: none;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+        box-shadow: 0 4px 14px rgba(0, 89, 208, 0.3);
+        transform: translateY(-1px);
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      .btn-secondary {
+        background: var(--surface);
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .btn-success {
+        background: var(--success);
+        color: #fff;
+      }
+      .btn-success:hover {
+        background: #059669;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        transform: translateY(-1px);
+      }
+      .btn-success:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* ── Cards ───────────────────────────────────────────── */
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 24px;
+      }
+      .card-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card-title svg {
+        color: var(--primary);
+      }
+
+      /* ── Steps ───────────────────────────────────────────── */
+      .steps-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+      .step-card {
+        background: var(--surface);
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px 22px;
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        transition: all 0.2s;
+        position: relative;
+        overflow: hidden;
+      }
+      .step-card.active {
+        border-color: var(--primary);
+        background: var(--primary-light);
+      }
+      .step-card.done {
+        border-color: var(--success);
+        background: var(--success-light);
+      }
+      .step-num {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        background: var(--surface2);
+        color: var(--text-muted);
+        border: 2px solid var(--border);
+      }
+      .step-card.active .step-num {
+        background: var(--primary);
+        color: #fff;
+        border-color: var(--primary);
+      }
+      .step-card.done .step-num {
+        background: var(--success);
+        color: #fff;
+        border-color: var(--success);
+      }
+      .step-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 2px;
+      }
+      .step-desc {
+        font-size: 12px;
+        color: var(--text-dim);
+        line-height: 1.4;
+      }
+      .step-card.active .step-label {
+        color: var(--primary);
+      }
+      .step-card.done .step-label {
+        color: var(--success);
+      }
+
+      /* ── Form grid ───────────────────────────────────────── */
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .form-group.full {
+        grid-column: 1 / -1;
+      }
+      label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--text-dim);
+      }
+      select,
+      input[type="text"],
+      input[type="number"] {
+        height: 40px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0 12px;
+        font-size: 13.5px;
+        font-family: inherit;
+        color: var(--text);
+        background: var(--surface);
+        transition: all 0.15s;
+        outline: none;
+      }
+      select:focus,
+      input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(0, 137, 208, 0.1);
+      }
+
+      /* ── Upload zone ─────────────────────────────────────── */
+      .upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 40px 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--surface2);
+        position: relative;
+      }
+      .upload-zone:hover,
+      .upload-zone.drag-over {
+        border-color: var(--primary);
+        background: var(--primary-light);
+      }
+      .upload-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+      .upload-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: var(--primary-light);
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 12px;
+      }
+      .upload-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .upload-sub {
+        font-size: 12.5px;
+        color: var(--text-dim);
+      }
+      .upload-zone.has-file {
+        border-color: var(--success);
+        background: var(--success-light);
+      }
+      .upload-zone.has-file .upload-icon {
+        background: var(--success-light);
+        color: var(--success);
+      }
+
+      /* ── Preview table ───────────────────────────────────── */
+      .table-wrap {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      thead th {
+        background: #041553;
+        color: #fff;
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+        letter-spacing: 0.2px;
+      }
+      tbody tr:nth-child(even) {
+        background: var(--surface2);
+      }
+      tbody tr:hover {
+        background: var(--primary-light);
+      }
+      tbody td {
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+        white-space: nowrap;
+      }
+      tbody td.amt {
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+      }
+      tbody td.net {
+        font-weight: 700;
+        color: var(--success);
+      }
+      tfoot td {
+        padding: 10px 12px;
+        font-weight: 700;
+        background: #f0f4ff;
+        border-top: 2px solid var(--border);
+      }
+
+      /* ── Status badge ────────────────────────────────────── */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .badge-success {
+        background: var(--success-light);
+        color: var(--success);
+      }
+      .badge-warning {
+        background: var(--warning-light);
+        color: var(--warning);
+      }
+      .badge-primary {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+
+      /* ── Toast ───────────────────────────────────────────── */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: #fff;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: all 0.3s;
+        z-index: 9999;
+        pointer-events: none;
+        max-width: 320px;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast.success {
+        background: var(--success);
+      }
+      .toast.error {
+        background: var(--danger);
+      }
+      .toast.info {
+        background: var(--primary);
+      }
+
+      /* ── Spinner ─────────────────────────────────────────── */
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ── Section spacing ─────────────────────────────────── */
+      .section {
+        margin-bottom: 24px;
+      }
+
+      /* ── Result section ──────────────────────────────────── */
+      .result-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 20px;
+      }
+      .result-stat {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-size: 12.5px;
+      }
+      .result-stat strong {
+        display: block;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .result-stat span {
+        color: var(--text-dim);
+      }
+
+      /* ── Empty state ─────────────────────────────────────── */
+      .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--text-dim);
+      }
+      .empty-state svg {
+        opacity: 0.3;
+        margin-bottom: 12px;
+      }
+      .empty-state p {
+        font-size: 13.5px;
+      }
+
+      /* ── Divider ─────────────────────────────────────────── */
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 24px 0;
+      }
+
+      /* ── Hidden ──────────────────────────────────────────── */
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="sidebar">
+      <a class="sidebar-brand" href="#">
+        <div class="brand-icon">
+          <img
+            src="/icon-51.png"
+            alt="SDPL"
+            style="width: 100%; height: 100%; object-fit: contain"
+          />
+        </div>
+        <span class="brand-name">SDPL</span>
+      </a>
+
+      <div class="sidebar-section-label">Main</div>
+
+      <a class="nav-item" href="/hr-manager">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M19 8v6M22 11h-6" />
+        </svg>
+        Onboarding
+      </a>
+
+      <a class="nav-item" href="/hr-manager">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        Attendance
+      </a>
+
+      <a class="nav-item" href="/hr-manager">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+        </svg>
+        Regularizations
+      </a>
+
+      <div class="sidebar-section-label">Finance</div>
+
+      <button class="nav-item active">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <line x1="2" y1="10" x2="22" y2="10" />
+        </svg>
+        Payroll
+      </button>
+
+      <div class="sidebar-section-label">Admin</div>
+
+      <a class="nav-item" href="/holidays" style="text-decoration: none">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <path
+            d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"
+          />
+        </svg>
+        Holidays
+      </a>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-avatar" id="sidebarAvatar">H</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name" id="sidebarName">Loading…</div>
+            <div class="sidebar-user-role">HR Administrator</div>
+          </div>
+          <button class="logout-btn" onclick="logout()" title="Logout">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══ MAIN ═══ -->
+    <div class="main">
+      <!-- Topbar -->
+      <nav class="topbar">
+        <div class="topbar-inner">
+          <div class="topbar-breadcrumb">
+            <span>GodavariKrishna HR</span>
+            <span class="breadcrumb-sep">›</span>
+            <span class="breadcrumb-page">Payroll Engine</span>
+          </div>
+          <div class="topbar-right">
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 5px 12px 5px 5px;
+                border: 1px solid var(--border);
+                border-radius: 40px;
+                background: var(--surface);
+              "
+            >
+              <div
+                class="sidebar-avatar"
+                style="width: 28px; height: 28px; font-size: 12px"
+                id="topbarAvatar"
+              >
+                H
+              </div>
+              <span
+                style="font-size: 13px; font-weight: 600; color: var(--text)"
+                id="topbarName"
+                >Loading…</span
+              >
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Page content -->
+      <div class="page">
+        <div class="container">
+          <!-- Page header -->
+          <div class="page-header">
+            <div class="page-title">
+              <h1>Payroll Engine</h1>
+              <p>
+                Export attendance + salary data, review, upload corrected sheet,
+                and generate payslips.
+              </p>
+            </div>
+          </div>
+
+          <!-- ── Step indicators ────────────────────────── -->
+          <div class="steps-row">
+            <div class="step-card active" id="step1Card">
+              <div class="step-num" id="step1Num">1</div>
+              <div>
+                <div class="step-label">Select & Export</div>
+                <div class="step-desc">
+                  Pick month, branch/employees and export pre-filled Excel
+                </div>
+              </div>
+            </div>
+            <div class="step-card" id="step2Card">
+              <div class="step-num" id="step2Num">2</div>
+              <div>
+                <div class="step-label">Review & Correct</div>
+                <div class="step-desc">
+                  Open Excel, verify attendance and deductions, correct if
+                  needed
+                </div>
+              </div>
+            </div>
+            <div class="step-card" id="step3Card">
+              <div class="step-num" id="step3Num">3</div>
+              <div>
+                <div class="step-label">Upload & Generate</div>
+                <div class="step-desc">
+                  Upload corrected Excel — engine calculates and generates
+                  payslips
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── STEP 1: Export ─────────────────────────── -->
+          <div class="section" id="exportSection">
+            <div class="card">
+              <div class="card-title">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Step 1 — Select Period & Employees
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Month</label>
+                  <select id="exportMonth">
+                    <option value="1">January</option>
+                    <option value="2">February</option>
+                    <option value="3">March</option>
+                    <option value="4">April</option>
+                    <option value="5">May</option>
+                    <option value="6">June</option>
+                    <option value="7">July</option>
+                    <option value="8">August</option>
+                    <option value="9">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Year</label>
+                  <select id="exportYear"></select>
+                </div>
+
+                <div class="form-group">
+                  <label
+                    >Branch
+                    <span style="color: var(--text-muted); font-weight: 400"
+                      >(optional — leave blank for all)</span
+                    ></label
+                  >
+                  <select id="exportBranch">
+                    <option value="">All Branches</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label>Filter Mode</label>
+                  <select id="filterMode" onchange="toggleFilterMode()">
+                    <option value="branch">By Branch</option>
+                    <option value="employees">Specific Employees</option>
+                  </select>
+                </div>
+
+                <div class="form-group full hidden" id="empIdsGroup">
+                  <label
+                    >Employee IDs
+                    <span style="color: var(--text-muted); font-weight: 400"
+                      >(comma-separated, e.g. 12,45,78)</span
+                    ></label
+                  >
+                  <input
+                    type="text"
+                    id="exportEmpIds"
+                    placeholder="12, 45, 78"
+                  />
+                </div>
+              </div>
+
+              <div
+                style="
+                  margin-top: 20px;
+                  display: flex;
+                  gap: 12px;
+                  align-items: center;
+                "
+              >
+                <button
+                  class="btn btn-primary"
+                  id="exportBtn"
+                  onclick="exportPayroll()"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Export Excel
+                </button>
+                <span
+                  id="exportStatus"
+                  style="font-size: 13px; color: var(--text-dim)"
+                ></span>
+              </div>
+
+              <!-- Export info box -->
+              <div
+                style="
+                  margin-top: 18px;
+                  background: var(--primary-light);
+                  border: 1px solid rgba(0, 137, 208, 0.15);
+                  border-radius: 12px;
+                  padding: 14px 16px;
+                "
+              >
+                <p
+                  style="
+                    font-size: 12.5px;
+                    color: var(--primary);
+                    font-weight: 600;
+                    margin-bottom: 4px;
+                  "
+                >
+                  What's in the exported Excel?
+                </p>
+                <p
+                  style="
+                    font-size: 12px;
+                    color: var(--text-dim);
+                    line-height: 1.6;
+                  "
+                >
+                  All salary components (Basic, HRA, CA, SA, Gross) are
+                  pre-calculated from employee CTC.<br />
+                  Attendance is pulled from payroll records.
+                  <strong style="color: var(--text)">Yellow columns</strong> are
+                  editable — correct present/absent days or deductions if
+                  needed.<br />
+                  Once reviewed, upload the corrected file in Step 3.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── STEP 2: Review note ─────────────────────── -->
+          <div class="section hidden" id="reviewSection">
+            <div
+              class="card"
+              style="
+                border-color: var(--warning);
+                background: var(--warning-light);
+              "
+            >
+              <div style="display: flex; align-items: flex-start; gap: 14px">
+                <div
+                  style="
+                    width: 40px;
+                    height: 40px;
+                    background: #fff;
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    border: 1px solid rgba(245, 158, 11, 0.3);
+                  "
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#f59e0b"
+                    stroke-width="2"
+                  >
+                    <path d="M12 9v4" />
+                    <circle cx="12" cy="17" r="1" fill="#f59e0b" />
+                    <path
+                      d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p
+                    style="
+                      font-size: 14px;
+                      font-weight: 700;
+                      color: #92400e;
+                      margin-bottom: 4px;
+                    "
+                  >
+                    Step 2 — Review the Excel Before Uploading
+                  </p>
+                  <p
+                    style="font-size: 12.5px; color: #78350f; line-height: 1.6"
+                  >
+                    Open the downloaded Excel. Check each employee's
+                    present/absent days and deductions.<br />
+                    Correct any discrepancies in the
+                    <strong>yellow cells</strong>. Once satisfied, proceed to
+                    upload below.<br />
+                    <strong>Important:</strong> Once payroll is processed, it
+                    cannot be re-run for that month.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── STEP 3: Upload & Process ───────────────── -->
+          <div class="section hidden" id="uploadSection">
+            <div class="card">
+              <div class="card-title">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                Step 3 — Upload Corrected Excel & Process
+              </div>
+
+              <!-- Upload zone -->
+              <div class="upload-zone" id="uploadZone">
+                <input
+                  type="file"
+                  id="payrollFile"
+                  accept=".xlsx"
+                  onchange="onFileSelected(event)"
+                />
+                <div class="upload-icon" id="uploadIcon">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+                <div class="upload-title" id="uploadTitle">
+                  Drop corrected Excel here
+                </div>
+                <div class="upload-sub" id="uploadSub">
+                  or click to browse — .xlsx only
+                </div>
+              </div>
+
+              <div
+                style="
+                  margin-top: 20px;
+                  display: flex;
+                  gap: 12px;
+                  align-items: center;
+                "
+              >
+                <button
+                  class="btn btn-success"
+                  id="processBtn"
+                  onclick="processPayroll()"
+                  disabled
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Process & Generate Payslips
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  id="clearFileBtn"
+                  onclick="clearFile()"
+                  style="display: none"
+                >
+                  Clear File
+                </button>
+                <span
+                  id="processStatus"
+                  style="font-size: 13px; color: var(--text-dim)"
+                ></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── RESULT ──────────────────────────────────── -->
+          <div class="section hidden" id="resultSection">
+            <div class="card" style="border-color: var(--success)">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 12px;
+                  margin-bottom: 20px;
+                "
+              >
+                <div
+                  style="
+                    width: 44px;
+                    height: 44px;
+                    background: var(--success-light);
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid var(--success-border);
+                  "
+                >
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--success)"
+                    stroke-width="2.5"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      font-weight: 700;
+                      color: var(--text);
+                    "
+                  >
+                    Payroll Processed Successfully
+                  </div>
+                  <div
+                    style="font-size: 13px; color: var(--text-dim)"
+                    id="resultMeta"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Stats row -->
+              <div
+                style="
+                  display: flex;
+                  gap: 12px;
+                  flex-wrap: wrap;
+                  margin-bottom: 20px;
+                "
+                id="resultStats"
+              ></div>
+
+              <!-- Download actions -->
+              <div class="divider"></div>
+              <p
+                style="
+                  font-size: 13px;
+                  font-weight: 600;
+                  color: var(--text);
+                  margin-bottom: 12px;
+                "
+              >
+                Download Output
+              </p>
+              <div class="result-actions">
+                <button
+                  class="btn btn-primary"
+                  id="downloadZipBtn"
+                  onclick="downloadResult()"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download ZIP (Payslips + Summary)
+                </button>
+                <button class="btn btn-secondary" onclick="resetAll()">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 .49-3.8" />
+                  </svg>
+                  Run Another Month
+                </button>
+              </div>
+
+              <div
+                style="
+                  margin-top: 14px;
+                  padding: 12px 14px;
+                  background: var(--surface2);
+                  border-radius: 10px;
+                  border: 1px solid var(--border);
+                "
+              >
+                <p style="font-size: 12px; color: var(--text-dim)">
+                  📁 <strong>ZIP contains:</strong> One HTML payslip per
+                  employee (open in browser → Ctrl+P → Save as PDF) + Excel
+                  summary with all employees and totals.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // ── Auth ──────────────────────────────────────────────
+      let user = null;
+
+      async function apiFetch(path, opts = {}) {
+        const token = localStorage.getItem("token");
+        const res = await fetch(path, {
+          ...opts,
+          headers: {
+            ...(opts.headers || {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (res.status === 401) {
+          logout();
+          return null;
+        }
+        return res;
+      }
+
+      async function checkAuth() {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "/login";
+          return false;
+        }
+        const res = await apiFetch("/api/auth/me");
+        if (!res || !res.ok) {
+          window.location.href = "/login";
+          return false;
+        }
+        user = await res.json();
+        if (user.role !== "hr" && user.role !== "admin") {
+          window.location.href = "/employee";
+          return false;
+        }
+        return true;
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
+
+      // ── Toast ─────────────────────────────────────────────
+      let toastTimer;
+      function showToast(msg, type = "info") {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.className = `toast ${type} show`;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          t.className = "toast";
+        }, 3500);
+      }
+
+      // ── Step management ───────────────────────────────────
+      function setStep(n) {
+        [1, 2, 3].forEach((i) => {
+          const card = document.getElementById(`step${i}Card`);
+          card.classList.remove("active", "done");
+          if (i < n) card.classList.add("done");
+          if (i === n) card.classList.add("active");
+
+          // Checkmark for done steps
+          if (i < n) {
+            document.getElementById(`step${i}Num`).innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>`;
+          } else {
+            document.getElementById(`step${i}Num`).textContent = i;
+          }
+        });
+      }
+
+      // ── Init ──────────────────────────────────────────────
+      async function init() {
+        const ok = await checkAuth();
+        if (!ok) return;
+
+        const ini = user.full_name[0].toUpperCase();
+        ["sidebarAvatar", "topbarAvatar"].forEach(
+          (id) => (document.getElementById(id).textContent = ini),
+        );
+        ["sidebarName", "topbarName"].forEach(
+          (id) => (document.getElementById(id).textContent = user.full_name),
+        );
+
+        // Populate year dropdown (current year ± 1)
+        const now = new Date();
+        const yearSel = document.getElementById("exportYear");
+        for (let y = now.getFullYear() + 1; y >= now.getFullYear() - 2; y--) {
+          const o = document.createElement("option");
+          o.value = y;
+          o.textContent = y;
+          if (y === now.getFullYear()) o.selected = true;
+          yearSel.appendChild(o);
+        }
+
+        // Set current month
+        document.getElementById("exportMonth").value = now.getMonth() + 1;
+
+        // Load branches
+        await loadBranches();
+        setStep(1);
+      }
+
+      async function loadBranches() {
+        const res = await apiFetch("/api/hr/branches");
+        if (!res || !res.ok) return;
+        const branches = await res.json();
+        const sel = document.getElementById("exportBranch");
+        branches.forEach((b) => {
+          const o = document.createElement("option");
+          o.value = b.id;
+          o.textContent = b.name;
+          sel.appendChild(o);
+        });
+      }
+
+      function toggleFilterMode() {
+        const mode = document.getElementById("filterMode").value;
+        const empGroup = document.getElementById("empIdsGroup");
+        const branchGroup = document
+          .getElementById("exportBranch")
+          .closest(".form-group");
+        if (mode === "employees") {
+          empGroup.classList.remove("hidden");
+          branchGroup.classList.add("hidden");
+        } else {
+          empGroup.classList.add("hidden");
+          branchGroup.classList.remove("hidden");
+        }
+      }
+
+      // ── STEP 1: Export ────────────────────────────────────
+      let lastExportParams = null;
+
+      async function exportPayroll() {
+        const month = document.getElementById("exportMonth").value;
+        const year = document.getElementById("exportYear").value;
+        const mode = document.getElementById("filterMode").value;
+        const branch = document.getElementById("exportBranch").value;
+        const empIds = document.getElementById("exportEmpIds").value.trim();
+
+        const params = new URLSearchParams({ year, month });
+        if (mode === "branch" && branch) params.set("branch_id", branch);
+        if (mode === "employees" && empIds) params.set("employee_ids", empIds);
+
+        const btn = document.getElementById("exportBtn");
+        const status = document.getElementById("exportStatus");
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> Exporting…`;
+        status.textContent = "";
+
+        try {
+          const res = await apiFetch(`/api/payroll/export?${params}`);
+          if (!res) return;
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.detail || "Export failed", "error");
+            return;
+          }
+
+          // Trigger download
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `payroll_${year}_${String(month).padStart(2, "0")}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          lastExportParams = { year, month };
+          status.innerHTML = `<span style="color:var(--success);font-weight:600">✓ Downloaded!</span>`;
+
+          // Advance to step 2 + 3
+          document.getElementById("reviewSection").classList.remove("hidden");
+          document.getElementById("uploadSection").classList.remove("hidden");
+          setStep(2);
+          showToast("Excel exported — review and upload when ready", "success");
+        } catch (e) {
+          showToast("Network error during export", "error");
+          console.error(e);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Excel`;
+        }
+      }
+
+      // ── STEP 3: File select ───────────────────────────────
+      let selectedFile = null;
+
+      function onFileSelected(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        if (!file.name.endsWith(".xlsx")) {
+          showToast("Only .xlsx files are accepted", "error");
+          return;
+        }
+        selectedFile = file;
+        const zone = document.getElementById("uploadZone");
+        zone.classList.add("has-file");
+        document.getElementById("uploadIcon").innerHTML = `
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>`;
+        document.getElementById("uploadTitle").textContent = file.name;
+        document.getElementById("uploadSub").textContent =
+          `${(file.size / 1024).toFixed(1)} KB — ready to process`;
+        document.getElementById("processBtn").disabled = false;
+        document.getElementById("clearFileBtn").style.display = "inline-flex";
+        setStep(3);
+      }
+
+      function clearFile() {
+        selectedFile = null;
+        document.getElementById("payrollFile").value = "";
+        const zone = document.getElementById("uploadZone");
+        zone.classList.remove("has-file");
+        document.getElementById("uploadIcon").innerHTML = `
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>`;
+        document.getElementById("uploadTitle").textContent =
+          "Drop corrected Excel here";
+        document.getElementById("uploadSub").textContent =
+          "or click to browse — .xlsx only";
+        document.getElementById("processBtn").disabled = true;
+        document.getElementById("clearFileBtn").style.display = "none";
+        setStep(2);
+      }
+
+      // Drag-and-drop
+      const uploadZone = document.getElementById("uploadZone");
+      uploadZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadZone.classList.add("drag-over");
+      });
+      uploadZone.addEventListener("dragleave", () =>
+        uploadZone.classList.remove("drag-over"),
+      );
+      uploadZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove("drag-over");
+        const file = e.dataTransfer.files[0];
+        if (file) {
+          document.getElementById("payrollFile").files = e.dataTransfer.files;
+          onFileSelected({ target: { files: [file] } });
+        }
+      });
+
+      // ── STEP 3: Process ───────────────────────────────────
+      let resultBlob = null;
+      let resultFilename = null;
+
+      async function processPayroll() {
+        if (!selectedFile) return;
+
+        const month =
+          lastExportParams?.month ||
+          document.getElementById("exportMonth").value;
+        const year =
+          lastExportParams?.year || document.getElementById("exportYear").value;
+
+        const btn = document.getElementById("processBtn");
+        const status = document.getElementById("processStatus");
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> Processing…`;
+        status.textContent = "";
+
+        try {
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+
+          const res = await apiFetch(
+            `/api/payroll/process?year=${year}&month=${month}`,
+            { method: "POST", body: formData },
+          );
+
+          if (!res) return;
+
+          if (!res.ok) {
+            let errMsg = "Processing failed";
+            try {
+              const err = await res.json();
+              if (err.detail?.errors) {
+                errMsg = err.detail.errors.slice(0, 3).join("\n");
+              } else {
+                errMsg = err.detail || errMsg;
+              }
+            } catch (_) {}
+            showToast(errMsg, "error");
+            status.innerHTML = `<span style="color:var(--danger)">✗ ${errMsg}</span>`;
+            return;
+          }
+
+          // Store blob for download
+          resultBlob = await res.blob();
+          resultFilename = `payroll_${year}_${String(month).padStart(2, "0")}_processed.zip`;
+
+          // Show result section
+          const monthNames = [
+            "",
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ];
+          document.getElementById("resultMeta").textContent =
+            `${monthNames[+month]} ${year} — payslips generated`;
+
+          // We can't inspect the zip easily from frontend, just show file size
+          const sizeMB = (resultBlob.size / 1024 / 1024).toFixed(2);
+          document.getElementById("resultStats").innerHTML = `
+            <div class="result-stat"><strong>${sizeMB} MB</strong><span>Output ZIP size</span></div>
+            <div class="result-stat"><strong>${monthNames[+month]} ${year}</strong><span>Pay period</span></div>
+          `;
+
+          document.getElementById("resultSection").classList.remove("hidden");
+
+          // Mark all steps done
+          [1, 2, 3].forEach((i) => {
+            const c = document.getElementById(`step${i}Card`);
+            c.classList.remove("active");
+            c.classList.add("done");
+            document.getElementById(`step${i}Num`).innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>`;
+          });
+
+          showToast("Payroll processed! Download your ZIP below.", "success");
+          document
+            .getElementById("resultSection")
+            .scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch (e) {
+          showToast("Network error during processing", "error");
+          console.error(e);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Process & Generate Payslips`;
+        }
+      }
+
+      function downloadResult() {
+        if (!resultBlob) return;
+        const url = URL.createObjectURL(resultBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = resultFilename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function resetAll() {
+        // Reset file
+        clearFile();
+        // Hide sections
+        document.getElementById("reviewSection").classList.add("hidden");
+        document.getElementById("uploadSection").classList.add("hidden");
+        document.getElementById("resultSection").classList.add("hidden");
+        // Reset export button status
+        document.getElementById("exportStatus").textContent = "";
+        // Reset steps
+        setStep(1);
+        resultBlob = null;
+        resultFilename = null;
+        lastExportParams = null;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // ── Boot ──────────────────────────────────────────────
+      document.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>

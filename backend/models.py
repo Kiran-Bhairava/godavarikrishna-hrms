@@ -226,7 +226,7 @@ class CredentialAudit(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "action IN ('generated','reset','regenerated','changed')",
+            "action IN ('generated','reset','regenerated','changed','generated_final')",
             name="credential_action_values"
         ),
     )
@@ -392,6 +392,7 @@ class RegularizationRequest(Base):
     daily_summary           = relationship("DailySummary", back_populates="regularization_request", uselist=False)
 
     __table_args__ = (
+        UniqueConstraint("employee_id", "work_date", name="uq_reg_req_employee_date"),
         CheckConstraint(
             "l1_status IN ('pending', 'approved', 'rejected')",
             name="l1_status_values"

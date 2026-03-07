@@ -27,6 +27,16 @@ async def get_current_user(
     except (JWTError, ValueError):
         raise HTTPException(401, "Invalid token")
 
+    # Server-side enforcement: block all requests if the token carries must_reset=True.
+    # The only way to clear this is to call /api/auth/change-password.
+    # That endpoint does NOT use get_current_user as a dependency — it reads the token
+    # directly — so this guard does not block the reset itself.
+    if payload.get("must_reset"):
+        raise HTTPException(
+            403,
+            "Password reset required. Please change your password before continuing.",
+        )
+
     user = await db.fetchrow(
         """
         SELECT u.id, u.email, u.full_name, u.role, u.is_active,

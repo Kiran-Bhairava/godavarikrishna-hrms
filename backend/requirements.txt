@@ -16,4 +16,4 @@ sqlalchemy         # ORM / Core: models.py table definitions + Alembic engine
 alembic              # migration runner
 psycopg2-binary    # sync driver used by Alembic CLI (not by the app)
 
-
+reportlab

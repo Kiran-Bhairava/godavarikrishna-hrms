@@ -266,8 +266,8 @@ class RegularizationRequestCreate(BaseModel):
     def validate_requested(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("Requested minutes must be greater than 0")
-        if v > 480:  # max 8 hours
-            raise ValueError("Cannot request more than 8 hours")
+        if v > 510:  # max 8h 30m — full required shift
+            raise ValueError("Cannot request more than 8h 30m (510 minutes)")
         return v
 
     @field_validator("reason")
@@ -322,7 +322,7 @@ class RegularizationRequestRow(BaseModel):
     l2_manager_name: Optional[str] = None
     l2_approved_at: Optional[datetime] = None
     final_status: str
-    payroll_impact: str  # "present" or "absent"
+    payroll_impact: str  # "present", "pending", or "absent"
 
 
 class RegularizationRequestsListResponse(BaseModel):
@@ -333,6 +333,7 @@ class RegularizationRequestsListResponse(BaseModel):
     pending: int
     monthly_limit_hours: int
     approved_hours_this_month: int
+    approved_minutes_this_month: int = 0  # precise value for usage bar
     requests: list[RegularizationRequestRow]
 
 
@@ -423,10 +424,6 @@ class CalendarDayView(BaseModel):
 class AttendanceCalendarResponse(BaseModel):
     month: str  # "2024-12"
     days: list[CalendarDayView]
-
-from datetime import date, datetime
-from typing import Optional
-from pydantic import BaseModel, field_validator
 
 
 class LeaveRequestCreate(BaseModel):

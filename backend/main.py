@@ -22,6 +22,7 @@ from typing import Optional, Annotated
 import asyncpg
 from fastapi import FastAPI, Depends, HTTPException, Query, Path as PathParam, Body
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
@@ -34,12 +35,12 @@ import re
 # ── Local imports ──────────────────────────────────────────────
 from config import settings
 from db import get_db, init_db, close_db
-from auth import get_current_user, require_hr, require_admin
+from auth import get_current_user, require_hr, require_admin, security
 from schemas import LoginResponse
 from api_credentials import generate_temp_password
 
 # ── mandate Include routers ──────────────────────────────────
-from routers import regularization_router, leave_router
+from routers import regularization_router, leave_router, payroll_router
 
 dotenv.load_dotenv()
 
@@ -89,6 +90,7 @@ if settings.allowed_origins:
 
 app.include_router(regularization_router)
 app.include_router(leave_router)
+app.include_router(payroll_router)
 # ══════════════════════════════════════════════════════════════
 # SCHEMAS (LOCAL ONLY)
 # ══════════════════════════════════════════════════════════════
@@ -358,38 +360,46 @@ def _validate_common_fields(
     contract_end=None,
     require_role=False,
 ):
-    """Validate common employee fields."""
-    
+    """Validate common employee fields. Single source of truth — do not duplicate."""
+
+    # ── Name ─────────────────────────────
     if full_name is not None and len(full_name.strip()) < 2:
         raise HTTPException(400, "Full name must be at least 2 characters")
 
+    # ── Emails ───────────────────────────
     if work_email is not None and not EMAIL_REGEX.match(work_email):
         raise HTTPException(400, "Invalid work email format")
 
     if personal_email is not None and not EMAIL_REGEX.match(personal_email):
         raise HTTPException(400, "Invalid personal email format")
 
+    # ── Phones ───────────────────────────
     if phone is not None and not PHONE_REGEX.match(phone):
         raise HTTPException(400, "Phone must be 10 digits starting with 6-9")
 
     if emg_phone is not None and not PHONE_REGEX.match(emg_phone):
         raise HTTPException(400, "Emergency phone must be valid 10-digit number")
 
+    # ── PAN ──────────────────────────────
     if pan_number is not None:
         pan = pan_number.upper()
         if not PAN_REGEX.match(pan):
             raise HTTPException(400, "Invalid PAN format (ABCDE1234F)")
 
+    # ── IFSC ─────────────────────────────
     if bank_ifsc is not None:
         if not IFSC_REGEX.match(bank_ifsc.upper()):
             raise HTTPException(400, "Invalid IFSC format (e.g., SBIN0001234)")
 
+    # ── Bank account ─────────────────────
     if bank_account is not None and len(bank_account) < 8:
         raise HTTPException(400, "Bank account number seems too short")
 
+    # ── Salary ───────────────────────────
     if annual_ctc is not None and annual_ctc <= 0:
         raise HTTPException(400, "Annual CTC must be greater than 0")
 
+    # ── Role validation ──────────────────
     if role is not None:
         if role not in ("employee", "hr", "admin"):
             raise HTTPException(400, "Role must be employee, hr, or admin")
@@ -397,6 +407,7 @@ def _validate_common_fields(
     if require_role and role not in ("employee", "hr"):
         raise HTTPException(400, "Role must be either 'employee' or 'hr'")
 
+    # ── Date logic (convert safely) ──────
     doj = parse_date(date_of_joining) if date_of_joining else None
     prob = parse_date(probation_end) if probation_end else None
     contract = parse_date(contract_end) if contract_end else None
@@ -608,11 +619,12 @@ async def login(
                 f"Onboarding incomplete. Status: {employee['onboarding_status']}. Contact HR."
             )
 
-    # 4. Create JWT token
+    # 4. Create JWT token — embed must_reset so the frontend and API can both enforce it
     expire = datetime.utcnow() + timedelta(hours=settings.access_token_expire_hours)
     token_data = {
         "sub": str(user_id),
         "role": user["role"],
+        "must_reset": bool(user["must_reset_password"]),
         "exp": expire,
     }
     token = jwt.encode(token_data, settings.secret_key, algorithm=settings.algorithm)
@@ -658,6 +670,46 @@ async def login(
 async def logout():
     """Logout endpoint (token invalidation handled on client)"""
     return {"message": "Logged out"}
+
+
+@app.post("/api/auth/change-password")
+async def change_password(
+    payload: LoginRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """
+    Change password — works even when must_reset_password=True.
+    Does NOT go through get_current_user (which blocks must_reset tokens).
+    Payload: {email, password: <new_password>}
+    Token must be valid; user identified from JWT sub.
+    """
+    token = credentials.credentials
+    try:
+        token_payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id = int(token_payload.get("sub"))
+    except (JWTError, ValueError):
+        raise HTTPException(401, "Invalid token")
+
+    if len(payload.password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+
+    new_hash = pwd_context.hash(payload.password)
+    async with db.transaction():
+        result = await db.execute(
+            "UPDATE users SET password_hash=$1, must_reset_password=FALSE WHERE id=$2",
+            new_hash, user_id,
+        )
+        if result == "UPDATE 0":
+            raise HTTPException(404, "User not found")
+        await db.execute(
+            """INSERT INTO credential_audits (user_id, action, is_temporary, created_at)
+               VALUES ($1, 'changed', FALSE, NOW())""",
+            user_id,
+        )
+
+    logger.info("Password changed: user_id=%s", user_id)
+    return {"message": "Password changed successfully. Please log in again."}
 
 
 @app.get("/api/auth/me")
@@ -788,8 +840,13 @@ async def punch_out(
         if summary and summary["first_punch_in"]:
             total_min = max(0, int((log["punched_at"] - summary["first_punch_in"]).total_seconds() / 60))
         await db.execute(
-            """UPDATE daily_summary 
-            SET last_punch_out=$2, total_minutes=$3, payroll_minutes=$3
+            """UPDATE daily_summary
+            SET last_punch_out  = $2,
+                total_minutes   = $3,
+                -- Preserve regularization-credited payroll_minutes.
+                -- If this day was already approved-regularized, the credited hours
+                -- (actual + gap) must not be overwritten by the raw punch duration.
+                payroll_minutes = CASE WHEN is_regularized THEN payroll_minutes ELSE $3 END
             WHERE user_id=$1 AND work_date=(NOW() AT TIME ZONE $4)::date""",
             user["id"], log["punched_at"], total_min, settings.office_timezone,
         )
@@ -1140,7 +1197,8 @@ async def daily_report(
             b.name AS branch_name, b.city,
             s.first_punch_in, s.last_punch_out, s.total_minutes,
             s.is_late, s.late_by_minutes,
-            COALESCE(s.payroll_status,'absent') AS status
+            COALESCE(s.status,         'absent') AS status,
+            COALESCE(s.payroll_status, 'absent') AS payroll_status
         FROM users u
         JOIN employees e ON e.user_id = u.id
         LEFT JOIN branches b ON b.id = e.branch_id
@@ -1160,8 +1218,9 @@ async def daily_report(
         "date": target.isoformat(),
         "stats": {
             "total":   total,
-            "present": sum(1 for e in employees if e["status"] == "present"),
-            "absent":  sum(1 for e in employees if e["status"] == "absent"),
+            "present": sum(1 for e in employees if e["payroll_status"] == "present"),
+            "absent":  sum(1 for e in employees if e["payroll_status"] == "absent"),
+            "on_leave": sum(1 for e in employees if e["status"] == "leave"),
             "late":    sum(1 for e in employees if e.get("is_late")),
         },
         "employees": employees,
@@ -1179,7 +1238,9 @@ async def export_excel(
     q = """
         SELECT u.email, u.full_name, b.name AS branch_name, b.city,
             s.first_punch_in, s.last_punch_out, s.total_minutes,
-            s.is_late, s.late_by_minutes, COALESCE(s.payroll_status,'absent') AS status
+            s.is_late, s.late_by_minutes,
+            COALESCE(s.status,         'absent') AS attendance_status,
+            COALESCE(s.payroll_status, 'absent') AS payroll_status
         FROM users u
         JOIN employees e ON e.user_id = u.id
         LEFT JOIN branches b ON b.id = e.branch_id
@@ -1196,30 +1257,42 @@ async def export_excel(
     wb = Workbook()
     ws = wb.active
     ws.title = "Attendance"
-    headers = ["Email", "Name", "Branch", "City", "Punch In", "Punch Out", "Hours", "Status", "Late By"]
+    headers = ["Email", "Name", "Branch", "City", "Punch In", "Punch Out", "Hours", "Attendance", "Payroll", "Late By"]
     hfill = PatternFill(start_color="3B63F6", end_color="3B63F6", fill_type="solid")
     hfont = Font(bold=True, color="FFFFFF")
     for col, h in enumerate(headers, 1):
         c = ws.cell(1, col, h); c.font = hfont; c.fill = hfill; c.alignment = Alignment(horizontal="center")
 
+    FILL_GREEN  = PatternFill(start_color="ECFDF5", end_color="ECFDF5", fill_type="solid")
+    FILL_BLUE   = PatternFill(start_color="EFF6FF", end_color="EFF6FF", fill_type="solid")  # leave
+    FILL_RED    = PatternFill(start_color="FEF2F2", end_color="FEF2F2", fill_type="solid")
+
     for ri, row in enumerate(rows, 2):
-        status = row["status"]
-        fill = PatternFill(start_color="ECFDF5" if status == "present" else "FEF2F2",
-                           end_color="ECFDF5" if status == "present" else "FEF2F2", fill_type="solid")
+        att    = row["attendance_status"]
+        pay    = row["payroll_status"]
+        # Row colour driven by payroll: green=paid, blue=leave(paid), red=absent
+        if att == "leave" and pay == "present":
+            fill = FILL_BLUE
+        elif pay == "present":
+            fill = FILL_GREEN
+        else:
+            fill = FILL_RED
         mins = row["total_minutes"] or 0
+        late_prefix = "LATE — " if row["is_late"] else ""
         vals = [
             row["email"], row["full_name"],
             row["branch_name"] or "—", row["city"] or "—",
             to_local(row["first_punch_in"]).strftime("%I:%M %p") if row["first_punch_in"] else "—",
             to_local(row["last_punch_out"]).strftime("%I:%M %p") if row["last_punch_out"] else "—",
             f"{mins//60}h {mins%60}m" if mins else "—",
-            ("LATE — " if row["is_late"] else "") + status.upper(),
+            late_prefix + att.upper(),    # attendance: PRESENT / LEAVE / ABSENT
+            pay.upper(),                  # payroll: PRESENT / ABSENT
             f"+{row['late_by_minutes']}m" if row["is_late"] else "On Time",
         ]
         for col, val in enumerate(vals, 1):
             ws.cell(ri, col, val).fill = fill
 
-    for col, w in zip("ABCDEFGHI", [26, 22, 26, 16, 12, 12, 10, 14, 10]):
+    for col, w in zip("ABCDEFGHIJ", [26, 22, 26, 16, 12, 12, 10, 14, 10, 10]):
         ws.column_dimensions[col].width = w
 
     out = BytesIO(); wb.save(out); out.seek(0)
@@ -1227,122 +1300,6 @@ async def export_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="attendance_{target}.xlsx"'})
 
-import re
-from fastapi import HTTPException
-from datetime import date
-
-PAN_REGEX   = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
-IFSC_REGEX  = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
-PHONE_REGEX = re.compile(r"^[6-9]\d{9}$")
-EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-def _validate_common_fields(
-    *,
-    full_name=None,
-    work_email=None,
-    personal_email=None,
-    phone=None,
-    emg_phone=None,
-    pan_number=None,
-    bank_ifsc=None,
-    bank_account=None,
-    annual_ctc=None,
-    role=None,
-    date_of_joining=None,
-    probation_end=None,
-    contract_end=None,
-    require_role=False,
-):
-    # ── Name ─────────────────────────────
-    if full_name is not None and len(full_name.strip()) < 2:
-        raise HTTPException(400, "Full name must be at least 2 characters")
-
-    # ── Emails ───────────────────────────
-    if work_email is not None and not EMAIL_REGEX.match(work_email):
-        raise HTTPException(400, "Invalid work email format")
-
-    if personal_email is not None and not EMAIL_REGEX.match(personal_email):
-        raise HTTPException(400, "Invalid personal email format")
-
-    # ── Phones ───────────────────────────
-    if phone is not None and not PHONE_REGEX.match(phone):
-        raise HTTPException(400, "Phone must be 10 digits starting with 6-9")
-
-    if emg_phone is not None and not PHONE_REGEX.match(emg_phone):
-        raise HTTPException(400, "Emergency phone must be valid 10-digit number")
-
-    # ── PAN ──────────────────────────────
-    if pan_number is not None:
-        pan = pan_number.upper()
-        if not PAN_REGEX.match(pan):
-            raise HTTPException(400, "Invalid PAN format (ABCDE1234F)")
-
-    # ── IFSC ─────────────────────────────
-    if bank_ifsc is not None:
-        if not IFSC_REGEX.match(bank_ifsc.upper()):
-            raise HTTPException(400, "Invalid IFSC format (e.g., SBIN0001234)")
-
-    # ── Bank account ─────────────────────
-    if bank_account is not None and len(bank_account) < 8:
-        raise HTTPException(400, "Bank account number seems too short")
-
-    # ── Salary ───────────────────────────
-    if annual_ctc is not None and annual_ctc <= 0:
-        raise HTTPException(400, "Annual CTC must be greater than 0")
-
-    # ── Role validation ──────────────────
-    if role is not None:
-        if role not in ("employee", "hr", "admin"):
-            raise HTTPException(400, "Role must be employee, hr, or admin")
-
-    if require_role and role not in ("employee", "hr"):
-        raise HTTPException(400, "Role must be either 'employee' or 'hr'")
-
-    # ── Date logic (convert safely) ──────
-    doj = parse_date(date_of_joining) if date_of_joining else None
-    prob = parse_date(probation_end) if probation_end else None
-    contract = parse_date(contract_end) if contract_end else None
-
-    if doj and prob and prob < doj:
-        raise HTTPException(400, "Probation end cannot be before joining date")
-
-    if doj and contract and contract < doj:
-        raise HTTPException(400, "Contract end cannot be before joining date")
-    
-def validate_onboard_payload(payload):
-    _validate_common_fields(
-        full_name=payload.full_name,
-        work_email=payload.work_email,
-        personal_email=payload.personal_email,
-        phone=payload.phone,
-        emg_phone=payload.emg_phone,
-        pan_number=payload.pan_number,
-        bank_ifsc=payload.bank_ifsc,
-        bank_account=payload.bank_account,
-        annual_ctc=payload.annual_ctc,
-        role=payload.role,
-        date_of_joining=payload.date_of_joining,
-        probation_end=payload.probation_end,
-        contract_end=payload.contract_end,
-        require_role=True,
-    )
-
-def validate_update_payload(req: UpdateEmployeeRequest):
-    _validate_common_fields(
-        full_name=req.full_name,
-        personal_email=req.personal_email,
-        phone=req.phone,
-        emg_phone=req.emg_phone,
-        pan_number=req.pan_number,
-        bank_ifsc=req.bank_ifsc,
-        bank_account=req.bank_account,
-        annual_ctc=req.annual_ctc,
-        role=req.role,
-        date_of_joining=req.date_of_joining,
-        probation_end=req.probation_end,
-        contract_end=req.contract_end,
-    )
 # ══════════════════════════════════════════════════════════════
 # HR — ONBOARDING / EMPLOYEES
 # ══════════════════════════════════════════════════════════════
@@ -1364,6 +1321,12 @@ async def onboard_employee(
     """
 
     validate_onboard_payload(payload)
+
+    # Guard: L1 and L2 cannot be the same person
+    if (payload.l1_manager_id and payload.l2_manager_id
+            and payload.l1_manager_id == payload.l2_manager_id):
+        raise HTTPException(400, "L1 and L2 manager cannot be the same person")
+
     # 1. Validate role (only employee role allowed here)
     if payload.role not in ("employee", "hr"):
         raise HTTPException(400, "Only 'employee' or 'hr' roles can be onboarded here")
@@ -1688,6 +1651,18 @@ async def update_employee(
 ):
     """Update employee fields (partial). Only non-None fields are written."""
     validate_update_payload(req)
+
+    # Guard: L1 and L2 cannot be the same person
+    if (req.l1_manager_id and req.l2_manager_id
+            and req.l1_manager_id == req.l2_manager_id):
+        raise HTTPException(400, "L1 and L2 manager cannot be the same person")
+
+    # Guard: employee cannot be their own manager
+    if req.l1_manager_id and req.l1_manager_id == emp_id:
+        raise HTTPException(400, "Employee cannot be their own L1 manager")
+    if req.l2_manager_id and req.l2_manager_id == emp_id:
+        raise HTTPException(400, "Employee cannot be their own L2 manager")
+
     row = await db.fetchrow("SELECT e.id, e.user_id FROM employees e WHERE e.id = $1", emp_id)
     if not row:
         raise HTTPException(404, "Employee not found")
@@ -1872,7 +1847,8 @@ async def onboarding_stats(
               COUNT(*) FILTER (WHERE onboarding_status='awaiting')       AS awaiting,
               COUNT(*) FILTER (WHERE onboarding_status='in-progress')    AS in_progress,
               COUNT(*) FILTER (WHERE onboarding_status='completed')      AS completed
-           FROM employees"""
+           FROM employees
+           WHERE is_active = TRUE"""
     )
     return dict(row)
 
@@ -1940,6 +1916,10 @@ async def leave_page():
 @app.get("/holidays")
 async def holidays_page():
     return FileResponse(FRONTEND_DIR / "holidays.html")
+
+@app.get("/payroll")
+async def payroll_page():
+    return FileResponse(FRONTEND_DIR / "payroll.html")
 
 
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

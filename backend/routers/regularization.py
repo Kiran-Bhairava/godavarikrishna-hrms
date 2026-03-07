@@ -44,6 +44,12 @@ from schemas import (
 logger = logging.getLogger("regularization")
 router = APIRouter(prefix="/api/attendance/regularization", tags=["regularization"])
 
+# Required working hours per day.
+# Office window is 09:45–18:30 (shift stored in DB = 525 min) but the
+# contractual obligation is 8h 30m. Grace period (30 min) only affects
+# the late marker — it does NOT reduce the required hours.
+REQUIRED_WORK_MINUTES = 510  # 8h 30m
+
 
 # ══════════════════════════════════════════════════════════════
 # HELPER FUNCTIONS
@@ -164,18 +170,26 @@ async def _sync_daily_summary(
         credited         = actual + requested
         payroll_after    = "present"
 
+        # UPSERT — guarantees hours are credited even if daily_summary row is
+        # missing (e.g. fully-absent day whose placeholder was never committed).
         await db.execute(
             """
-            UPDATE daily_summary
+            INSERT INTO daily_summary
+                (user_id, work_date, total_minutes, payroll_minutes,
+                 payroll_status, regularization_status, regularization_minutes,
+                 is_regularized, payroll_notes, status)
+            VALUES ($1, $2, $3, $3, 'present', 'approved', $4, TRUE,
+                    'Regularization approved — hours credited', 'present')
+            ON CONFLICT (user_id, work_date) DO UPDATE
             SET
-                total_minutes         = $3,
-                payroll_minutes       = $3,
+                total_minutes         = EXCLUDED.total_minutes,
+                payroll_minutes       = EXCLUDED.payroll_minutes,
+                status                = 'present',
                 payroll_status        = 'present',
                 regularization_status = 'approved',
-                regularization_minutes= $4,
+                regularization_minutes= EXCLUDED.regularization_minutes,
                 is_regularized        = TRUE,
                 payroll_notes         = 'Regularization approved — hours credited'
-            WHERE user_id = $1 AND work_date = $2
             """,
             user_id, work_date, credited, requested,
         )
@@ -185,20 +199,31 @@ async def _sync_daily_summary(
         # Revert to actual worked only — no bonus minutes
         payroll_after = "present" if actual > 0 else "absent"
 
+        # UPSERT — same safety net as approved branch above.
+        # status mirrors payroll_after: employee was 'present' if they had
+        # any actual punches, 'absent' if they had none at all.
+        status_after = "present" if actual > 0 else "absent"
+
         await db.execute(
             """
-            UPDATE daily_summary
+            INSERT INTO daily_summary
+                (user_id, work_date, total_minutes, payroll_minutes,
+                 payroll_status, regularization_status, regularization_minutes,
+                 is_regularized, payroll_notes, status)
+            VALUES ($1, $2, $3, $3, $4, 'rejected', 0, FALSE,
+                    'Regularization rejected — original hours retained', $5)
+            ON CONFLICT (user_id, work_date) DO UPDATE
             SET
-                total_minutes         = $3,
-                payroll_minutes       = $3,
+                total_minutes         = EXCLUDED.total_minutes,
+                payroll_minutes       = EXCLUDED.payroll_minutes,
+                status                = $5,
                 payroll_status        = $4,
                 regularization_status = 'rejected',
                 regularization_minutes= 0,
                 is_regularized        = FALSE,
                 payroll_notes         = 'Regularization rejected — original hours retained'
-            WHERE user_id = $1 AND work_date = $2
             """,
-            user_id, work_date, actual, payroll_after,
+            user_id, work_date, actual, payroll_after, status_after,
         )
         minutes_after = actual
 
@@ -215,36 +240,41 @@ async def get_employee_from_user(user_id: int, db: asyncpg.Connection) -> dict:
     return emp
 
 
-async def get_approved_request_count_this_month(employee_id: int, db: asyncpg.Connection) -> int:
+async def get_approved_request_count_for_month(
+    employee_id: int, year: int, month: int, db: asyncpg.Connection
+) -> int:
     """
-    Get count of APPROVED regularization requests in current month.
-    This determines if request needs L2 approval (>3 approved requests).
+    Get count of APPROVED regularization requests for a specific month.
+    Must use the request's work_date month — not the current calendar month —
+    because employees can submit for past months (within 30-day window).
     """
     result = await db.fetchval(
         """
         SELECT COUNT(*) FROM regularization_requests
         WHERE employee_id = $1
-          AND EXTRACT(YEAR FROM work_date) = EXTRACT(YEAR FROM NOW())
-          AND EXTRACT(MONTH FROM work_date) = EXTRACT(MONTH FROM NOW())
+          AND EXTRACT(YEAR  FROM work_date) = $2
+          AND EXTRACT(MONTH FROM work_date) = $3
           AND final_status = 'approved'
         """,
-        employee_id
+        employee_id, year, month
     )
     return result or 0
 
 
-async def get_approved_minutes_this_month(employee_id: int, db: asyncpg.Connection) -> int:
-    """Get total approved regularization minutes in current month."""
+async def get_approved_minutes_for_month(
+    employee_id: int, year: int, month: int, db: asyncpg.Connection
+) -> int:
+    """Get total approved regularization minutes for a specific month."""
     result = await db.fetchval(
         """
         SELECT COALESCE(SUM(requested_minutes), 0)
         FROM regularization_requests
         WHERE employee_id = $1
-          AND EXTRACT(YEAR FROM work_date) = EXTRACT(YEAR FROM NOW())
-          AND EXTRACT(MONTH FROM work_date) = EXTRACT(MONTH FROM NOW())
+          AND EXTRACT(YEAR  FROM work_date) = $2
+          AND EXTRACT(MONTH FROM work_date) = $3
           AND final_status = 'approved'
         """,
-        employee_id
+        employee_id, year, month
     )
     return result or 0
 
@@ -323,9 +353,9 @@ async def create_regularization_request(
     emp = await get_employee_from_user(user["id"], db)
     employee_id = emp["id"]
     
-    # Validate work_date
-    if req.work_date > date.today():
-        raise HTTPException(400, "Cannot request regularization for future dates")
+    # Validate work_date — today is blocked (day not complete, punch-out may still happen)
+    if req.work_date >= date.today():
+        raise HTTPException(400, "Cannot request regularization for today or future dates")
     
     if (date.today() - req.work_date).days > 30:
         raise HTTPException(400, "Can only request regularization within 30 days")
@@ -347,12 +377,11 @@ async def create_regularization_request(
     if req.requested_minutes <= 0:
         raise HTTPException(400, "Requested minutes must be greater than 0")
     
-    # Validate shift hours (total cannot exceed shift + reasonable buffer)
-    shift_minutes = (emp["shift_end"].hour * 60 + emp["shift_end"].minute) - \
-                    (emp["shift_start"].hour * 60 + emp["shift_start"].minute)
-    
-    # ✅ RELAXED: Allow up to shift_minutes + 2h buffer for forgot cases
-    max_allowed = shift_minutes + 120  # shift + 2h buffer
+    # Validate: total claimed hours cannot exceed required hours + 2h buffer.
+    # Max buffer covers "forgot punch-out" cases where punch-in was early.
+    # We use REQUIRED_WORK_MINUTES (510) not the shift window (525) —
+    # the 15-min difference is intentional (grace window absorbed by shift start).
+    max_allowed = REQUIRED_WORK_MINUTES + 120  # 510 + 2h buffer
     total_claimed = req.actual_worked_minutes + req.requested_minutes
     
     if total_claimed > max_allowed:
@@ -371,7 +400,11 @@ async def create_regularization_request(
         raise HTTPException(403, "Your L1 manager is inactive. Contact HR.")
     
     # Get approved request count and determine approval tier
-    approved_count = await get_approved_request_count_this_month(employee_id, db)
+    # Use the work_date's month for tier calculation — not today's month.
+    # Submitting on Mar 5 for Feb 28 must count Feb's approvals, not March's.
+    approved_count = await get_approved_request_count_for_month(
+        employee_id, req.work_date.year, req.work_date.month, db
+    )
     approval_info = determine_approval_requirement(approved_count)
     
     # Always get L2 manager from profile (may be None)
@@ -389,62 +422,94 @@ async def create_regularization_request(
         if not await validate_manager_active(l2_manager_id, db):
             raise HTTPException(403, "Your L2 manager is inactive. Contact HR.")
     
-    # ✅ CHANGED: Check if daily_summary exists, but don't require punch out
-    daily_summary = await db.fetchrow(
-        """
-        SELECT id, first_punch_in, last_punch_out, total_minutes 
-        FROM daily_summary 
-        WHERE user_id=$1 AND work_date=$2
-        """,
-        user["id"], req.work_date
-    )
-    
-    if not daily_summary:
-        # ✅ Allow request even without daily_summary (for edge cases)
-        # Create a placeholder summary
-        async with db.transaction():
-            await db.execute(
-                """
-                INSERT INTO daily_summary (user_id, work_date, total_minutes, status)
-                VALUES ($1, $2, $3, 'absent')
-                ON CONFLICT (user_id, work_date) DO NOTHING
-                """,
-                user["id"], req.work_date, 0
-            )
-    
-    # Create request
+    # ── Single transaction: ensure daily_summary exists, create request, link it ──
+    # All three steps must succeed or fail together. Split transactions
+    # could leave an orphaned daily_summary with no request linked.
     async with db.transaction():
-        request_id = await db.fetchval(
+
+        # Ensure daily_summary row exists — creates a placeholder for fully-absent
+        # days so the UPDATE below always finds a row to link against.
+        await db.execute(
             """
-            INSERT INTO regularization_requests (
-                employee_id, work_date, actual_worked_minutes, requested_minutes, reason,
-                submitted_by_user_id, l1_manager_id, l1_status,
-                l2_manager_id, l2_status, escalation_required, final_status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, 'pending')
-            RETURNING id
+            INSERT INTO daily_summary (user_id, work_date, total_minutes, status)
+            VALUES ($1, $2, 0, 'absent')
+            ON CONFLICT (user_id, work_date) DO NOTHING
             """,
-            employee_id,
-            req.work_date,
-            req.actual_worked_minutes,
-            req.requested_minutes,
-            req.reason,
-            user["id"],
-            emp["l1_manager_id"],
-            l2_manager_id,
-            "pending" if approval_info["requires_l2"] else None,
-            approval_info["escalated"],
+            user["id"], req.work_date,
         )
-        
-        # Link to daily_summary
+
+        # If resubmission (existing rejected row), UPDATE it in place.
+        # This keeps the row count at 1 per (employee, work_date) so audit
+        # queries, count queries, and daily_summary FK stay clean.
+        if existing and existing["final_status"] == "rejected":
+            request_id = await db.fetchval(
+                """
+                UPDATE regularization_requests
+                SET actual_worked_minutes  = $3,
+                    requested_minutes      = $4,
+                    reason                 = $5,
+                    submitted_by_user_id   = $6,
+                    l1_manager_id          = $7,
+                    l1_status              = 'pending',
+                    l1_approved_at         = NULL,
+                    l1_approved_by_user_id = NULL,
+                    l1_comment             = NULL,
+                    l2_manager_id          = $8,
+                    l2_status              = $9,
+                    l2_approved_at         = NULL,
+                    l2_approved_by_user_id = NULL,
+                    l2_comment             = NULL,
+                    escalation_required    = $10,
+                    final_status           = 'pending',
+                    submitted_at           = NOW(),
+                    updated_at             = NOW()
+                WHERE employee_id = $1 AND work_date = $2
+                RETURNING id
+                """,
+                employee_id,
+                req.work_date,
+                req.actual_worked_minutes,
+                req.requested_minutes,
+                req.reason,
+                user["id"],
+                emp["l1_manager_id"],
+                l2_manager_id,
+                "pending" if approval_info["requires_l2"] else None,
+                approval_info["escalated"],
+            )
+        else:
+            request_id = await db.fetchval(
+                """
+                INSERT INTO regularization_requests (
+                    employee_id, work_date, actual_worked_minutes, requested_minutes, reason,
+                    submitted_by_user_id, l1_manager_id, l1_status,
+                    l2_manager_id, l2_status, escalation_required, final_status
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, 'pending')
+                RETURNING id
+                """,
+                employee_id,
+                req.work_date,
+                req.actual_worked_minutes,
+                req.requested_minutes,
+                req.reason,
+                user["id"],
+                emp["l1_manager_id"],
+                l2_manager_id,
+                "pending" if approval_info["requires_l2"] else None,
+                approval_info["escalated"],
+            )
+
+        # Link request to daily_summary — row is guaranteed to exist from the
+        # INSERT above, so this UPDATE will never silently match zero rows.
         await db.execute(
             """
             UPDATE daily_summary
             SET regularization_request_id=$1, regularization_status='pending'
             WHERE user_id=$2 AND work_date=$3
             """,
-            request_id, user["id"], req.work_date
+            request_id, user["id"], req.work_date,
         )
-        
+
         logger.info(
             f"Regularization request created: id={request_id}, emp_id={employee_id}, "
             f"date={req.work_date}, actual={req.actual_worked_minutes}, "
@@ -484,33 +549,38 @@ async def list_regularization_requests(
     
     year, month_num = int(month.split("-")[0]), int(month.split("-")[1])
     
-    # Build query with manager names included
-    where_clauses = ["employee_id = $1"]
-    params = [employee_id]
-    
+    # Build fully-parameterized query — year/month as $N params, never interpolated.
+    params: list = [employee_id]
+
     if status != "all":
-        where_clauses.append(f"final_status = ${len(params) + 1}")
+        status_clause = f"AND r.final_status = ${len(params) + 1}"
         params.append(status)
-    
-    # ✅ OPTIMIZED: Include manager names in main query
+    else:
+        status_clause = ""
+
+    params.extend([year, month_num])
+    year_param  = len(params) - 1
+    month_param = len(params)
+
     query = f"""
-        SELECT 
+        SELECT
             r.id, r.work_date, r.actual_worked_minutes, r.requested_minutes, r.reason,
             r.submitted_at, r.l1_status, r.l2_status, r.final_status,
             r.l1_manager_id, r.l2_manager_id,
-            l1_mgr.full_name as l1_manager_name,
-            l2_mgr.full_name as l2_manager_name
+            l1_mgr.full_name AS l1_manager_name,
+            l2_mgr.full_name AS l2_manager_name
         FROM regularization_requests r
         LEFT JOIN employees l1_emp ON l1_emp.id = r.l1_manager_id
-        LEFT JOIN users l1_mgr ON l1_mgr.id = l1_emp.user_id
+        LEFT JOIN users     l1_mgr ON l1_mgr.id = l1_emp.user_id
         LEFT JOIN employees l2_emp ON l2_emp.id = r.l2_manager_id
-        LEFT JOIN users l2_mgr ON l2_mgr.id = l2_emp.user_id
-        WHERE {' AND '.join(where_clauses)}
-          AND EXTRACT(YEAR FROM r.work_date) = {year}
-          AND EXTRACT(MONTH FROM r.work_date) = {month_num}
+        LEFT JOIN users     l2_mgr ON l2_mgr.id = l2_emp.user_id
+        WHERE r.employee_id = $1
+          {{status_clause}}
+          AND EXTRACT(YEAR  FROM r.work_date) = ${year_param}
+          AND EXTRACT(MONTH FROM r.work_date) = ${month_param}
         ORDER BY r.work_date DESC
-    """
-    
+    """.format(status_clause=status_clause)
+
     rows = await db.fetch(query, *params)
     
     # ✅ No more loop queries for manager names!
@@ -518,7 +588,7 @@ async def list_regularization_requests(
     rejected_count = sum(1 for r in rows if r["final_status"] == "rejected")
     pending_count = sum(1 for r in rows if r["final_status"] == "pending")
     
-    approved_minutes = await get_approved_minutes_this_month(employee_id, db)
+    approved_minutes = await get_approved_minutes_for_month(employee_id, year, month_num, db)
     
     requests_list = [
         RegularizationRequestRow(
@@ -537,7 +607,11 @@ async def list_regularization_requests(
             l2_manager_name=r["l2_manager_name"],  # ✅ Already fetched
             l2_approved_at=None,
             final_status=r["final_status"],
-            payroll_impact="present" if r["final_status"] == "approved" else "absent",
+            payroll_impact=(
+                "present" if r["final_status"] == "approved"
+                else "pending" if r["final_status"] == "pending"
+                else "absent"
+            ),
         )
         for r in rows
     ]
@@ -550,6 +624,7 @@ async def list_regularization_requests(
         pending=pending_count,
         monthly_limit_hours=20,
         approved_hours_this_month=approved_minutes // 60,
+        approved_minutes_this_month=approved_minutes,
         requests=requests_list,
     )
 
@@ -565,54 +640,50 @@ async def get_regularization_detail(
     
     Get detailed information about a regularization request.
     """
+    # Single query — fetch request + employee shift + both manager names together.
+    # Eliminates the original N+1 (2 extra round-trips for L1/L2 names).
     req = await db.fetchrow(
         """
-        SELECT r.*, e.shift_start, e.shift_end, u.full_name as employee_name
+        SELECT
+            r.*,
+            e.shift_start, e.shift_end,
+            u.full_name     AS employee_name,
+            l1_u.full_name  AS l1_manager_name,
+            l2_u.full_name  AS l2_manager_name
         FROM regularization_requests r
-        JOIN employees e ON e.id = r.employee_id
-        JOIN users u ON u.id = e.user_id
+        JOIN  employees e    ON e.id    = r.employee_id
+        JOIN  users     u    ON u.id    = e.user_id
+        LEFT JOIN employees l1_e ON l1_e.id = r.l1_manager_id
+        LEFT JOIN users     l1_u ON l1_u.id = l1_e.user_id
+        LEFT JOIN employees l2_e ON l2_e.id = r.l2_manager_id
+        LEFT JOIN users     l2_u ON l2_u.id = l2_e.user_id
         WHERE r.id = $1
         """,
-        request_id
+        request_id,
     )
-    
+
     if not req:
         raise HTTPException(404, "Request not found")
-    
-    # Verify access
-    # Employee can see own requests
-    # L1/L2 managers can see their assigned requests
-    # HR can see all requests
+
+    # Access control — owner, assigned manager, or HR/admin
     emp = await get_employee_from_user(user["id"], db)
-    is_owner = emp["id"] == req["employee_id"]
+    is_owner            = emp["id"] == req["employee_id"]
     is_assigned_manager = emp["id"] in (req["l1_manager_id"], req["l2_manager_id"])
-    is_hr = user["role"] in ("hr", "admin")
-    
+    is_hr               = user["role"] in ("hr", "admin")
+
     if not (is_owner or is_assigned_manager or is_hr):
         raise HTTPException(403, "Access denied")
-    
-    # Get shift minutes
+
+    # shift_minutes = raw window (525) — informational display only.
+    # gap = shortfall against REQUIRED_WORK_MINUTES (510) — must match calendar view.
     shift_minutes = (req["shift_end"].hour * 60 + req["shift_end"].minute) - \
                     (req["shift_start"].hour * 60 + req["shift_start"].minute)
-    
-    gap_minutes = shift_minutes - req["actual_worked_minutes"]
-    
-    # Get manager names
-    l1_name = None
-    l2_name = None
-    if req["l1_manager_id"]:
-        l1_rec = await db.fetchrow(
-            "SELECT u.full_name FROM employees e JOIN users u ON u.id = e.user_id WHERE e.id = $1",
-            req["l1_manager_id"]
-        )
-        l1_name = l1_rec["full_name"] if l1_rec else None
-    
-    if req["l2_manager_id"]:
-        l2_rec = await db.fetchrow(
-            "SELECT u.full_name FROM employees e JOIN users u ON u.id = e.user_id WHERE e.id = $1",
-            req["l2_manager_id"]
-        )
-        l2_name = l2_rec["full_name"] if l2_rec else None
+
+    # Clamp to 0 — employee may have worked more than required (e.g. overtime)
+    gap_minutes = max(0, REQUIRED_WORK_MINUTES - req["actual_worked_minutes"])
+
+    l1_name = req["l1_manager_name"]
+    l2_name = req["l2_manager_name"]
     
     return RegularizationRequestDetail(
         request_id=req["id"],
@@ -621,8 +692,8 @@ async def get_regularization_detail(
         work_date=req["work_date"],
         actual_worked_minutes=req["actual_worked_minutes"],
         actual_worked_display=minutes_to_display(req["actual_worked_minutes"]),
-        shift_minutes=shift_minutes,
-        shift_display=minutes_to_display(shift_minutes),
+        shift_minutes=REQUIRED_WORK_MINUTES,
+        shift_display=minutes_to_display(REQUIRED_WORK_MINUTES),
         gap_minutes=gap_minutes,
         gap_display=minutes_to_display(gap_minutes),
         requested_minutes=req["requested_minutes"],
@@ -674,10 +745,11 @@ async def get_pending_approvals(
                 u.full_name as employee_name,
                 l1_mgr.full_name as l1_manager_name,
                 (
-                    SELECT COUNT(*) 
+                    SELECT COUNT(*)
                     FROM regularization_requests r2
                     WHERE r2.employee_id = r.employee_id
-                      AND r2.work_date <= r.work_date
+                      AND EXTRACT(YEAR  FROM r2.work_date) = EXTRACT(YEAR  FROM r.work_date)
+                      AND EXTRACT(MONTH FROM r2.work_date) = EXTRACT(MONTH FROM r.work_date)
                       AND r2.final_status = 'approved'
                 ) as approved_count_before
             FROM regularization_requests r
@@ -706,10 +778,11 @@ async def get_pending_approvals(
                 NULL as l1_manager_name,
                 -- ✅ Calculate approved count in same query
                 (
-                    SELECT COUNT(*) 
+                    SELECT COUNT(*)
                     FROM regularization_requests r2
                     WHERE r2.employee_id = r.employee_id
-                      AND r2.work_date <= r.work_date
+                      AND EXTRACT(YEAR  FROM r2.work_date) = EXTRACT(YEAR  FROM r.work_date)
+                      AND EXTRACT(MONTH FROM r2.work_date) = EXTRACT(MONTH FROM r.work_date)
                       AND r2.final_status = 'approved'
                 ) as approved_count_before
             FROM regularization_requests r
@@ -758,7 +831,7 @@ async def get_pending_approvals(
 @router.post("/requests/{request_id}/approve")
 async def approve_regularization(
     request_id: int,
-    body: dict = {},           # {comment: str | null}
+    body: RegularizationApprovalRequest = RegularizationApprovalRequest(),
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ):
@@ -773,7 +846,7 @@ async def approve_regularization(
       - If L2 approves → final_status = approved
       - On final approval: sync daily_summary + write audit log
     """
-    comment = (body.get("comment") or "").strip() or None
+    comment = (body.comment or "").strip() or None
 
     # ── 1. Load request + manager assignments in one query ────
     req = await db.fetchrow(
@@ -804,6 +877,10 @@ async def approve_regularization(
 
     if not is_l1 and not is_l2:
         raise HTTPException(403, "Not authorised to approve this request")
+
+    # Guard: same person cannot be both L1 and L2 — would allow self-approval
+    if is_l1 and is_l2:
+        raise HTTPException(400, "You are assigned as both L1 and L2 for this request. Contact HR.")
 
     # ── 2. All writes in one transaction ──────────────────────
     async with db.transaction():
@@ -893,7 +970,7 @@ async def approve_regularization(
 @router.post("/requests/{request_id}/reject")
 async def reject_regularization(
     request_id: int,
-    body: dict = {},           # {comment: str}
+    body: RegularizationRejectionRequest,
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ):
@@ -902,7 +979,7 @@ async def reject_regularization(
     Either manager rejecting immediately sets final_status = rejected.
     daily_summary is reverted to actual worked hours.
     """
-    comment = (body.get("comment") or "").strip()
+    comment = (body.comment or "").strip()
     if len(comment) < 5:
         raise HTTPException(400, "Rejection reason must be at least 5 characters")
 
@@ -933,6 +1010,10 @@ async def reject_regularization(
 
     if not is_l1 and not is_l2:
         raise HTTPException(403, "Not authorised to reject this request")
+
+    # Guard: same person cannot be both L1 and L2
+    if is_l1 and is_l2:
+        raise HTTPException(400, "You are assigned as both L1 and L2 for this request. Contact HR.")
 
     action_type = "l1_rejected" if is_l1 else "l2_rejected"
 
@@ -1017,63 +1098,95 @@ async def get_attendance_calendar(
     except (ValueError, IndexError):
         raise HTTPException(400, "Invalid month format. Use YYYY-MM")
     
-    # Get employee shift times
+    # Get employee shift times (shift window used for display only)
     emp = await get_employee_from_user(user["id"], db)
-    shift_minutes = (emp["shift_end"].hour * 60 + emp["shift_end"].minute) - \
-                    (emp["shift_start"].hour * 60 + emp["shift_start"].minute)
+    # Gap/shortfall is measured against REQUIRED_WORK_MINUTES (510 = 8h 30m),
+    # not the stored shift window (525 = 8h 45m).
     
-    # Get daily summaries for the month
+    # Cap the series end at today — don't show future dates in the calendar.
+    # For past months the cap is the last day of that month naturally.
+    today = date.today()
+
+    # Generate every calendar day in the month up to today, then LEFT JOIN
+    # daily_summary so fully-absent days (no punch row) still appear.
+    # This lets employees raise a regularization request for any past working day,
+    # not just days where attendance was already recorded.
     summaries = await db.fetch(
         """
-        SELECT ds.*, r.id as reg_req_id, r.requested_minutes, r.l1_status, r.l2_status, r.final_status
-        FROM daily_summary ds
-        LEFT JOIN regularization_requests r ON r.id = ds.regularization_request_id
-        WHERE ds.user_id = $1
-          AND EXTRACT(YEAR FROM ds.work_date) = $2
-          AND EXTRACT(MONTH FROM ds.work_date) = $3
-        ORDER BY ds.work_date
+        SELECT
+            d.work_date,
+            COALESCE(ds.first_punch_in,    NULL)    AS first_punch_in,
+            COALESCE(ds.last_punch_out,    NULL)    AS last_punch_out,
+            COALESCE(ds.total_minutes,     0)       AS total_minutes,
+            COALESCE(ds.status,            'absent') AS status,
+            COALESCE(ds.is_late,           FALSE)   AS is_late,
+            COALESCE(ds.late_by_minutes,   0)       AS late_by_minutes,
+            ds.regularization_request_id,
+            r.id            AS reg_req_id,
+            r.requested_minutes,
+            r.l1_status,
+            r.l2_status,
+            r.final_status  AS reg_final_status
+        FROM generate_series(
+            DATE_TRUNC('month', MAKE_DATE($2, $3, 1))::date,
+            LEAST(
+                (DATE_TRUNC('month', MAKE_DATE($2, $3, 1)) + INTERVAL '1 month - 1 day')::date,
+                $4::date
+            ),
+            '1 day'::interval
+        ) AS d(work_date)
+        LEFT JOIN daily_summary ds
+               ON ds.user_id = $1 AND ds.work_date = d.work_date
+        LEFT JOIN regularization_requests r
+               ON r.id = ds.regularization_request_id
+        ORDER BY d.work_date
         """,
-        user["id"], year, month_num
+        user["id"], year, month_num, today,
     )
-    
+
     days = []
     for s in summaries:
+        total_mins = s["total_minutes"]
         gap_minutes = None
         gap_hours = None
-        
-        if s["total_minutes"] < shift_minutes:
-            gap_minutes = shift_minutes - s["total_minutes"]
+
+        # Don't show a gap if employee already has a pending or approved request —
+        # gap implies "action needed", which is false if request is in flight or done.
+        reg_status = s["reg_final_status"]
+        show_gap = reg_status not in ("pending", "approved")
+        if total_mins < REQUIRED_WORK_MINUTES and show_gap:
+            gap_minutes = REQUIRED_WORK_MINUTES - total_mins
             gap_hours = minutes_to_display(gap_minutes)
-        
+
         reg_data = None
         if s["reg_req_id"]:
             reg_data = {
                 "request_id": s["reg_req_id"],
-                "status": s["final_status"],
+                "status": s["reg_final_status"],
                 "requested_minutes": s["requested_minutes"],
                 "l1_status": s["l1_status"],
                 "l2_status": s["l2_status"],
             }
-        
-        # Format punch times - FIXED: Convert to local timezone
+
+        # Convert UTC punch timestamps to local timezone for display
         punch_in_str = None
         punch_out_str = None
         if s["first_punch_in"]:
             punch_in_str = to_local(s["first_punch_in"]).strftime("%H:%M")
         if s["last_punch_out"]:
             punch_out_str = to_local(s["last_punch_out"]).strftime("%H:%M")
-        
+
         days.append(
             CalendarDayView(
                 date=s["work_date"],
                 punch_in=punch_in_str,
                 punch_out=punch_out_str,
-                actual_worked_minutes=s["total_minutes"],
-                actual_worked=minutes_to_display(s["total_minutes"]),
+                actual_worked_minutes=total_mins,
+                actual_worked=minutes_to_display(total_mins),
                 shift_start=emp["shift_start"].strftime("%H:%M"),
                 shift_end=emp["shift_end"].strftime("%H:%M"),
-                shift_minutes=shift_minutes,
-                shift_hours=minutes_to_display(shift_minutes),
+                shift_minutes=REQUIRED_WORK_MINUTES,
+                shift_hours=minutes_to_display(REQUIRED_WORK_MINUTES),
                 status=s["status"],
                 is_late=s["is_late"],
                 late_by_minutes=s["late_by_minutes"],
@@ -1082,5 +1195,5 @@ async def get_attendance_calendar(
                 regularization=reg_data,
             )
         )
-    
+
     return AttendanceCalendarResponse(month=month, days=days)

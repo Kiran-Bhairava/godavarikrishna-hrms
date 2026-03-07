@@ -242,6 +242,10 @@ async def apply_leave(
 
     if req.date_from > req.date_to:
         raise HTTPException(400, "date_from must be on or before date_to")
+    # Block cross-year requests — balance is tracked per-year; a request spanning
+    # Dec→Jan would have to deduct from two separate year balances which we don't support.
+    if req.date_from.year != req.date_to.year:
+        raise HTTPException(400, "Leave request cannot span across calendar years. Submit separate requests for each year.")
     if not emp["l1_manager_id"]:
         raise HTTPException(400, "No L1 manager assigned. Contact HR.")
     if not emp["l2_manager_id"]:
@@ -382,7 +386,12 @@ async def list_my_leave_requests(
                 l2_approved_at=r["l2_approved_at"],
                 final_status=r["final_status"],
                 cancelled_at=r["cancelled_at"],
-                payroll_impact="present" if r["leave_type"] == "paid" else "absent",
+                payroll_impact=(
+                    "pending" if r["final_status"] == "pending"
+                    else "absent" if r["final_status"] in ("rejected", "cancelled")
+                    else "present" if r["leave_type"] == "paid"
+                    else "absent"
+                ),
             )
             for r in rows
         ],
@@ -720,16 +729,17 @@ async def l2_reject(
     if req["l2_status"] != "pending":
         raise HTTPException(400, f"Already actioned by L2: {req['l2_status']}")
 
-    await db.execute(
-        """
-        UPDATE leave_requests
-        SET l2_status = 'rejected', l2_approved_at = NOW(),
-            l2_approved_by_user_id = $2, l2_comment = $3,
-            final_status = 'rejected'
-        WHERE id = $1
-        """,
-        request_id, user["id"], body.comment,
-    )
+    async with db.transaction():
+        await db.execute(
+            """
+            UPDATE leave_requests
+            SET l2_status = 'rejected', l2_approved_at = NOW(),
+                l2_approved_by_user_id = $2, l2_comment = $3,
+                final_status = 'rejected'
+            WHERE id = $1
+            """,
+            request_id, user["id"], body.comment,
+        )
 
     return LeaveApprovalResponse(
         request_id=request_id, status="rejected", approved_by_role="l2",
@@ -753,79 +763,70 @@ async def _sync_holiday_to_daily_summary(
     Sync a holiday date across all active employees' daily_summary.
 
     activate=True:
-        Upsert daily_summary row for every active employee on that date.
-        Sets status='present', payroll_status='present', payroll_notes='Holiday: <name>'.
-        Only touches rows that don't already have an approved leave — those take priority.
+        Bulk-upsert one row per active employee for that date.
+        Sets status='present', payroll_status='present', payroll_notes='Holiday: <n>'.
+        Rows that already have an approved leave (leave_request_id IS NOT NULL) are
+        left untouched — leave takes priority over holiday.
 
     activate=False (holiday removed):
-        Revert rows that were set by this holiday (identified by payroll_notes match).
+        Bulk-update rows that were set by this holiday (matched by payroll_notes).
         Rows with punch data revert to 'present'; rows without revert to 'absent'.
-        Rows with an approved leave are left untouched.
+        Rows owned by a leave request are left untouched.
 
     Returns count of employees affected.
+    Single bulk query — no per-employee loop.
     """
-    # Get all active employee user_ids in one query
-    user_ids = await db.fetch(
-        """
-        SELECT e.user_id
-        FROM employees e
-        JOIN users u ON u.id = e.user_id
-        WHERE e.is_active = TRUE AND u.is_active = TRUE
-        """,
-    )
-
-    if not user_ids:
-        return 0
-
-    affected = 0
     note = f"Holiday: {holiday_name}"
 
-    for row in user_ids:
-        uid = row["user_id"]
+    if activate:
+        result = await db.execute(
+            """
+            INSERT INTO daily_summary
+                (user_id, work_date, total_minutes, status,
+                 payroll_status, payroll_minutes, payroll_notes)
+            SELECT e.user_id, $1, 0, 'present', 'present', 0, $2
+            FROM employees e
+            JOIN users u ON u.id = e.user_id
+            WHERE e.is_active = TRUE AND u.is_active = TRUE
+            ON CONFLICT (user_id, work_date) DO UPDATE
+                SET status         = CASE
+                        WHEN daily_summary.leave_request_id IS NOT NULL THEN daily_summary.status
+                        ELSE 'present'
+                    END,
+                    payroll_status = CASE
+                        WHEN daily_summary.leave_request_id IS NOT NULL THEN daily_summary.payroll_status
+                        ELSE 'present'
+                    END,
+                    payroll_notes  = CASE
+                        WHEN daily_summary.leave_request_id IS NOT NULL THEN daily_summary.payroll_notes
+                        ELSE $2
+                    END
+            """,
+            holiday_date, note,
+        )
+    else:
+        result = await db.execute(
+            """
+            UPDATE daily_summary
+            SET status         = CASE WHEN total_minutes > 0 THEN 'present' ELSE 'absent' END,
+                payroll_status = CASE WHEN total_minutes > 0 THEN 'present' ELSE 'absent' END,
+                payroll_notes  = NULL
+            WHERE work_date = $1
+              AND payroll_notes = $2
+              AND leave_request_id IS NULL
+            """,
+            holiday_date, note,
+        )
 
-        if activate:
-            # Don't overwrite approved leave rows
-            await db.execute(
-                """
-                INSERT INTO daily_summary
-                    (user_id, work_date, total_minutes, status,
-                     payroll_status, payroll_minutes, payroll_notes)
-                VALUES ($1, $2, 0, 'present', 'present', 0, $3)
-                ON CONFLICT (user_id, work_date) DO UPDATE
-                    SET status         = CASE
-                            WHEN daily_summary.leave_request_id IS NOT NULL THEN daily_summary.status
-                            ELSE 'present'
-                        END,
-                        payroll_status = CASE
-                            WHEN daily_summary.leave_request_id IS NOT NULL THEN daily_summary.payroll_status
-                            ELSE 'present'
-                        END,
-                        payroll_notes  = CASE
-                            WHEN daily_summary.leave_request_id IS NOT NULL THEN daily_summary.payroll_notes
-                            ELSE $3
-                        END
-                """,
-                uid, holiday_date, note,
-            )
-        else:
-            # Revert only rows this holiday owns (not leave-owned rows)
-            await db.execute(
-                """
-                UPDATE daily_summary
-                SET status         = CASE WHEN total_minutes > 0 THEN 'present' ELSE 'absent' END,
-                    payroll_status = CASE WHEN total_minutes > 0 THEN 'present' ELSE 'absent' END,
-                    payroll_notes  = NULL
-                WHERE user_id = $1
-                  AND work_date = $2
-                  AND payroll_notes = $3
-                  AND leave_request_id IS NULL
-                """,
-                uid, holiday_date, note,
-            )
-
-        affected += 1
+    # asyncpg returns "INSERT N" or "UPDATE N" — extract the count
+    try:
+        affected = int(result.split()[-1])
+    except (IndexError, ValueError):
+        affected = 0
 
     return affected
+
+
 
 
 @router.get("/holidays")

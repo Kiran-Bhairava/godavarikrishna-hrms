@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     access_token_expire_hours: int = 8
     office_timezone: str = "Asia/Kolkata"
     cors_origins: str = ""
-    late_grace_minutes: int = 0
+    late_grace_minutes: int = 30
     db_pool_min: int = 5
     db_pool_max: int = 20
 

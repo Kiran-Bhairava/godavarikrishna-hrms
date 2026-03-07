@@ -1240,22 +1240,6 @@
         <span id="sheetGap">Missing: 1h 45m</span>
       </div>
 
-      <div class="gap-highlight">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
-        <span id="sheetGap">Missing: 1h 45m</span>
-      </div>
-
       <div class="sheet-section">
         <div class="sheet-label">Request Additional Time</div>
         <div class="time-chips" id="timeChips">
@@ -1582,7 +1566,7 @@
 
           calendarData = data.days || [];
           renderDays();
-          updateStats();
+          updateStats(data); // pass full API response for usage bar
         } catch (error) {
           console.error("Failed to load calendar:", error);
           showToast(error.message, "error");
@@ -1632,7 +1616,7 @@
         }
       }
 
-      function updateStats() {
+      function updateStats(apiData) {
         // Count requests by status from regularization field
         let approved = 0,
           pending = 0,
@@ -1650,21 +1634,20 @@
         document.getElementById("pendingCount").textContent = pending;
         document.getElementById("rejectedCount").textContent = rejected;
 
-        // Calculate usage (sum of approved requested_minutes)
-        const usedMinutes = calendarData.reduce((sum, day) => {
-          if (day.regularization && day.regularization.status === "approved") {
-            return sum + (day.regularization.requested_minutes || 0);
-          }
-          return sum;
-        }, 0);
-
+        // Use approved_minutes_this_month from API — authoritative, already
+        // scoped to the selected month. Don't recalculate from calendarData
+        // which only reflects the current render and loses fractional hours.
+        const usedMinutes = apiData.approved_minutes_this_month || 0;
         const usedHours = Math.floor(usedMinutes / 60);
+        const usedMins = usedMinutes % 60;
+        const usedLabel =
+          usedMins > 0 ? `${usedHours}h ${usedMins}m` : `${usedHours}h`;
         const usagePercent = Math.round(
           (usedMinutes / MONTHLY_LIMIT_MINUTES) * 100,
         );
 
         document.getElementById("usageValue").textContent =
-          `${usedHours}h / 20h`;
+          `${usedLabel} / 20h`;
 
         const usageFill = document.getElementById("usageFill");
         usageFill.style.width = `${Math.min(usagePercent, 100)}%`;
@@ -1858,10 +1841,10 @@
               </div>
               
               <div class="approval-actions">
-                <button class="reject-btn" onclick="openApprovalSheet(${req.request_id}, 'reject')">
+                <button class="reject-btn" onclick="openApprovalSheet(${req.request_id})">
                   Reject
                 </button>
-                <button class="approve-btn" onclick="openApprovalSheet(${req.request_id}, 'approve')">
+                <button class="approve-btn" onclick="openApprovalSheet(${req.request_id})">
                   Approve
                 </button>
               </div>
@@ -1986,13 +1969,15 @@
         document.getElementById("manualEntryLabel").textContent =
           "Enter actual hours you worked:";
 
-        // Generate time chips for manual entry (full shift hours)
-        const shift_minutes = day.shift_minutes || 540;
+        // Generate time chips for manual entry.
+        // Default selection = shift_minutes from API (510 = 8h 30m = REQUIRED_WORK_MINUTES).
+        // Chips include 8h 30m so the default always auto-selects.
+        const shift_minutes = day.shift_minutes || 510;
         const chips = [
           { label: "8h", minutes: 480 },
+          { label: "8h 30m", minutes: 510 },
           { label: "9h", minutes: 540 },
-          { label: "10h", minutes: 600 },
-          { label: "Custom", minutes: 0 },
+          { label: "Custom", minutes: -1 },
         ];
 
         const chipsHtml = chips
