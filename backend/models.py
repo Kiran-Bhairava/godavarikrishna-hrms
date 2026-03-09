@@ -148,7 +148,7 @@ class Employee(Base):
     shift_start = Column(Time, nullable=False, server_default="09:00")
     shift_end   = Column(Time, nullable=False, server_default="18:00")
     work_mode   = Column(String(20), server_default="On-Site")
-    weekly_off  = Column(String(40), server_default="Saturday & Sunday")
+    weekly_off  = Column(String(40), server_default="Sunday")
     work_location = Column(String(80))
     asset_id      = Column(String(40))
 
@@ -168,6 +168,7 @@ class Employee(Base):
     bank_account = Column(String(30))
     bank_ifsc    = Column(String(15))
     pan_number   = Column(String(10))
+    uan_number   = Column(String(20))   # Universal Account Number (PF)
 
     # ── Onboarding ────────────────────────────────────────────
     onboarding_status = Column(String(20), nullable=False, server_default="awaiting")

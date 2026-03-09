@@ -727,76 +727,44 @@ async def get_pending_approvals(
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ) -> PendingApprovalsResponse:
+    # L1 and L2 are both plain employees — role is irrelevant here.
+    # Show requests where this employee is assigned as L1 (l1 pending)
+    # OR assigned as L2 (l1 already approved, l2 still pending).
     emp = await get_employee_from_user(user["id"], db)
     manager_id = emp["id"]
-    is_hr = user["role"] in ("hr", "admin")
-    
-    if is_hr:
-        # HR sees only requests where:
-        # - They are the assigned L2 manager AND L1 has approved (ready for L2 action)
-        # - OR they are the assigned L1 manager with pending requests
-        # This avoids HR seeing every employee's pending requests from other managers
-        query = """
-            SELECT 
-                r.id as request_id, r.employee_id, r.work_date,
-                r.actual_worked_minutes, r.requested_minutes, r.reason,
-                r.submitted_at, r.l1_manager_id, r.l2_manager_id,
-                r.l1_status, r.l2_status,
-                u.full_name as employee_name,
-                l1_mgr.full_name as l1_manager_name,
-                (
-                    SELECT COUNT(*)
-                    FROM regularization_requests r2
-                    WHERE r2.employee_id = r.employee_id
-                      AND EXTRACT(YEAR  FROM r2.work_date) = EXTRACT(YEAR  FROM r.work_date)
-                      AND EXTRACT(MONTH FROM r2.work_date) = EXTRACT(MONTH FROM r.work_date)
-                      AND r2.final_status = 'approved'
-                ) as approved_count_before
-            FROM regularization_requests r
-            JOIN employees e ON e.id = r.employee_id
-            JOIN users u ON u.id = e.user_id
-            LEFT JOIN employees l1_emp ON l1_emp.id = r.l1_manager_id
-            LEFT JOIN users l1_mgr ON l1_mgr.id = l1_emp.user_id
-            WHERE r.final_status = 'pending'
-              AND (
-                  (r.l2_manager_id = $1 AND r.l2_status = 'pending' AND r.l1_status = 'approved')
-                  OR
-                  (r.l1_manager_id = $1 AND r.l1_status = 'pending')
-              )
-            ORDER BY r.submitted_at ASC
+
+    rows = await db.fetch(
         """
-        rows = await db.fetch(query, manager_id)
-    else:
-        # Same optimization for regular managers
-        query = """
-            SELECT 
-                r.id as request_id, r.employee_id, r.work_date,
-                r.actual_worked_minutes, r.requested_minutes, r.reason,
-                r.submitted_at, r.l1_manager_id, r.l2_manager_id,
-                r.l1_status, r.l2_status,
-                u.full_name as employee_name,
-                NULL as l1_manager_name,
-                -- ✅ Calculate approved count in same query
-                (
-                    SELECT COUNT(*)
-                    FROM regularization_requests r2
-                    WHERE r2.employee_id = r.employee_id
-                      AND EXTRACT(YEAR  FROM r2.work_date) = EXTRACT(YEAR  FROM r.work_date)
-                      AND EXTRACT(MONTH FROM r2.work_date) = EXTRACT(MONTH FROM r.work_date)
-                      AND r2.final_status = 'approved'
-                ) as approved_count_before
-            FROM regularization_requests r
-            JOIN employees e ON e.id = r.employee_id
-            JOIN users u ON u.id = e.user_id
-            WHERE r.final_status = 'pending'
-              AND (
-                  (r.l1_manager_id = $1 AND r.l1_status = 'pending')
-                  OR
-                  (r.l2_manager_id = $1 AND r.l2_status = 'pending' AND r.l1_status = 'approved')
-              )
-            ORDER BY r.submitted_at ASC
-        """
-        rows = await db.fetch(query, manager_id)
+        SELECT
+            r.id as request_id, r.employee_id, r.work_date,
+            r.actual_worked_minutes, r.requested_minutes, r.reason,
+            r.submitted_at, r.l1_manager_id, r.l2_manager_id,
+            r.l1_status, r.l2_status,
+            u.full_name as employee_name,
+            l1_mgr.full_name as l1_manager_name,
+            (
+                SELECT COUNT(*)
+                FROM regularization_requests r2
+                WHERE r2.employee_id = r.employee_id
+                  AND EXTRACT(YEAR  FROM r2.work_date) = EXTRACT(YEAR  FROM r.work_date)
+                  AND EXTRACT(MONTH FROM r2.work_date) = EXTRACT(MONTH FROM r.work_date)
+                  AND r2.final_status = 'approved'
+            ) as approved_count_before
+        FROM regularization_requests r
+        JOIN employees e ON e.id = r.employee_id
+        JOIN users u ON u.id = e.user_id
+        LEFT JOIN employees l1_emp ON l1_emp.id = r.l1_manager_id
+        LEFT JOIN users l1_mgr ON l1_mgr.id = l1_emp.user_id
+        WHERE r.final_status = 'pending'
+          AND (
+              (r.l1_manager_id = $1 AND r.l1_status = 'pending')
+              OR
+              (r.l2_manager_id = $1 AND r.l2_status = 'pending' AND r.l1_status = 'approved')
+          )
+        ORDER BY r.submitted_at ASC
+        """,
+        manager_id,
+    )
     
     # ✅ No more loop queries!
     pending_list = []
@@ -886,8 +854,14 @@ async def approve_regularization(
     async with db.transaction():
 
         if is_l1 and req["l1_status"] == "pending":
-            # Determine if L2 approval is also required
-            needs_l2    = req["l2_manager_id"] is not None
+            # Determine L2 requirement at approval time using live approved count.
+            # This is the correct place — not submit time — because multiple
+            # requests can be pending simultaneously and the tier must reflect
+            # how many have actually been approved when L1 acts.
+            approved_count = await get_approved_request_count_for_month(
+                req["employee_id"], req["work_date"].year, req["work_date"].month, db
+            )
+            needs_l2    = approved_count >= 3 and req["l2_manager_id"] is not None
             new_final   = "pending" if needs_l2 else "approved"
             action_type = "l1_approved"
 

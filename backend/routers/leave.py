@@ -443,6 +443,10 @@ async def cancel_leave(
         raise HTTPException(400, "Cannot cancel a rejected request")
     if req["final_status"] == "approved" and req["date_from"] <= date.today():
         raise HTTPException(400, "Cannot cancel leave that has already started")
+    # Block pending cancellation for past-start dates too —
+    # manager may still approve it which would stamp leave on days already worked
+    if req["final_status"] == "pending" and req["date_from"] < date.today():
+        raise HTTPException(400, "Cannot cancel pending leave whose start date has passed. Contact HR.")
 
     async with db.transaction():
         await db.execute(
@@ -465,7 +469,7 @@ async def cancel_leave(
                 await _adjust_balance(
                     db, employee_id=emp["id"],
                     year=req["date_from"].year,
-                    delta=-req["num_days"],  # refund
+                    delta=-len(working_days),  # refund live count — matches what was deducted at approval
                 )
 
     return {"request_id": request_id, "status": "cancelled"}
@@ -482,57 +486,36 @@ async def get_pending_approvals(
 ) -> LeavePendingApprovalsResponse:
     """
     GET /api/leave/pending
-    L1:  requests where they are l1_manager AND l1_status='pending'
-    HR:  requests where l1_status='approved' AND l2_status='pending'
+    L1 and L2 are both plain employees — role is irrelevant.
+    Show requests where this employee is assigned as L1 (l1 pending)
+    OR assigned as L2 (l1 approved, l2 still pending).
     """
     emp = await _get_employee(user["id"], db)
-    is_hr = user["role"] in ("hr", "admin")
 
-    if is_hr:
-        rows = await db.fetch(
-            """
-            SELECT
-                lr.id AS request_id, lr.employee_id,
-                lr.date_from, lr.date_to, lr.num_days,
-                lr.leave_type, lr.reason, lr.submitted_at,
-                lr.l1_status, lr.l1_comment,
-                u.full_name AS employee_name,
-                l1_u.full_name AS l1_manager_name
-            FROM leave_requests lr
-            JOIN employees e   ON e.id = lr.employee_id
-            JOIN users u       ON u.id = e.user_id
-            LEFT JOIN employees l1e ON l1e.id = lr.l1_manager_id
-            LEFT JOIN users l1_u    ON l1_u.id = l1e.user_id
-            WHERE lr.l2_manager_id = $1
-              AND lr.l1_status    = 'approved'
-              AND lr.l2_status    = 'pending'
-              AND lr.final_status = 'pending'
-            ORDER BY lr.submitted_at ASC
-            """,
-            emp["id"],
-        )
-        awaiting = "l2"
-    else:
-        rows = await db.fetch(
-            """
-            SELECT
-                lr.id AS request_id, lr.employee_id,
-                lr.date_from, lr.date_to, lr.num_days,
-                lr.leave_type, lr.reason, lr.submitted_at,
-                lr.l1_status, lr.l1_comment,
-                u.full_name AS employee_name,
-                NULL::text AS l1_manager_name
-            FROM leave_requests lr
-            JOIN employees e ON e.id = lr.employee_id
-            JOIN users u     ON u.id = e.user_id
-            WHERE lr.l1_manager_id = $1
-              AND lr.l1_status    = 'pending'
-              AND lr.final_status = 'pending'
-            ORDER BY lr.submitted_at ASC
-            """,
-            emp["id"],
-        )
-        awaiting = "l1"
+    rows = await db.fetch(
+        """
+        SELECT
+            lr.id AS request_id, lr.employee_id,
+            lr.date_from, lr.date_to, lr.num_days,
+            lr.leave_type, lr.reason, lr.submitted_at,
+            lr.l1_status, lr.l1_comment, lr.l2_status,
+            u.full_name AS employee_name,
+            l1_u.full_name AS l1_manager_name
+        FROM leave_requests lr
+        JOIN employees e   ON e.id = lr.employee_id
+        JOIN users u       ON u.id = e.user_id
+        LEFT JOIN employees l1e ON l1e.id = lr.l1_manager_id
+        LEFT JOIN users l1_u    ON l1_u.id = l1e.user_id
+        WHERE lr.final_status = 'pending'
+          AND (
+              (lr.l1_manager_id = $1 AND lr.l1_status = 'pending')
+              OR
+              (lr.l2_manager_id = $1 AND lr.l2_status = 'pending' AND lr.l1_status = 'approved')
+          )
+        ORDER BY lr.submitted_at ASC
+        """,
+        emp["id"],
+    )
 
     return LeavePendingApprovalsResponse(
         pending_count=len(rows),
@@ -549,7 +532,8 @@ async def get_pending_approvals(
                 submitted_at=r["submitted_at"],
                 l1_status=r["l1_status"],
                 l1_manager_name=r["l1_manager_name"],
-                awaiting_role=awaiting,
+                # L1-pending → this employee acts as L1; L2-pending → acts as L2
+                awaiting_role="l2" if r["l2_status"] == "pending" and r["l1_status"] == "approved" else "l1",
             )
             for r in rows
         ],
@@ -645,19 +629,17 @@ async def l2_approve(
     - Updates daily_summary for each working day in range
     - Deducts paid leave balance
     """
-    emp = await _get_employee(user["id"], db)
-
     req = await db.fetchrow(
         """
         SELECT lr.*, e.user_id AS employee_user_id
         FROM leave_requests lr
         JOIN employees e ON e.id = lr.employee_id
-        WHERE lr.id = $1 AND lr.l2_manager_id = $2
+        WHERE lr.id = $1
         """,
-        request_id, emp["id"],
+        request_id,
     )
     if not req:
-        raise HTTPException(404, "Request not found or not your assignment")
+        raise HTTPException(404, "Leave request not found")
     if req["l1_status"] != "approved":
         raise HTTPException(400, "L1 approval required before HR can act")
     if req["l2_status"] != "pending":
@@ -690,7 +672,7 @@ async def l2_approve(
             await _adjust_balance(
                 db, employee_id=req["employee_id"],
                 year=req["date_from"].year,
-                delta=req["num_days"],
+                delta=len(working_days),  # live count, not stale num_days
             )
 
     logger.info(
@@ -716,14 +698,12 @@ async def l2_reject(
     db: asyncpg.Connection = Depends(get_db),
 ) -> LeaveApprovalResponse:
     """HR (L2) rejects leave."""
-    emp = await _get_employee(user["id"], db)
-
     req = await db.fetchrow(
-        "SELECT * FROM leave_requests WHERE id=$1 AND l2_manager_id=$2",
-        request_id, emp["id"],
+        "SELECT * FROM leave_requests WHERE id=$1",
+        request_id,
     )
     if not req:
-        raise HTTPException(404, "Request not found or not your assignment")
+        raise HTTPException(404, "Leave request not found")
     if req["l1_status"] != "approved":
         raise HTTPException(400, "L1 approval required before HR can act")
     if req["l2_status"] != "pending":

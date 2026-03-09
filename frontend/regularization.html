@@ -11,18 +11,18 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
-    <meta name="theme-color" content="#0052cc" />
+    <meta name="theme-color" content="#0089d0" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="SDPL HRMS" />
     <link rel="apple-touch-icon" href="/appletouchicon.png" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" href="/icon192.png" sizes="192x192" />
     <link rel="icon" type="image/png" href="/icon512.png" sizes="512x512" />
-    <title>Attendance Regularization | SDPL</title>
+    <title>Regularization | SDPL</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -30,8 +30,8 @@
         margin: 0;
         padding: 0;
         box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
       }
-
       html,
       body {
         width: 100%;
@@ -40,1302 +40,1324 @@
 
       :root {
         --primary: #0089d0;
-        --primary-dark: #0081ea;
-        --primary-light: #e6f0ff;
-        --secondary: #10b981;
-        --secondary-light: #dbeae5;
-        --danger: #ef4444;
-        --warning: #f59e0b;
-        --bg: #f8f9fa;
-        --surface: #ffffff;
-        --surface-secondary: #f3f4f6;
-        --border: #e5e7eb;
-        --border-light: #f0f0f0;
-        --text: #111827;
-        --text-secondary: #6b7280;
-        --text-muted: #9ca3af;
+        --primary-dark: #006faa;
+        --primary-light: #e8f5fd;
         --success: #059669;
         --success-light: #ecfdf5;
-        --error-light: #fef2f2;
-        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --danger: #ef4444;
+        --danger-light: #fef2f2;
+        --warning: #f59e0b;
+        --warning-light: #fffbeb;
+        --bg: #f0f4f8;
+        --surface: #ffffff;
+        --surface-2: #f8fafc;
+        --border: #e2e8f0;
+        --border-light: #f1f5f9;
+        --text: #0f172a;
+        --text-2: #475569;
+        --text-3: #94a3b8;
         --shadow-sm:
-          0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
-        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-        --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
-        --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+        --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+        --ease: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        --nav-h: 62px;
       }
 
       body {
         font-family:
-          "Sora",
+          "DM Sans",
           -apple-system,
           BlinkMacSystemFont,
-          "Segoe UI",
           sans-serif;
         background: var(--bg);
         color: var(--text);
-        /* ✅ FIXED: Proper safe area insets */
-        padding: max(12px, env(safe-area-inset-top))
-          max(12px, env(safe-area-inset-right))
-          max(90px, env(safe-area-inset-bottom))
-          /* ✅ Changed from 1100px to 90px */
-          max(12px, env(safe-area-inset-left));
-        min-height: 100vh;
-        min-height: 100dvh; /* ✅ Dynamic viewport height */
-        overflow-x: hidden;
+        height: 100dvh;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
       }
 
-      /* HEADER */
+      /* top accent line */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary), #10b981);
+        z-index: 200;
+        pointer-events: none;
+      }
+
+      /* ── SCROLL WRAPPER ── */
+      .scroll-body {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: max(18px, env(safe-area-inset-top)) 16px 0;
+        padding-bottom: calc(
+          var(--nav-h) + max(0px, env(safe-area-inset-bottom)) + 16px
+        );
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      .scroll-body::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* ── HEADER ── */
       .header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        margin-bottom: 20px;
         gap: 12px;
+        margin-bottom: 18px;
+        flex-shrink: 0;
       }
-
       .header-left {
         display: flex;
         align-items: center;
         gap: 12px;
+        flex: 1;
       }
 
       .back-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--surface);
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        border: none;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        cursor: pointer;
-        transition: all 0.2s ease;
         text-decoration: none;
-        color: var(--text);
+        color: var(--text-2);
+        box-shadow: var(--shadow-sm);
+        transition: all var(--ease);
+        flex-shrink: 0;
       }
-
       .back-btn:active {
-        transform: scale(0.95);
+        transform: scale(0.92);
       }
 
       .page-title {
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 700;
-        color: var(--text);
-        letter-spacing: -0.3px;
+        letter-spacing: -0.2px;
       }
 
-      /* TABS */
+      /* ── TABS ── */
       .tabs {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 16px;
+        display: inline-flex;
         background: var(--surface);
-        padding: 4px;
-        border-radius: 12px;
         border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 4px;
+        gap: 4px;
+        margin-bottom: 14px;
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
+        align-self: flex-start;
       }
-
       .tab {
-        flex: 1;
-        padding: 10px 16px;
-        background: transparent;
+        padding: 9px 20px;
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: 10px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--text-3);
+        background: transparent;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--ease);
         position: relative;
+        white-space: nowrap;
       }
-
       .tab:active {
-        transform: scale(0.98);
+        transform: scale(0.97);
       }
-
       .tab.active {
         background: var(--primary);
-        color: white;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 137, 208, 0.28);
       }
-
       .tab-badge {
         position: absolute;
-        top: 6px;
-        right: 8px;
+        top: 4px;
+        right: 5px;
         background: var(--danger);
-        color: white;
-        font-size: 10px;
+        color: #fff;
+        font-size: 9px;
         font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 10px;
-        min-width: 18px;
+        padding: 1px 5px;
+        border-radius: 9px;
+        min-width: 16px;
         text-align: center;
+        line-height: 1.5;
       }
-
       .tab.active .tab-badge {
-        background: white;
+        background: rgba(255, 255, 255, 0.85);
         color: var(--primary);
       }
 
-      /* MONTH SELECTOR */
-      .month-selector {
+      /* ── MONTH PICKER ── */
+      .month-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px 16px;
-        margin-bottom: 16px;
+        border-radius: 14px;
+        padding: 10px 14px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
       }
-
       .month-display {
-        font-size: 15px;
-        font-weight: 600;
-        color: var(--text);
+        font-size: 14px;
+        font-weight: 700;
       }
-
       .month-nav {
         display: flex;
-        gap: 8px;
+        gap: 6px;
       }
-
       .month-nav button {
+        width: 30px;
+        height: 30px;
+        border: 1px solid var(--border);
+        background: var(--surface-2);
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
-        border: none;
-        background: var(--surface-secondary);
-        border-radius: 8px;
+        color: var(--text-2);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--ease);
       }
-
       .month-nav button:active {
         transform: scale(0.9);
       }
-
       .month-nav button:disabled {
-        opacity: 0.4;
+        opacity: 0.3;
         cursor: not-allowed;
       }
 
-      /* STATS CARDS */
+      /* ── STATS + USAGE COMBINED CARD ── */
+      .summary-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 16px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
+      }
+
       .stats-row {
         display: flex;
-        gap: 8px;
-        margin-bottom: 16px;
+        gap: 0;
+        margin-bottom: 14px;
       }
 
-      .stat-card {
+      .stat-item {
         flex: 1;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px;
+        text-align: center;
+        position: relative;
       }
-
-      .stat-label {
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+      .stat-item + .stat-item::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 20%;
+        bottom: 20%;
+        width: 1px;
+        background: var(--border-light);
+      }
+      .stat-num {
+        font-family: "DM Sans", sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1;
         margin-bottom: 4px;
       }
-
-      .stat-value {
-        font-size: 20px;
-        font-weight: 700;
-        color: var(--text);
-      }
-
-      .stat-value.success {
+      .stat-num.green {
         color: var(--success);
       }
-
-      .stat-value.warning {
+      .stat-num.amber {
         color: var(--warning);
       }
-
-      .stat-value.danger {
+      .stat-num.red {
         color: var(--danger);
       }
-
-      /* USAGE BAR */
-      .usage-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 16px;
+      .stat-lbl {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--text-3);
       }
 
-      .usage-header {
+      .usage-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 7px;
       }
-
-      .usage-label {
-        font-size: 13px;
+      .usage-lbl {
+        font-size: 12px;
         font-weight: 600;
-        color: var(--text-secondary);
+        color: var(--text-2);
+      }
+      .usage-val {
+        font-family: "DM Mono", monospace;
+        font-size: 12px;
+        color: var(--text-2);
       }
 
-      .usage-value {
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--text);
-      }
-
-      .usage-bar {
-        height: 8px;
-        background: var(--surface-secondary);
-        border-radius: 4px;
+      .usage-track {
+        height: 5px;
+        background: var(--border-light);
+        border-radius: 3px;
         overflow: hidden;
       }
-
       .usage-fill {
         height: 100%;
+        border-radius: 3px;
         background: linear-gradient(90deg, var(--primary), var(--primary-dark));
-        border-radius: 4px;
-        transition: width 0.3s ease;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
       }
-
-      .usage-fill.warning {
+      .usage-fill.warn {
         background: linear-gradient(90deg, var(--warning), #d97706);
       }
-
-      .usage-fill.danger {
+      .usage-fill.over {
         background: linear-gradient(90deg, var(--danger), #dc2626);
       }
 
-      /* DAY CARDS & APPROVAL CARDS (shared styles) */
-      .content-view {
-        flex: 1;
-        overflow: hidden;
-        display: none;
+      /* ── SECTION LABEL ── */
+      .section-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-3);
+        margin-bottom: 8px;
+        padding-left: 2px;
+        flex-shrink: 0;
       }
 
+      /* ── CONTENT VIEWS ── */
+      .content-view {
+        display: none;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
       .content-view.active {
         display: flex;
-        flex-direction: column;
       }
 
       .days-list,
       .approval-list {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        /* ✅ NEW: Make it scrollable */
+        gap: 8px;
+        flex: 1;
         overflow-y: auto;
         overflow-x: hidden;
-        flex: 1;
-        padding-bottom: 20px;
-        /* ✅ Smooth scrolling on iOS */
         -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 8px;
       }
-
-      /* ✅ Hide scrollbar but keep functionality */
       .days-list::-webkit-scrollbar,
       .approval-list::-webkit-scrollbar {
         display: none;
       }
 
-      .days-list,
-      .approval-list {
-        -ms-overflow-style: none; /* IE and Edge */
-        scrollbar-width: none; /* Firefox */
+      /* ── DAY CARD ── */
+      .day-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow var(--ease);
       }
 
-      /* ✅ NEW: Main container structure */
-      .main-container {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        flex: 1;
-        overflow: hidden;
-      }
-
-      /* ✅ Header stays at top */
-      .header {
-        flex-shrink: 0;
+      .card-top {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        margin-bottom: 20px;
         gap: 12px;
+        padding: 12px 14px 10px;
+        border-left: 3px solid transparent;
+        border-radius: 16px 0 0 0;
       }
 
-      /* ✅ Tabs stay fixed */
-      .tabs {
-        flex-shrink: 0;
-        display: flex;
-        gap: 8px;
-        margin-bottom: 16px;
-        background: var(--surface);
-        padding: 4px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
+      /* colored left pip */
+      .day-card.state-ok {
+        border-left: 3px solid var(--success);
+      }
+      .day-card.state-gap {
+        border-left: 3px solid var(--warning);
+      }
+      .day-card.state-pend {
+        border-left: 3px solid var(--primary);
+      }
+      .day-card.state-appv {
+        border-left: 3px solid var(--success);
+      }
+      .day-card.state-rej {
+        border-left: 3px solid var(--danger);
+      }
+      .day-card.state-prog {
+        border-left: 3px solid var(--text-3);
       }
 
-      /* ✅ Month selector stays fixed */
-      .month-selector {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 12px 16px;
-        margin-bottom: 16px;
+      .day-card.state-ok .card-top {
+        border-left: none;
+      }
+      .day-card.state-gap .card-top {
+        border-left: none;
+      }
+      .day-card.state-pend .card-top {
+        border-left: none;
+      }
+      .day-card.state-appv .card-top {
+        border-left: none;
+      }
+      .day-card.state-rej .card-top {
+        border-left: none;
+      }
+      .day-card.state-prog .card-top {
+        border-left: none;
       }
 
-      /* ✅ Stats stay fixed */
-      .stats-row {
-        flex-shrink: 0;
-        display: flex;
-        gap: 8px;
-        margin-bottom: 16px;
-      }
-
-      /* ✅ Usage card stays fixed */
-      .usage-card {
-        flex-shrink: 0;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 16px;
-      }
-
-      /* ✅ Content area scrolls */
-      .content-view {
+      .card-date-block {
         flex: 1;
-        min-height: 0; /* Important for flexbox scrolling */
-        overflow: hidden;
-        display: none;
+        min-width: 0;
       }
-
-      .content-view.active {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .day-card,
-      .approval-card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 16px;
-        transition: all 0.2s ease;
-      }
-
-      .day-card.incomplete {
-        border-left: 4px solid var(--warning);
-      }
-
-      .day-card.pending,
-      .approval-card {
-        border-left: 4px solid var(--primary);
-        background: var(--primary-light);
-      }
-
-      .day-card.approved {
-        border-left: 4px solid var(--success);
-        background: var(--success-light);
-      }
-
-      .day-card.rejected {
-        border-left: 4px solid var(--danger);
-        background: var(--error-light);
-      }
-
-      .day-header,
-      .approval-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 10px;
-        gap: 12px;
-      }
-
-      .day-date,
-      .approval-emp-name {
-        font-size: 15px;
+      .card-date {
+        font-size: 14px;
         font-weight: 700;
         color: var(--text);
-        flex: 1;
+        line-height: 1.2;
+      }
+      .card-times {
+        font-size: 11px;
+        color: var(--text-3);
+        margin-top: 2px;
+        font-family: "DM Mono", monospace;
+        font-weight: 400;
       }
 
-      .day-badge {
+      .state-pill {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 4px 10px;
+        padding: 3px 9px;
         border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
         flex-shrink: 0;
+        white-space: nowrap;
       }
-
-      .day-badge.complete {
+      .pill-ok {
         background: var(--success-light);
         color: var(--success);
       }
-
-      .day-badge.incomplete {
-        background: #fef3c7;
+      .pill-gap {
+        background: var(--warning-light);
         color: #92400e;
       }
-
-      .day-badge.pending {
+      .pill-pend {
         background: var(--primary-light);
         color: var(--primary-dark);
       }
-
-      .day-badge.approved {
+      .pill-appv {
         background: var(--success-light);
         color: var(--success);
       }
-
-      .day-badge.rejected {
-        background: var(--error-light);
+      .pill-rej {
+        background: var(--danger-light);
         color: var(--danger);
       }
-
-      .approval-meta {
-        font-size: 12px;
-        color: var(--text-secondary);
-        margin-bottom: 8px;
+      .pill-prog {
+        background: var(--border-light);
+        color: var(--text-3);
       }
 
-      .approval-reason {
-        padding: 10px 12px;
-        background: white;
-        border-radius: 8px;
-        margin: 10px 0;
-        font-size: 13px;
-        color: var(--text);
-        font-style: italic;
-      }
-
-      .day-times {
-        display: flex;
-        gap: 16px;
-        margin-bottom: 10px;
-        font-size: 13px;
-      }
-
-      .day-time {
+      .card-body {
+        padding: 8px 14px 12px;
         display: flex;
         align-items: center;
-        gap: 6px;
-        color: var(--text-secondary);
-      }
-
-      .day-worked {
-        display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding: 8px 0;
+        gap: 10px;
         border-top: 1px solid var(--border-light);
-        margin-top: 8px;
       }
 
-      .worked-label {
-        font-size: 13px;
-        color: var(--text-secondary);
+      .card-meta {
+        font-size: 12px;
+        color: var(--text-2);
+        line-height: 1.5;
       }
-
-      .worked-value {
-        font-size: 14px;
-        font-weight: 700;
+      .card-meta strong {
         color: var(--text);
-      }
-
-      .gap-warning {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        background: #fef3c7;
-        border-radius: 8px;
-        margin-top: 10px;
-      }
-
-      .gap-warning span {
-        font-size: 12px;
         font-weight: 600;
-        color: #92400e;
       }
 
-      .request-status {
-        display: flex;
+      /* Request Fix / Resubmit button */
+      .fix-btn {
+        display: inline-flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 10px 12px;
-        background: var(--surface-secondary);
-        border-radius: 8px;
-        margin-top: 10px;
-      }
-
-      .request-status-text {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text-secondary);
-      }
-
-      .request-btn,
-      .approval-actions button {
-        padding: 8px 16px;
+        gap: 5px;
+        padding: 7px 13px;
         background: var(--primary);
-        color: white;
+        color: #fff;
         border: none;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-
-      .request-btn:active,
-      .approval-actions button:active {
-        transform: scale(0.95);
-      }
-
-      .request-btn.secondary {
-        background: var(--surface);
-        color: var(--primary);
-        border: 1px solid var(--primary);
-      }
-
-      .approval-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: 12px;
-      }
-
-      .approval-actions button {
-        flex: 1;
-      }
-
-      .approval-actions .reject-btn {
-        background: var(--surface);
-        color: var(--danger);
-        border: 1px solid var(--danger);
-      }
-
-      .approval-actions .approve-btn {
-        background: var(--success);
-      }
-
-      /* EMPTY STATE */
-      .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-      }
-
-      .empty-icon {
-        font-size: 48px;
-        margin-bottom: 16px;
-        opacity: 0.5;
-      }
-
-      .empty-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 8px;
-      }
-
-      .empty-text {
-        font-size: 14px;
-        color: var(--text-secondary);
-      }
-
-      /* BOTTOM SHEET */
-      .bottom-sheet-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-        z-index: 999;
-      }
-
-      .bottom-sheet-overlay.active {
-        opacity: 1;
-        visibility: visible;
-      }
-
-      .bottom-sheet {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: var(--surface);
-        border-radius: 24px 24px 0 0;
-        padding: 8px 20px max(24px, env(safe-area-inset-bottom));
-        transform: translateY(100%);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 1000;
-        max-height: 90vh;
-        overflow-y: auto;
-      }
-
-      .bottom-sheet.active {
-        transform: translateY(0);
-      }
-
-      .sheet-handle {
-        width: 36px;
-        height: 4px;
-        background: var(--border);
-        border-radius: 2px;
-        margin: 0 auto 20px;
-      }
-
-      .sheet-title {
-        font-size: 18px;
+        border-radius: 9px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 12px;
         font-weight: 700;
-        color: var(--text);
-        margin-bottom: 4px;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0, 137, 208, 0.3);
+        transition: all var(--ease);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .fix-btn:active {
+        transform: scale(0.95);
+        opacity: 0.9;
+      }
+      .fix-btn.resubmit {
+        background: var(--danger);
+        box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
       }
 
-      .sheet-subtitle {
-        font-size: 13px;
-        color: var(--text-secondary);
-        margin-bottom: 20px;
-      }
-
-      .sheet-section {
-        margin-bottom: 20px;
-      }
-
-      .sheet-label {
+      /* pending/approved status inline */
+      .status-inline {
         font-size: 12px;
         font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        margin-bottom: 8px;
+        padding: 5px 10px;
+        border-radius: 8px;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
-
-      .sheet-info-card {
-        background: var(--surface-secondary);
-        border-radius: 10px;
-        padding: 12px;
-        margin-bottom: 12px;
-      }
-
-      .sheet-info-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 6px 0;
-      }
-
-      .sheet-info-row:not(:last-child) {
-        border-bottom: 1px solid var(--border-light);
-      }
-
-      .sheet-info-label {
-        font-size: 13px;
-        color: var(--text-secondary);
-      }
-
-      .sheet-info-value {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text);
-      }
-
-      .gap-highlight {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 12px;
-        background: #fef3c7;
-        border-radius: 10px;
-        margin-bottom: 16px;
-      }
-
-      .gap-highlight span {
-        font-size: 15px;
-        font-weight: 700;
-        color: #92400e;
-      }
-
-      /* TIME CHIPS */
-      .time-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 16px;
-      }
-
-      .time-chip {
-        flex: 1;
-        min-width: 70px;
-        padding: 12px 16px;
-        background: var(--surface);
-        border: 2px solid var(--border);
-        border-radius: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text);
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-
-      .time-chip:active {
-        transform: scale(0.95);
-      }
-
-      .time-chip.selected {
+      .status-inline.pending {
         background: var(--primary-light);
-        border-color: var(--primary);
         color: var(--primary-dark);
       }
-
-      .time-chip.disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
+      .status-inline.approved {
+        background: var(--success-light);
+        color: var(--success);
       }
 
-      .custom-hours-input {
-        width: 100%;
-        padding: 14px;
-        font-size: 16px;
-        font-weight: 600;
-        border: 2px solid var(--border);
-        border-radius: 10px;
-        text-align: center;
-        background: var(--surface-secondary);
+      /* ── APPROVAL CARD ── */
+      .approval-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--primary);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
       }
 
-      .custom-hours-input:focus {
-        outline: none;
-        border-color: var(--primary);
-        background: white;
-      }
-
-      /* Add this new style */
-      .forgot-alert {
+      .appr-top {
+        padding: 13px 14px 10px;
         display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px;
-        background: #fff3cd;
-        border: 1px solid #ffc107;
-        border-radius: 10px;
-        margin-bottom: 16px;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
       }
-
-      .forgot-alert svg {
-        flex-shrink: 0;
-        color: #ff6b00;
-      }
-
-      .forgot-alert-text {
-        font-size: 13px;
-        color: #856404;
-        font-weight: 500;
-      }
-
-      .manual-entry-label {
+      .appr-name {
         font-size: 14px;
         font-weight: 700;
-        color: var(--text);
+      }
+      .appr-meta {
+        font-size: 12px;
+        color: var(--text-2);
+        margin-top: 2px;
+      }
+
+      .appr-body {
+        padding: 0 14px 10px;
+      }
+      .appr-reason {
+        font-size: 12px;
+        color: var(--text-2);
+        font-style: italic;
+        background: var(--surface-2);
+        border: 1px solid var(--border-light);
+        border-radius: 9px;
+        padding: 8px 11px;
+        margin-bottom: 10px;
+        line-height: 1.5;
+      }
+
+      .appr-stats {
+        display: flex;
+        gap: 8px;
         margin-bottom: 12px;
+      }
+      .appr-stat {
+        flex: 1;
+        background: var(--surface-2);
+        border: 1px solid var(--border-light);
+        border-radius: 9px;
+        padding: 8px 10px;
         text-align: center;
       }
-
-      /* TEXTAREA */
-      .sheet-textarea {
-        width: 100%;
-        min-height: 100px;
-        padding: 12px;
-        background: var(--surface-secondary);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        font-family: inherit;
+      .appr-stat-val {
+        font-family: "DM Mono", monospace;
         font-size: 14px;
+        font-weight: 500;
         color: var(--text);
-        resize: vertical;
+      }
+      .appr-stat-lbl {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-3);
+        margin-top: 2px;
       }
 
-      .sheet-textarea:focus {
-        outline: none;
-        border-color: var(--primary);
-      }
-
-      /* BUTTONS */
-      .sheet-actions {
+      .appr-actions {
         display: flex;
-        gap: 12px;
-        margin-top: 20px;
+        gap: 8px;
+        padding: 0 14px 13px;
       }
-
-      .btn {
+      .appr-btn {
         flex: 1;
-        padding: 14px 24px;
+        padding: 10px;
         border: none;
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 600;
+        border-radius: 11px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        font-weight: 700;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all var(--ease);
+      }
+      .appr-btn:active {
+        transform: scale(0.97);
+      }
+      .appr-btn.reject {
+        background: var(--surface-2);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: var(--danger);
+      }
+      .appr-btn.approve {
+        background: linear-gradient(135deg, var(--success), #047857);
+        color: #fff;
+        box-shadow: 0 3px 10px rgba(5, 150, 105, 0.3);
       }
 
-      .btn:active {
-        transform: scale(0.98);
-      }
-
-      .btn-primary {
-        background: var(--primary);
-        color: white;
-      }
-
-      .btn-secondary {
-        background: var(--surface-secondary);
-        color: var(--text);
-      }
-
-      .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      /* BOTTOM NAV */
-      .bottom-nav {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: var(--surface);
-        border-top: 1px solid var(--border);
-        display: flex;
-        justify-content: space-around;
-        padding: 8px 12px;
-        /* ✅ Safe area for iPhone notch */
-        padding-bottom: max(8px, env(safe-area-inset-bottom));
-        z-index: 100;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-      }
-
-      .nav-btn {
+      /* ── EMPTY STATE ── */
+      .empty-state {
         flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        padding: 8px;
-        background: none;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-decoration: none;
-        color: var(--text-secondary);
-        max-width: 100px; /* ✅ Prevent stretching */
+        justify-content: center;
+        padding: 48px 24px;
+        text-align: center;
+      }
+      .empty-icon {
+        font-size: 40px;
+        margin-bottom: 14px;
+        opacity: 0.35;
+      }
+      .empty-title {
+        font-size: 15px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .empty-text {
+        font-size: 13px;
+        color: var(--text-2);
+        line-height: 1.5;
       }
 
-      .nav-btn:active {
-        transform: scale(0.95);
-        background: var(--surface-secondary);
-      }
-
-      .nav-btn.active {
-        color: var(--primary);
-      }
-
-      .nav-icon {
-        flex-shrink: 0;
-      }
-
-      .nav-label {
-        font-size: 11px;
-        font-weight: 600;
-        white-space: nowrap;
-      }
-
-      .nav-btn.active .nav-label {
-        color: var(--primary-dark);
-      }
-
-      /* LOADING */
+      /* ── LOADING ── */
       .loading {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 40px;
+        padding: 48px;
       }
-
       .spinner {
-        width: 40px;
-        height: 40px;
-        border: 4px solid var(--border);
+        width: 26px;
+        height: 26px;
+        border: 2.5px solid var(--border);
         border-top-color: var(--primary);
         border-radius: 50%;
-        animation: spin 0.8s linear infinite;
+        animation: spin 0.75s linear infinite;
       }
-
       @keyframes spin {
         to {
           transform: rotate(360deg);
         }
       }
 
-      /* TOAST */
+      /* ── BOTTOM SHEET ── */
+      .sheet-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(6px);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.25s ease;
+        z-index: 900;
+      }
+      .sheet-overlay.active {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .sheet {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--surface);
+        border-radius: 24px 24px 0 0;
+        border: 1px solid var(--border);
+        border-bottom: none;
+        padding: 0 0 max(24px, env(safe-area-inset-bottom));
+        transform: translateY(100%);
+        transition: transform 0.32s cubic-bezier(0.34, 1.1, 0.64, 1);
+        z-index: 1000;
+        max-height: 93vh;
+        overflow-y: auto;
+        scrollbar-width: none;
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.1);
+      }
+      .sheet::-webkit-scrollbar {
+        display: none;
+      }
+      .sheet.active {
+        transform: translateY(0);
+      }
+
+      .sheet-drag {
+        width: 40px;
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 10px auto 0;
+      }
+
+      .sheet-head {
+        padding: 16px 20px 0;
+        margin-bottom: 16px;
+      }
+      .sheet-head h2 {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+      }
+      .sheet-head p {
+        font-size: 13px;
+        color: var(--text-2);
+        margin-top: 3px;
+        font-weight: 500;
+      }
+
+      .sheet-body {
+        padding: 0 20px;
+      }
+
+      .field-group {
+        margin-bottom: 18px;
+      }
+      .field-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-3);
+        margin-bottom: 8px;
+      }
+
+      .info-grid {
+        background: var(--surface-2);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        font-size: 13px;
+      }
+      .info-row + .info-row {
+        border-top: 1px solid var(--border-light);
+      }
+      .info-row span:first-child {
+        color: var(--text-2);
+      }
+      .info-row span:last-child {
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      .gap-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: var(--warning-light);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        border-radius: 12px;
+        margin-bottom: 16px;
+      }
+      .gap-banner svg {
+        flex-shrink: 0;
+        color: #d97706;
+      }
+      .gap-banner span {
+        font-size: 13px;
+        font-weight: 600;
+        color: #92400e;
+        line-height: 1.4;
+      }
+
+      /* time chips */
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        flex: 1;
+        min-width: 64px;
+        padding: 10px 8px;
+        background: var(--surface);
+        border: 1.5px solid var(--border);
+        border-radius: 11px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-2);
+        text-align: center;
+        cursor: pointer;
+        transition: all var(--ease);
+      }
+      .chip:active {
+        transform: scale(0.95);
+      }
+      .chip.selected {
+        background: var(--primary-light);
+        border-color: var(--primary);
+        color: var(--primary-dark);
+        box-shadow: 0 0 0 3px rgba(0, 137, 208, 0.1);
+      }
+      .chip.disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      .custom-input {
+        width: 100%;
+        padding: 12px 14px;
+        font-family: "DM Mono", monospace;
+        font-size: 16px;
+        font-weight: 500;
+        text-align: center;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface-2);
+        color: var(--text);
+        transition: all var(--ease);
+      }
+      .custom-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: var(--surface);
+        box-shadow: 0 0 0 3px rgba(0, 137, 208, 0.1);
+      }
+
+      .sheet-textarea {
+        width: 100%;
+        min-height: 84px;
+        padding: 12px 14px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--text);
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface-2);
+        resize: none;
+        transition: all var(--ease);
+      }
+      .sheet-textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: var(--surface);
+        box-shadow: 0 0 0 3px rgba(0, 137, 208, 0.1);
+      }
+
+      .sheet-actions {
+        display: flex;
+        gap: 10px;
+        padding: 18px 20px 0;
+      }
+      .s-btn {
+        flex: 1;
+        padding: 14px;
+        border: none;
+        border-radius: 14px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all var(--ease);
+        letter-spacing: 0.1px;
+      }
+      .s-btn:active {
+        transform: scale(0.98);
+      }
+      .s-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .s-btn.primary {
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(0, 137, 208, 0.3);
+      }
+      .s-btn.ghost {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        color: var(--text-2);
+      }
+
+      /* ── BOTTOM NAV ── */
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: calc(var(--nav-h) + max(0px, env(safe-area-inset-bottom)));
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 0 8px;
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+        display: flex;
+        align-items: stretch;
+        z-index: 100;
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+      }
+      .nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 10px 6px;
+        background: transparent;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        text-decoration: none;
+        color: var(--text-3);
+        margin: 6px 2px;
+        position: relative;
+        transition: all 0.2s ease;
+      }
+      .nav-btn:active {
+        transform: scale(0.93);
+      }
+      .nav-btn.active {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .nav-btn.active::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 25%;
+        right: 25%;
+        height: 2px;
+        background: var(--primary);
+        border-radius: 0 0 2px 2px;
+      }
+      .nav-icon {
+        width: 22px;
+        height: 22px;
+      }
+      .nav-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+
+      /* ── TOAST ── */
       .toast {
         position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-100px);
+        bottom: max(
+          80px,
+          calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px)
+        );
+        left: 16px;
+        right: 16px;
+        max-width: 360px;
+        margin: 0 auto;
         background: var(--text);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 10px;
-        font-size: 14px;
+        color: #fff;
+        padding: 12px 16px;
+        border-radius: 13px;
+        font-size: 13px;
         font-weight: 500;
         box-shadow: var(--shadow-lg);
+        transform: translateY(16px);
         opacity: 0;
-        transition: all 0.3s ease;
-        z-index: 10001;
-        max-width: 90%;
+        transition:
+          transform var(--ease),
+          opacity var(--ease);
+        z-index: 2000;
+        pointer-events: none;
       }
-
       .toast.show {
-        transform: translateX(-50%) translateY(0);
+        transform: translateY(0);
         opacity: 1;
       }
-
       .toast.success {
         background: var(--success);
       }
-
       .toast.error {
         background: var(--danger);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
       }
     </style>
   </head>
   <body>
-    <!-- HEADER -->
-    <div class="header">
-      <div class="header-left">
-        <a href="/employee" class="back-btn">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </a>
-        <h1 class="page-title">Regularization</h1>
-      </div>
-    </div>
-
-    <!-- TABS -->
-    <div class="tabs">
-      <button class="tab active" data-tab="mine" onclick="switchTab('mine')">
-        My Requests
-      </button>
-      <button
-        class="tab"
-        data-tab="team"
-        id="teamTab"
-        onclick="switchTab('team')"
-        style="display: none"
-      >
-        Team
-        <span class="tab-badge" id="teamBadge">0</span>
-      </button>
-    </div>
-
-    <!-- MY REQUESTS VIEW -->
-    <div id="mineView" class="content-view active">
-      <!-- MONTH SELECTOR -->
-      <div class="month-selector">
-        <div class="month-display" id="monthDisplay">March 2026</div>
-        <div class="month-nav">
-          <button id="prevMonth" onclick="changeMonth(-1)">
+    <div class="scroll-body">
+      <!-- HEADER -->
+      <div class="header">
+        <div class="header-left">
+          <a href="/employee" class="back-btn">
             <svg
-              width="16"
-              height="16"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              <path d="M15 18l-6-6 6-6" />
+              <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
-          </button>
-          <button id="nextMonth" onclick="changeMonth(1)" disabled>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
+          </a>
+          <h1 class="page-title">Regularization</h1>
         </div>
       </div>
 
-      <!-- STATS -->
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-label">Approved</div>
-          <div class="stat-value success" id="approvedCount">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Pending</div>
-          <div class="stat-value warning" id="pendingCount">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Rejected</div>
-          <div class="stat-value danger" id="rejectedCount">0</div>
-        </div>
-      </div>
-
-      <!-- USAGE -->
-      <div class="usage-card">
-        <div class="usage-header">
-          <span class="usage-label">Monthly Usage</span>
-          <span class="usage-value" id="usageValue">0h / 20h</span>
-        </div>
-        <div class="usage-bar">
-          <div class="usage-fill" id="usageFill" style="width: 0%"></div>
-        </div>
-      </div>
-
-      <!-- DAYS LIST -->
-      <div id="daysList" class="days-list">
-        <div class="loading">
-          <div class="spinner"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TEAM APPROVALS VIEW -->
-    <div id="teamView" class="content-view">
-      <div id="approvalsList" class="approval-list">
-        <div class="loading">
-          <div class="spinner"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- BOTTOM SHEET FOR REQUEST -->
-    <div
-      class="bottom-sheet-overlay"
-      id="sheetOverlay"
-      onclick="closeSheet()"
-    ></div>
-    <div class="bottom-sheet" id="bottomSheet">
-      <div class="sheet-handle"></div>
-      <h2 class="sheet-title" id="sheetTitle">Request Regularization</h2>
-      <p class="sheet-subtitle" id="sheetSubtitle">Monday, March 3, 2026</p>
-
-      <div class="sheet-section">
-        <div class="sheet-label">Your Shift</div>
-        <div class="sheet-info-card">
-          <div class="sheet-info-row">
-            <span class="sheet-info-label">Shift Time</span>
-            <span class="sheet-info-value" id="sheetShift"
-              >09:00 AM - 06:00 PM</span
-            >
-          </div>
-          <div class="sheet-info-row">
-            <span class="sheet-info-label">Expected Hours</span>
-            <span class="sheet-info-value" id="sheetExpected">9h</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- NORMAL ATTENDANCE SECTION (for early/late cases) -->
-      <div class="sheet-section" id="attendanceSection">
-        <div class="sheet-label">Actual Attendance</div>
-        <div class="sheet-info-card">
-          <div class="sheet-info-row">
-            <span class="sheet-info-label">Clock In</span>
-            <span class="sheet-info-value" id="sheetClockIn">09:15 AM</span>
-          </div>
-          <div class="sheet-info-row">
-            <span class="sheet-info-label">Clock Out</span>
-            <span class="sheet-info-value" id="sheetClockOut">04:30 PM</span>
-          </div>
-          <div class="sheet-info-row">
-            <span class="sheet-info-label">Worked</span>
-            <span class="sheet-info-value" id="sheetWorked">7h 15m</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- FORGOT PUNCH SECTION (for forgot cases) -->
-      <div class="sheet-section" id="forgotSection" style="display: none">
-        <div class="forgot-alert">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <div class="forgot-alert-text" id="forgotAlertText">
-            You forgot to punch in/out
-          </div>
-        </div>
-        <div class="manual-entry-label" id="manualEntryLabel">
-          Enter actual hours you worked:
-        </div>
-      </div>
-
-      <!-- GAP HIGHLIGHT (only for normal cases) -->
-      <div class="gap-highlight" id="gapSection">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
-        <span id="sheetGap">Missing: 1h 45m</span>
-      </div>
-
-      <div class="sheet-section">
-        <div class="sheet-label">Request Additional Time</div>
-        <div class="time-chips" id="timeChips">
-          <!-- Generated dynamically -->
-        </div>
-      </div>
-      <div class="sheet-section" id="customTimeSection" style="display: none">
-        <div class="sheet-label">Enter Hours</div>
-        <input
-          type="number"
-          id="customHoursInput"
-          class="custom-hours-input"
-          placeholder="Enter hours (e.g., 8.5)"
-          step="0.5"
-          min="0"
-          max="12"
-        />
-      </div>
-
-      <div class="sheet-section">
-        <div class="sheet-label">Reason</div>
-        <textarea
-          class="sheet-textarea"
-          id="reasonInput"
-          placeholder="Explain why you need regularization (minimum 3 characters)..."
-          maxlength="500"
-        ></textarea>
-      </div>
-
-      <div class="sheet-actions">
-        <button class="btn btn-secondary" onclick="closeSheet()">Cancel</button>
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab active" data-tab="mine" onclick="switchTab('mine')">
+          My Requests
+        </button>
         <button
-          class="btn btn-primary"
-          id="submitBtn"
-          onclick="submitRequest()"
+          class="tab"
+          data-tab="team"
+          id="teamTab"
+          onclick="switchTab('team')"
+          style="display: none"
         >
+          Team <span class="tab-badge" id="teamBadge">0</span>
+        </button>
+      </div>
+
+      <!-- MY REQUESTS VIEW -->
+      <div id="mineView" class="content-view active">
+        <!-- MONTH ROW -->
+        <div class="month-row">
+          <div class="month-display" id="monthDisplay">March 2026</div>
+          <div class="month-nav">
+            <button id="prevMonth" onclick="changeMonth(-1)">
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <button id="nextMonth" onclick="changeMonth(1)" disabled>
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- SUMMARY CARD: stats + usage bar -->
+        <div class="summary-card">
+          <div class="stats-row">
+            <div class="stat-item">
+              <div class="stat-num green" id="approvedCount">0</div>
+              <div class="stat-lbl">Approved</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-num amber" id="pendingCount">0</div>
+              <div class="stat-lbl">Pending</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-num red" id="rejectedCount">0</div>
+              <div class="stat-lbl">Rejected</div>
+            </div>
+          </div>
+          <div class="usage-row">
+            <span class="usage-lbl">Monthly usage</span>
+            <span class="usage-val" id="usageValue">0h / 20h</span>
+          </div>
+          <div class="usage-track">
+            <div class="usage-fill" id="usageFill" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- DAYS LIST -->
+        <div class="section-label">This Month</div>
+        <div id="daysList" class="days-list">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- TEAM APPROVALS VIEW -->
+      <div id="teamView" class="content-view">
+        <div class="section-label" style="margin-top: 4px">
+          Pending Approvals
+        </div>
+        <div id="approvalsList" class="approval-list">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+    <!-- /scroll-body -->
+
+    <!-- SHEET OVERLAY (request) -->
+    <div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+    <div class="sheet" id="bottomSheet">
+      <div class="sheet-drag"></div>
+      <div class="sheet-head">
+        <h2 id="sheetTitle">Request Regularization</h2>
+        <p id="sheetSubtitle">Monday, March 3, 2026</p>
+      </div>
+      <div class="sheet-body">
+        <!-- Shift info -->
+        <div class="field-group">
+          <div class="field-label">Your Shift</div>
+          <div class="info-grid">
+            <div class="info-row">
+              <span>Shift Time</span
+              ><span id="sheetShift">09:00 AM – 06:00 PM</span>
+            </div>
+            <div class="info-row">
+              <span>Expected</span><span id="sheetExpected">9h</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Normal attendance section -->
+        <div class="field-group" id="attendanceSection">
+          <div class="field-label">Actual Attendance</div>
+          <div class="info-grid">
+            <div class="info-row">
+              <span>Clock In</span><span id="sheetClockIn">–</span>
+            </div>
+            <div class="info-row">
+              <span>Clock Out</span><span id="sheetClockOut">–</span>
+            </div>
+            <div class="info-row">
+              <span>Worked</span><span id="sheetWorked">–</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Forgot punch section -->
+        <div class="field-group" id="forgotSection" style="display: none">
+          <div class="gap-banner">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span id="forgotAlertText">You forgot to punch in/out</span>
+          </div>
+          <div
+            class="field-label"
+            id="manualEntryLabel"
+            style="text-align: center; margin-top: 4px"
+          >
+            Enter actual hours you worked:
+          </div>
+        </div>
+
+        <!-- Gap banner (normal case) -->
+        <div class="gap-banner" id="gapSection" style="margin-bottom: 16px">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <span id="sheetGap">Missing: 1h 45m</span>
+        </div>
+
+        <!-- Time chips -->
+        <div class="field-group">
+          <div class="field-label">Request Additional Time</div>
+          <div class="chips" id="timeChips"></div>
+        </div>
+
+        <!-- Custom hours input -->
+        <div class="field-group" id="customTimeSection" style="display: none">
+          <div class="field-label">Enter Hours</div>
+          <input
+            type="number"
+            id="customHoursInput"
+            class="custom-input"
+            placeholder="e.g. 8.5"
+            step="0.5"
+            min="0"
+            max="12"
+          />
+        </div>
+
+        <!-- Reason -->
+        <div class="field-group">
+          <div class="field-label">Reason</div>
+          <textarea
+            class="sheet-textarea"
+            id="reasonInput"
+            placeholder="Explain why you need regularization (min 3 chars)..."
+            maxlength="500"
+          ></textarea>
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button class="s-btn ghost" onclick="closeSheet()">Cancel</button>
+        <button class="s-btn primary" id="submitBtn" onclick="submitRequest()">
           Submit Request
         </button>
       </div>
     </div>
 
-    <!-- BOTTOM SHEET FOR APPROVAL -->
+    <!-- SHEET OVERLAY (approval) -->
     <div
-      class="bottom-sheet-overlay"
+      class="sheet-overlay"
       id="approvalOverlay"
       onclick="closeApprovalSheet()"
     ></div>
-    <div class="bottom-sheet" id="approvalSheet">
-      <div class="sheet-handle"></div>
-      <h2 class="sheet-title" id="approvalTitle">Approve Request</h2>
-      <p class="sheet-subtitle" id="approvalSubtitle">Employee Name • Date</p>
-
-      <div class="sheet-section">
-        <div class="sheet-label">Request Details</div>
-        <div class="sheet-info-card">
-          <div class="sheet-info-row">
-            <span class="sheet-info-label">Worked</span>
-            <span class="sheet-info-value" id="approvalWorked">7h 15m</span>
-          </div>
-          <div class="sheet-info-row">
-            <span class="sheet-info-label">Requesting</span>
-            <span class="sheet-info-value" id="approvalRequested">1h 30m</span>
-          </div>
-          <div class="sheet-info-row">
-            <span class="sheet-info-label">Total</span>
-            <span class="sheet-info-value" id="approvalTotal">8h 45m</span>
+    <div class="sheet" id="approvalSheet">
+      <div class="sheet-drag"></div>
+      <div class="sheet-head">
+        <h2>Approve Request</h2>
+        <p id="approvalSubtitle">Employee Name • Date</p>
+      </div>
+      <div class="sheet-body">
+        <div class="field-group">
+          <div class="field-label">Request Details</div>
+          <div class="info-grid">
+            <div class="info-row">
+              <span>Worked</span><span id="approvalWorked">–</span>
+            </div>
+            <div class="info-row">
+              <span>Requesting</span><span id="approvalRequested">–</span>
+            </div>
+            <div class="info-row">
+              <span>Total</span><span id="approvalTotal">–</span>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div class="sheet-section">
-        <div class="sheet-label">Reason</div>
-        <div class="approval-reason" id="approvalReason">
-          Had doctor appointment
+        <div class="field-group">
+          <div class="field-label">Reason</div>
+          <div class="info-grid">
+            <div
+              class="info-row"
+              style="font-style: italic; color: var(--text-2)"
+              id="approvalReason"
+            >
+              –
+            </div>
+          </div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">
+            Comment (optional for approve, required for reject)
+          </div>
+          <textarea
+            class="sheet-textarea"
+            id="approvalComment"
+            placeholder="Add a comment..."
+            maxlength="500"
+          ></textarea>
         </div>
       </div>
-
-      <div class="sheet-section">
-        <div class="sheet-label">Comment (Optional)</div>
-        <textarea
-          class="sheet-textarea"
-          id="approvalComment"
-          placeholder="Add a comment..."
-          maxlength="500"
-        ></textarea>
-      </div>
-
       <div class="sheet-actions">
         <button
-          class="btn"
-          style="background: var(--danger); color: white"
+          class="s-btn"
+          style="
+            background: var(--danger-light);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+          "
           onclick="rejectRequest()"
         >
           Reject
         </button>
-        <button class="btn btn-primary" onclick="approveRequest()">
+        <button class="s-btn primary" onclick="approveRequest()">
           Approve
         </button>
       </div>
@@ -1346,30 +1368,29 @@
       <a href="/employee" class="nav-btn">
         <svg
           class="nav-icon"
-          width="24"
-          height="24"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
           <circle cx="12" cy="12" r="10" />
           <path d="M12 6v6l4 2" />
         </svg>
         <span class="nav-label">Clock</span>
       </a>
-
       <button class="nav-btn active">
         <svg
           class="nav-icon"
-          width="24"
-          height="24"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <rect x="3" y="4" width="18" height="18" rx="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
           <line x1="8" y1="2" x2="8" y2="6" />
           <line x1="3" y1="10" x2="21" y2="10" />
@@ -1379,12 +1400,12 @@
       <a href="/leave" class="nav-btn">
         <svg
           class="nav-icon"
-          width="22"
-          height="22"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
@@ -1398,15 +1419,9 @@
     <div class="toast" id="toast"></div>
 
     <script>
-      // ══════════════════════════════════════════════════════════════
-      // CONFIGURATION
-      // ══════════════════════════════════════════════════════════════
       const API_BASE = "/api";
-      const MONTHLY_LIMIT_MINUTES = 1200; // 20 hours
+      const MONTHLY_LIMIT_MINUTES = 1200;
 
-      // ══════════════════════════════════════════════════════════════
-      // STATE
-      // ══════════════════════════════════════════════════════════════
       let currentMonth = new Date();
       let calendarData = [];
       let pendingApprovals = [];
@@ -1416,134 +1431,99 @@
       let token = localStorage.getItem("token");
       let user = null;
 
-      // ══════════════════════════════════════════════════════════════
-      // ACCESS GUARD
-      // ══════════════════════════════════════════════════════════════
+      // ── AUTH ──
       async function checkAccess() {
         if (!token) {
           window.location.href = "/login";
           return null;
         }
-
         try {
           user = await apiFetch("/auth/me");
-
-          // Block HR/admin from this page
           if (user.role === "hr" || user.role === "admin") {
-            console.log("HR/Admin user detected, redirecting to HR dashboard");
             window.location.href = "/hr-manager";
             return null;
           }
-
           return user;
-        } catch (error) {
-          console.error("Auth check failed:", error);
+        } catch (e) {
           localStorage.removeItem("token");
           window.location.href = "/login";
           return null;
         }
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // HELPERS
-      // ══════════════════════════════════════════════════════════════
+      // ── HELPERS ──
       function formatDate(date) {
-        const options = {
+        return new Date(date).toLocaleDateString("en-IN", {
           weekday: "short",
           day: "numeric",
           month: "short",
           year: "numeric",
-        };
-        return new Date(date).toLocaleDateString("en-IN", options);
+        });
       }
-
-      function formatTime(timeStr) {
-        if (!timeStr) return "-";
-        const [h, m] = timeStr.split(":");
-        const hour = parseInt(h);
-        const ampm = hour >= 12 ? "PM" : "AM";
-        const displayHour = hour % 12 || 12;
-        return `${displayHour}:${m} ${ampm}`;
+      function formatTime(t) {
+        if (!t) return "–";
+        const [h, m] = t.split(":");
+        const hr = parseInt(h);
+        return `${hr % 12 || 12}:${m} ${hr >= 12 ? "PM" : "AM"}`;
       }
-
-      function minutesToDisplay(minutes) {
-        if (!minutes || minutes <= 0) return "0m";
-        const h = Math.floor(minutes / 60);
-        const m = minutes % 60;
-        if (h === 0) return `${m}m`;
-        if (m === 0) return `${h}h`;
+      function minutesToDisplay(min) {
+        if (!min || min <= 0) return "0m";
+        const h = Math.floor(min / 60),
+          m = min % 60;
+        if (!h) return `${m}m`;
+        if (!m) return `${h}h`;
         return `${h}h ${m}m`;
       }
-
-      function showToast(message, type = "success") {
-        const toast = document.getElementById("toast");
-        toast.textContent = message;
-        toast.className = `toast ${type}`;
-        setTimeout(() => toast.classList.add("show"), 10);
-        setTimeout(() => {
-          toast.classList.remove("show");
-        }, 3000);
+      function showToast(msg, type = "success") {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.className = `toast ${type}`;
+        setTimeout(() => t.classList.add("show"), 10);
+        setTimeout(() => t.classList.remove("show"), 3200);
       }
-
       async function apiFetch(endpoint, method = "GET", body = null) {
-        const options = {
+        const opts = {
           method,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         };
-        if (body) options.body = JSON.stringify(body);
-
-        const res = await fetch(`${API_BASE}${endpoint}`, options);
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(`${API_BASE}${endpoint}`, opts);
         const data = await res.json();
-
-        if (!res.ok) {
+        if (!res.ok)
           throw new Error(data.detail || data.message || "Request failed");
-        }
         return data;
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // TAB SWITCHING
-      // ══════════════════════════════════════════════════════════════
+      // ── TABS ──
       function switchTab(tab) {
         currentTab = tab;
-
-        // Update tab buttons
-        document.querySelectorAll(".tab").forEach((t) => {
-          t.classList.toggle("active", t.dataset.tab === tab);
-        });
-
-        // Update views
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) => t.classList.toggle("active", t.dataset.tab === tab));
         document
           .getElementById("mineView")
           .classList.toggle("active", tab === "mine");
         document
           .getElementById("teamView")
           .classList.toggle("active", tab === "team");
-
-        if (tab === "team") {
-          loadPendingApprovals();
-        }
+        if (tab === "team") loadPendingApprovals();
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // MONTH NAVIGATION
-      // ══════════════════════════════════════════════════════════════
+      // ── MONTH NAV ──
       function updateMonthDisplay() {
-        const options = { month: "long", year: "numeric" };
         document.getElementById("monthDisplay").textContent =
-          currentMonth.toLocaleDateString("en-IN", options);
-
-        // Disable next month button if current month
+          currentMonth.toLocaleDateString("en-IN", {
+            month: "long",
+            year: "numeric",
+          });
         const now = new Date();
-        const isCurrentMonth =
+        document.getElementById("nextMonth").disabled =
           currentMonth.getMonth() === now.getMonth() &&
           currentMonth.getFullYear() === now.getFullYear();
-        document.getElementById("nextMonth").disabled = isCurrentMonth;
       }
-
       function changeMonth(delta) {
         currentMonth = new Date(
           currentMonth.getFullYear(),
@@ -1554,424 +1534,286 @@
         loadCalendar();
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // DATA LOADING
-      // ══════════════════════════════════════════════════════════════
+      // ── DATA ──
       async function loadCalendar() {
+        const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
         try {
-          const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
           const data = await apiFetch(
             `/attendance/regularization/calendar?month=${monthStr}`,
           );
-
           calendarData = data.days || [];
           renderDays();
-          updateStats(data); // pass full API response for usage bar
-        } catch (error) {
-          console.error("Failed to load calendar:", error);
-          showToast(error.message, "error");
-          document.getElementById("daysList").innerHTML = `
-            <div class="empty-state">
-              <div class="empty-icon">⚠️</div>
-              <div class="empty-title">Failed to load</div>
-              <div class="empty-text">${error.message}</div>
-            </div>
-          `;
+          updateStats(data);
+        } catch (e) {
+          showToast(e.message, "error");
+          document.getElementById("daysList").innerHTML =
+            `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-text">${e.message}</div></div>`;
         }
       }
-
       async function loadPendingApprovals() {
-        const container = document.getElementById("approvalsList");
-        container.innerHTML =
-          '<div class="loading"><div class="spinner"></div></div>';
-
+        const el = document.getElementById("approvalsList");
+        el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
         try {
           const data = await apiFetch("/attendance/regularization/pending");
           pendingApprovals = data.pending_requests || [];
           renderApprovals();
-        } catch (error) {
-          console.error("Failed to load approvals:", error);
-          showToast(error.message, "error");
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-icon">⚠️</div>
-              <div class="empty-title">Failed to load</div>
-              <div class="empty-text">${error.message}</div>
-            </div>
-          `;
+        } catch (e) {
+          showToast(e.message, "error");
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-text">${e.message}</div></div>`;
         }
       }
-
       async function checkManagerStatus() {
         try {
           const data = await apiFetch("/attendance/regularization/pending");
-
           if (data.pending_count > 0) {
             document.getElementById("teamTab").style.display = "flex";
             document.getElementById("teamBadge").textContent =
               data.pending_count;
           }
-        } catch (error) {
-          console.error("Failed to check manager status:", error);
+        } catch (e) {
+          /* not a manager */
         }
       }
 
       function updateStats(apiData) {
-        // Count requests by status from regularization field
         let approved = 0,
           pending = 0,
           rejected = 0;
-
-        calendarData.forEach((day) => {
-          if (day.regularization) {
-            if (day.regularization.status === "approved") approved++;
-            else if (day.regularization.status === "pending") pending++;
-            else if (day.regularization.status === "rejected") rejected++;
+        calendarData.forEach((d) => {
+          if (d.regularization) {
+            if (d.regularization.status === "approved") approved++;
+            else if (d.regularization.status === "pending") pending++;
+            else if (d.regularization.status === "rejected") rejected++;
           }
         });
-
         document.getElementById("approvedCount").textContent = approved;
         document.getElementById("pendingCount").textContent = pending;
         document.getElementById("rejectedCount").textContent = rejected;
 
-        // Use approved_minutes_this_month from API — authoritative, already
-        // scoped to the selected month. Don't recalculate from calendarData
-        // which only reflects the current render and loses fractional hours.
-        const usedMinutes = apiData.approved_minutes_this_month || 0;
-        const usedHours = Math.floor(usedMinutes / 60);
-        const usedMins = usedMinutes % 60;
-        const usedLabel =
-          usedMins > 0 ? `${usedHours}h ${usedMins}m` : `${usedHours}h`;
-        const usagePercent = Math.round(
-          (usedMinutes / MONTHLY_LIMIT_MINUTES) * 100,
-        );
-
+        const usedMin = apiData.approved_minutes_this_month || 0;
+        const h = Math.floor(usedMin / 60),
+          m = usedMin % 60;
         document.getElementById("usageValue").textContent =
-          `${usedLabel} / 20h`;
-
-        const usageFill = document.getElementById("usageFill");
-        usageFill.style.width = `${Math.min(usagePercent, 100)}%`;
-        usageFill.className = "usage-fill";
-        if (usagePercent > 80) usageFill.classList.add("danger");
-        else if (usagePercent > 60) usageFill.classList.add("warning");
+          `${m > 0 ? h + "h " + m + "m" : h + "h"} / 20h`;
+        const pct = Math.round((usedMin / MONTHLY_LIMIT_MINUTES) * 100);
+        const fill = document.getElementById("usageFill");
+        fill.style.width = `${Math.min(pct, 100)}%`;
+        fill.className =
+          "usage-fill" + (pct > 80 ? " over" : pct > 60 ? " warn" : "");
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // RENDERING
-      // ══════════════════════════════════════════════════════════════
+      // ── RENDER DAY CARDS ──
       function renderDays() {
         const container = document.getElementById("daysList");
-
-        if (calendarData.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-icon">📅</div>
-              <div class="empty-title">No attendance records</div>
-              <div class="empty-text">You haven't punched in this month yet</div>
-            </div>
-          `;
+        if (!calendarData.length) {
+          container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">No records yet</div><div class="empty-text">No attendance data for this month</div></div>`;
           return;
         }
-
         container.innerHTML = calendarData
           .map((day) => {
-            const gapMinutes = day.gap_minutes || 0;
-            const hasGap = gapMinutes > 0;
+            const gap = day.gap_minutes || 0;
             const reg = day.regularization;
+            const hasPunchIn = day.punch_in && day.punch_in !== "-";
+            const hasPunchOut = day.punch_out && day.punch_out !== "-";
+            const today = new Date().toISOString().split("T")[0];
+            const isToday = day.date === today;
 
-            let cardClass = "day-card";
-            let badgeClass = "day-badge complete";
-            let badgeText = "✓ Complete";
-            let showRequestBtn = false;
-            let requestBtnText = "Request Fix";
-            let requestStatus = null;
+            // Determine state
+            let state = "ok",
+              pillClass = "pill-ok",
+              pillText = "Complete";
+            let showFixBtn = false,
+              fixBtnText = "Request Fix",
+              fixBtnClass = "fix-btn";
+            let statusText = null;
 
             if (reg) {
-              // Has regularization request
               if (reg.status === "pending") {
-                cardClass += " pending";
-                badgeClass = "day-badge pending";
-                badgeText = "🕒 Pending";
-                requestStatus = `Request pending (${minutesToDisplay(reg.requested_minutes)})`;
+                state = "pend";
+                pillClass = "pill-pend";
+                pillText = "Pending";
+                statusText = `Requested +${minutesToDisplay(reg.requested_minutes)}`;
               } else if (reg.status === "approved") {
-                cardClass += " approved";
-                badgeClass = "day-badge approved";
-                badgeText = "✓ Approved";
-                requestStatus = `Approved +${minutesToDisplay(reg.requested_minutes)}`;
+                state = "appv";
+                pillClass = "pill-appv";
+                pillText = "Approved";
+                statusText = `Credited +${minutesToDisplay(reg.requested_minutes)}`;
               } else if (reg.status === "rejected") {
-                cardClass += " rejected";
-                badgeClass = "day-badge rejected";
-                badgeText = "✗ Rejected";
-                showRequestBtn = true;
-                requestBtnText = "Resubmit";
+                state = "rej";
+                pillClass = "pill-rej";
+                pillText = "Rejected";
+                showFixBtn = true;
+                fixBtnText = "Resubmit";
+                fixBtnClass = "fix-btn resubmit";
               }
-            } else if (hasGap) {
-              const hasPunchIn = day.punch_in && day.punch_in !== "-";
-              const hasPunchOut = day.punch_out && day.punch_out !== "-";
-
-              // ✅ CHECK IF TODAY
-              const today = new Date().toISOString().split("T")[0];
-              const isToday = day.date === today;
-
-              cardClass += " incomplete";
-              badgeClass = "day-badge incomplete";
-
+            } else if (gap > 0) {
               if (!hasPunchOut && isToday) {
-                // Still working today
-                badgeText = "🕐 In Progress";
-                showRequestBtn = false; // ✅ HIDE BUTTON
-              } else if (!hasPunchIn && !hasPunchOut) {
-                badgeText = "⚠ No Record";
-                showRequestBtn = true;
-              } else if (!hasPunchIn) {
-                badgeText = "⚠ No Punch IN";
-                showRequestBtn = true;
-              } else if (!hasPunchOut) {
-                badgeText = "⚠ No Punch OUT";
-                showRequestBtn = true;
+                state = "prog";
+                pillClass = "pill-prog";
+                pillText = "In Progress";
               } else {
-                badgeText = "⚠ Incomplete";
-                showRequestBtn = true;
+                state = "gap";
+                pillClass = "pill-gap";
+                if (!hasPunchIn && !hasPunchOut) pillText = "No Record";
+                else if (!hasPunchIn) pillText = "No Punch In";
+                else if (!hasPunchOut) pillText = "No Punch Out";
+                else pillText = "Short Hours";
+                showFixBtn = true;
               }
             }
 
+            // Time display
+            const timeStr =
+              hasPunchIn || hasPunchOut
+                ? `${formatTime(day.punch_in)} → ${formatTime(day.punch_out)}`
+                : "No punch record";
+
+            // Bottom meta line
+            const workedLabel =
+              reg?.status === "approved" ? "Credited" : "Worked";
+            let metaLine = `<strong>${workedLabel}:</strong> ${day.actual_worked || "–"}`;
+            if (gap > 0 && !reg)
+              metaLine += `  ·  <span style="color:var(--warning)">Short ${day.gap_hours}</span>`;
+            if (statusText) metaLine += `  ·  ${statusText}`;
+
             return `
-            <div class="${cardClass}">
-              <div class="day-header">
-                <div class="day-date">${formatDate(day.date)}</div>
-                <div class="${badgeClass}">${badgeText}</div>
+            <div class="day-card state-${state}">
+              <div class="card-top">
+                <div class="card-date-block">
+                  <div class="card-date">${formatDate(day.date)}</div>
+                  <div class="card-times">${timeStr}</div>
+                </div>
+                <span class="state-pill ${pillClass}">${pillText}</span>
               </div>
-              
-              ${
-                day.punch_in || day.punch_out
-                  ? `
-                <div class="day-times">
-                  <div class="day-time">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
-                    In: ${formatTime(day.punch_in)}
-                  </div>
-                  <div class="day-time">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                    </svg>
-                    Out: ${formatTime(day.punch_out)}
-                  </div>
-                </div>
-              `
-                  : ""
-              }
-              
-              <div class="day-worked">
-                <span class="worked-label">${reg && reg.status === "approved" ? "Credited" : "Worked"}</span>
-                <span class="worked-value">${day.actual_worked}</span>
+              <div class="card-body">
+                <div class="card-meta">${metaLine}</div>
+                ${showFixBtn ? `<button class="${fixBtnClass}" onclick="openSheet('${day.date}')">${fixBtnText}</button>` : ""}
               </div>
-              
-              ${
-                hasGap && !reg
-                  ? `
-                <div class="gap-warning">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                  </svg>
-                  <span>Missing: ${day.gap_hours}</span>
-                </div>
-              `
-                  : ""
-              }
-              
-              ${
-                requestStatus
-                  ? `
-                <div class="request-status">
-                  <span class="request-status-text">${requestStatus}</span>
-                </div>
-              `
-                  : ""
-              }
-              
-              ${
-                showRequestBtn
-                  ? `
-                <div class="request-status">
-                  <button class="request-btn" onclick="openSheet('${day.date}')">${requestBtnText}</button>
-                </div>
-              `
-                  : ""
-              }
-            </div>
-          `;
+            </div>`;
           })
           .join("");
       }
 
+      // ── RENDER APPROVAL CARDS ──
       function renderApprovals() {
-        const container = document.getElementById("approvalsList");
-
-        if (pendingApprovals.length === 0) {
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-icon">✅</div>
-              <div class="empty-title">All caught up!</div>
-              <div class="empty-text">No pending approval requests</div>
-            </div>
-          `;
+        const el = document.getElementById("approvalsList");
+        if (!pendingApprovals.length) {
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">All caught up!</div><div class="empty-text">No pending approvals</div></div>`;
           return;
         }
-
-        container.innerHTML = pendingApprovals
-          .map((req) => {
-            return `
-            <div class="approval-card">
-              <div class="approval-header">
-                <div class="approval-emp-name">${req.employee_name}</div>
-                <div class="day-badge pending">Pending</div>
+        el.innerHTML = pendingApprovals
+          .map(
+            (req) => `
+          <div class="approval-card">
+            <div class="appr-top">
+              <div>
+                <div class="appr-name">${req.employee_name}</div>
+                <div class="appr-meta">${formatDate(req.work_date)}</div>
               </div>
-              
-              <div class="approval-meta">
-                ${formatDate(req.work_date)} • Requested: ${req.requested_display}
-              </div>
-              
-              <div class="approval-reason">"${req.reason}"</div>
-              
-              <div class="day-worked">
-                <span class="worked-label">Worked</span>
-                <span class="worked-value">${req.actual_worked_display}</span>
-              </div>
-              
-              <div class="approval-actions">
-                <button class="reject-btn" onclick="openApprovalSheet(${req.request_id})">
-                  Reject
-                </button>
-                <button class="approve-btn" onclick="openApprovalSheet(${req.request_id})">
-                  Approve
-                </button>
+              <span class="state-pill pill-pend">Pending</span>
+            </div>
+            <div class="appr-body">
+              <div class="appr-reason">"${req.reason}"</div>
+              <div class="appr-stats">
+                <div class="appr-stat">
+                  <div class="appr-stat-val">${req.actual_worked_display}</div>
+                  <div class="appr-stat-lbl">Worked</div>
+                </div>
+                <div class="appr-stat">
+                  <div class="appr-stat-val">+${req.requested_display}</div>
+                  <div class="appr-stat-lbl">Requested</div>
+                </div>
+                <div class="appr-stat">
+                  <div class="appr-stat-val">${minutesToDisplay(req.actual_worked_minutes + req.requested_minutes)}</div>
+                  <div class="appr-stat-lbl">Total</div>
+                </div>
               </div>
             </div>
-          `;
-          })
+            <div class="appr-actions">
+              <button class="appr-btn reject" onclick="openApprovalSheet(${req.request_id})">Reject</button>
+              <button class="appr-btn approve" onclick="openApprovalSheet(${req.request_id})">Approve</button>
+            </div>
+          </div>`,
+          )
           .join("");
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // BOTTOM SHEET - REQUEST
-      // ══════════════════════════════════════════════════════════════
+      // ── REQUEST SHEET ──
       function openSheet(dateStr) {
         selectedDay = calendarData.find((d) => d.date === dateStr);
         if (!selectedDay) return;
-
-        // Populate basic info
         document.getElementById("sheetSubtitle").textContent = formatDate(
           selectedDay.date,
         );
         document.getElementById("sheetShift").textContent =
-          `${formatTime(selectedDay.shift_start)} - ${formatTime(selectedDay.shift_end)}`;
+          `${formatTime(selectedDay.shift_start)} – ${formatTime(selectedDay.shift_end)}`;
         document.getElementById("sheetExpected").textContent =
           selectedDay.shift_hours;
-
-        // ✅ NEW: Detect if forgot punch in/out
         const hasPunchIn = selectedDay.punch_in && selectedDay.punch_in !== "-";
         const hasPunchOut =
           selectedDay.punch_out && selectedDay.punch_out !== "-";
-        const isForgotCase = !hasPunchIn || !hasPunchOut;
-
-        if (isForgotCase) {
-          // FORGOT PUNCH IN/OUT CASE
+        if (!hasPunchIn || !hasPunchOut) {
           showManualEntrySheet(selectedDay, hasPunchIn, hasPunchOut);
         } else {
-          // NORMAL CASE (early/late)
           showNormalRequestSheet(selectedDay);
         }
-
-        // Show sheet
         document.getElementById("sheetOverlay").classList.add("active");
         document.getElementById("bottomSheet").classList.add("active");
         document.body.style.overflow = "hidden";
       }
 
       function showNormalRequestSheet(day) {
-        // Normal case: has both punches
         document.getElementById("sheetTitle").textContent =
           "Request Regularization";
-
         document.getElementById("sheetClockIn").textContent =
-          formatTime(day.punch_in) || "-";
+          formatTime(day.punch_in) || "–";
         document.getElementById("sheetClockOut").textContent =
-          formatTime(day.punch_out) || "-";
+          formatTime(day.punch_out) || "–";
         document.getElementById("sheetWorked").textContent = day.actual_worked;
         document.getElementById("sheetGap").textContent =
           `Missing: ${day.gap_hours}`;
-
-        // Show normal attendance section
         document.getElementById("attendanceSection").style.display = "block";
         document.getElementById("forgotSection").style.display = "none";
-        document.getElementById("gapSection").style.display = "block";
-
-        // Generate time chips (auto-select gap)
-        const gapMinutes = day.gap_minutes || 0;
-        // Add "Custom" option
+        document.getElementById("gapSection").style.display = "flex";
+        const gap = day.gap_minutes || 0;
         const chips = [
           { label: "15m", minutes: 15 },
           { label: "30m", minutes: 30 },
           { label: "1h", minutes: 60 },
           { label: "1h 30m", minutes: 90 },
           { label: "2h", minutes: 120 },
-          { label: "Custom", minutes: -1 }, // -1 = custom
+          { label: "Custom", minutes: -1 },
         ];
-
-        const chipsHtml = chips
-          .map((chip) => {
-            const isSelected = chip.minutes === gapMinutes && chip.minutes > 0;
-            const disabled = chip.minutes > 0 && chip.minutes > gapMinutes + 30;
-            return `
-            <div class="time-chip ${isSelected ? "selected" : ""} ${disabled ? "disabled" : ""}" 
-                onclick="selectChip(${chip.minutes}, '${chip.label}')" 
-                data-minutes="${chip.minutes}">
-              ${chip.label}
-            </div>
-          `;
+        document.getElementById("timeChips").innerHTML = chips
+          .map((c) => {
+            const sel = c.minutes === gap && c.minutes > 0;
+            const dis = c.minutes > 0 && c.minutes > gap + 30;
+            return `<div class="chip${sel ? " selected" : ""}${dis ? " disabled" : ""}" onclick="selectChip(${c.minutes})" data-minutes="${c.minutes}">${c.label}</div>`;
           })
           .join("");
-        document.getElementById("timeChips").innerHTML = chipsHtml;
-
-        // Clear reason
         document.getElementById("reasonInput").value = "";
       }
 
       function showManualEntrySheet(day, hasPunchIn, hasPunchOut) {
-        // Forgot punch case: manual entry
-        let forgotWhat = "";
-        let alertText = "";
-
+        let forgotWhat, alertText;
         if (!hasPunchIn && !hasPunchOut) {
-          forgotWhat = "both punch in and punch out";
-          alertText =
-            "⚠️ No attendance record found. Enter hours you actually worked.";
+          forgotWhat = "both punches";
+          alertText = "⚠️ No record found. Enter hours you actually worked.";
         } else if (!hasPunchIn) {
           forgotWhat = "punch in";
-          alertText = `⚠️ You forgot to punch IN. System shows OUT at ${formatTime(day.punch_out)}`;
+          alertText = `⚠️ Forgot to punch IN. System shows OUT at ${formatTime(day.punch_out)}`;
         } else {
           forgotWhat = "punch out";
-          alertText = `⚠️ You forgot to punch OUT. System shows IN at ${formatTime(day.punch_in)}`;
+          alertText = `⚠️ Forgot to punch OUT. System shows IN at ${formatTime(day.punch_in)}`;
         }
-
         document.getElementById("sheetTitle").textContent =
           `Forgot ${forgotWhat}`;
-
-        // Hide normal sections
-        document.getElementById("attendanceSection").style.display = "none";
-        document.getElementById("gapSection").style.display = "none";
-
-        // Show forgot section
-        document.getElementById("forgotSection").style.display = "block";
         document.getElementById("forgotAlertText").textContent = alertText;
         document.getElementById("manualEntryLabel").textContent =
           "Enter actual hours you worked:";
-
-        // Generate time chips for manual entry.
-        // Default selection = shift_minutes from API (510 = 8h 30m = REQUIRED_WORK_MINUTES).
-        // Chips include 8h 30m so the default always auto-selects.
+        document.getElementById("attendanceSection").style.display = "none";
+        document.getElementById("forgotSection").style.display = "block";
+        document.getElementById("gapSection").style.display = "none";
         const shift_minutes = day.shift_minutes || 510;
         const chips = [
           { label: "8h", minutes: 480 },
@@ -1979,21 +1821,12 @@
           { label: "9h", minutes: 540 },
           { label: "Custom", minutes: -1 },
         ];
-
-        const chipsHtml = chips
-          .map((chip) => {
-            const isSelected = chip.minutes === shift_minutes;
-            return `
-              <div class="time-chip ${isSelected ? "selected" : ""}" 
-                  onclick="selectChip(${chip.minutes})" data-minutes="${chip.minutes}">
-                ${chip.label}
-              </div>
-            `;
+        document.getElementById("timeChips").innerHTML = chips
+          .map((c) => {
+            const sel = c.minutes === shift_minutes;
+            return `<div class="chip${sel ? " selected" : ""}" onclick="selectChip(${c.minutes})" data-minutes="${c.minutes}">${c.label}</div>`;
           })
           .join("");
-        document.getElementById("timeChips").innerHTML = chipsHtml;
-
-        // Clear reason
         document.getElementById("reasonInput").value = "";
       }
 
@@ -2004,206 +1837,158 @@
         selectedDay = null;
       }
 
-      function selectChip(minutes, label) {
-        // Remove selection from all chips
-        document.querySelectorAll(".time-chip").forEach((chip) => {
-          chip.classList.remove("selected");
-        });
-
-        // If custom, show input
+      function selectChip(minutes) {
+        document
+          .querySelectorAll(".chip")
+          .forEach((c) => c.classList.remove("selected"));
         if (minutes === -1) {
           event.target.classList.add("selected");
           document.getElementById("customTimeSection").style.display = "block";
           document.getElementById("customHoursInput").focus();
         } else {
-          // Select clicked chip
           const chip = document.querySelector(`[data-minutes="${minutes}"]`);
-          if (chip && !chip.classList.contains("disabled")) {
+          if (chip && !chip.classList.contains("disabled"))
             chip.classList.add("selected");
-          }
-          // Hide custom input
           document.getElementById("customTimeSection").style.display = "none";
         }
       }
 
       async function submitRequest() {
-        const selectedChip = document.querySelector(".time-chip.selected");
-        if (!selectedChip) {
+        const sel = document.querySelector(".chip.selected");
+        if (!sel) {
           showToast("Please select time", "error");
           return;
         }
-
-        let requestedMinutes = parseInt(selectedChip.dataset.minutes);
-
-        // ✅ Handle custom input
+        let requestedMinutes = parseInt(sel.dataset.minutes);
         if (requestedMinutes === -1) {
-          const customHours = parseFloat(
+          const v = parseFloat(
             document.getElementById("customHoursInput").value,
           );
-          if (!customHours || customHours <= 0) {
+          if (!v || v <= 0) {
             showToast("Please enter valid hours", "error");
             return;
           }
-          if (customHours > 12) {
+          if (v > 12) {
             showToast("Cannot request more than 12 hours", "error");
             return;
           }
-          requestedMinutes = Math.round(customHours * 60); // Convert hours to minutes
+          requestedMinutes = Math.round(v * 60);
         }
-
         const reason = document.getElementById("reasonInput").value.trim();
-
         if (reason.length < 3) {
-          showToast("Please provide a reason (minimum 3 characters)", "error");
+          showToast("Please provide a reason (min 3 chars)", "error");
           return;
         }
-
-        const submitBtn = document.getElementById("submitBtn");
-        submitBtn.disabled = true;
-        submitBtn.textContent = "Submitting...";
-
+        const btn = document.getElementById("submitBtn");
+        btn.disabled = true;
+        btn.textContent = "Submitting...";
         try {
-          const actualWorked = selectedDay.actual_worked_minutes || 0;
-
           await apiFetch("/attendance/regularization/request", "POST", {
             work_date: selectedDay.date,
-            actual_worked_minutes: actualWorked,
+            actual_worked_minutes: selectedDay.actual_worked_minutes || 0,
             requested_minutes: requestedMinutes,
-            reason: reason,
+            reason,
           });
-
-          showToast("Request submitted successfully", "success");
+          showToast("Request submitted!", "success");
           closeSheet();
           loadCalendar();
           checkManagerStatus();
-        } catch (error) {
-          showToast(error.message, "error");
-          submitBtn.disabled = false;
-          submitBtn.textContent = "Submit Request";
+        } catch (e) {
+          showToast(e.message, "error");
+          btn.disabled = false;
+          btn.textContent = "Submit Request";
         }
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // BOTTOM SHEET - APPROVAL
-      // ══════════════════════════════════════════════════════════════
+      // ── APPROVAL SHEET ──
       function openApprovalSheet(requestId) {
         selectedRequest = pendingApprovals.find(
           (r) => r.request_id === requestId,
         );
         if (!selectedRequest) return;
-
-        // Populate sheet
         document.getElementById("approvalSubtitle").textContent =
           `${selectedRequest.employee_name} • ${formatDate(selectedRequest.work_date)}`;
         document.getElementById("approvalWorked").textContent =
           selectedRequest.actual_worked_display;
         document.getElementById("approvalRequested").textContent =
           selectedRequest.requested_display;
-
-        const totalMinutes =
+        document.getElementById("approvalTotal").textContent = minutesToDisplay(
           selectedRequest.actual_worked_minutes +
-          selectedRequest.requested_minutes;
-        document.getElementById("approvalTotal").textContent =
-          minutesToDisplay(totalMinutes);
+            selectedRequest.requested_minutes,
+        );
         document.getElementById("approvalReason").textContent =
           selectedRequest.reason;
         document.getElementById("approvalComment").value = "";
-
-        // Show sheet
         document.getElementById("approvalOverlay").classList.add("active");
         document.getElementById("approvalSheet").classList.add("active");
         document.body.style.overflow = "hidden";
       }
-
       function closeApprovalSheet() {
         document.getElementById("approvalOverlay").classList.remove("active");
         document.getElementById("approvalSheet").classList.remove("active");
         document.body.style.overflow = "";
         selectedRequest = null;
       }
-
       async function approveRequest() {
         if (!selectedRequest) return;
-
         const comment = document.getElementById("approvalComment").value.trim();
-
         try {
           await apiFetch(
             `/attendance/regularization/requests/${selectedRequest.request_id}/approve`,
             "POST",
-            {
-              comment: comment || null,
-            },
+            { comment: comment || null },
           );
-
-          showToast("Request approved successfully", "success");
+          showToast("Request approved!", "success");
           closeApprovalSheet();
           loadPendingApprovals();
           checkManagerStatus();
-        } catch (error) {
-          showToast(error.message, "error");
+        } catch (e) {
+          showToast(e.message, "error");
         }
       }
-
       async function rejectRequest() {
         if (!selectedRequest) return;
-
         const comment = document.getElementById("approvalComment").value.trim();
         if (comment.length < 5) {
-          showToast(
-            "Please provide a rejection reason (minimum 5 characters)",
-            "error",
-          );
+          showToast("Rejection reason required (min 5 chars)", "error");
           return;
         }
-
         try {
           await apiFetch(
             `/attendance/regularization/requests/${selectedRequest.request_id}/reject`,
             "POST",
-            {
-              comment: comment,
-            },
+            { comment },
           );
-
           showToast("Request rejected", "success");
           closeApprovalSheet();
           loadPendingApprovals();
           checkManagerStatus();
-        } catch (error) {
-          showToast(error.message, "error");
+        } catch (e) {
+          showToast(e.message, "error");
         }
       }
 
-      // ══════════════════════════════════════════════════════════════
-      // INIT
-      // ══════════════════════════════════════════════════════════════
+      // ── INIT ──
       async function init() {
-        const currentUser = await checkAccess();
-        if (!currentUser) return; // Redirected
-
+        const u = await checkAccess();
+        if (!u) return;
         updateMonthDisplay();
         loadCalendar();
-        checkManagerStatus(); // Check if user is manager
+        checkManagerStatus();
       }
-
       document.addEventListener("DOMContentLoaded", init);
-
-      // Handle ESC key
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
           if (
             document.getElementById("bottomSheet").classList.contains("active")
-          ) {
+          )
             closeSheet();
-          }
           if (
             document
               .getElementById("approvalSheet")
               .classList.contains("active")
-          ) {
+          )
             closeApprovalSheet();
-          }
         }
       });
     </script>

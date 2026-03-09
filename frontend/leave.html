@@ -22,7 +22,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -42,19 +42,19 @@
       :root {
         --primary: #0089d0;
         --primary-dark: #006faa;
-        --primary-light: #e6f4ff;
+        --primary-light: #e8f5fd;
         --danger: #ef4444;
         --danger-light: #fef2f2;
         --warning: #f59e0b;
         --warning-light: #fffbeb;
-        --bg: #f8f9fa;
+        --bg: #f0f4f8;
         --surface: #ffffff;
-        --surface2: #f3f4f6;
-        --border: #e5e7eb;
-        --border-light: #f0f0f0;
-        --text: #111827;
-        --text-secondary: #6b7280;
-        --text-muted: #9ca3af;
+        --surface-2: #f8fafc;
+        --border: #e2e8f0;
+        --border-light: #f1f5f9;
+        --text: #0f172a;
+        --text-2: #475569;
+        --text-3: #94a3b8;
         --success: #059669;
         --success-light: #ecfdf5;
         --purple: #7c3aed;
@@ -64,23 +64,48 @@
           0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
         --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
         --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        --nav-h: 62px;
+      }
+
+      /* 3px gradient accent bar — matches clock & reg pages */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary) 0%, #10b981 100%);
+        z-index: 200;
       }
 
       body {
         font-family:
-          "Sora",
+          "DM Sans",
           -apple-system,
           BlinkMacSystemFont,
           sans-serif;
         background: var(--bg);
         color: var(--text);
-        padding: max(12px, env(safe-area-inset-top))
-          max(12px, env(safe-area-inset-right))
-          max(90px, env(safe-area-inset-bottom))
-          max(12px, env(safe-area-inset-left));
-        min-height: 100dvh;
-        overflow-x: hidden;
+        height: 100dvh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Scrollable content area — nav-aware */
+      .scroll-body {
+        flex: 1;
         overflow-y: auto;
+        overflow-x: hidden;
+        padding: calc(12px + env(safe-area-inset-top))
+          max(12px, env(safe-area-inset-right))
+          calc(var(--nav-h) + 16px + env(safe-area-inset-bottom))
+          max(12px, env(safe-area-inset-left));
+        scrollbar-width: none;
+      }
+      .scroll-body::-webkit-scrollbar {
+        display: none;
       }
 
       /* ─── HEADER ─────────────────────────────── */
@@ -109,7 +134,7 @@
         transition: background 0.2s;
       }
       .back-btn:hover {
-        background: var(--surface2);
+        background: var(--surface-2);
       }
       .page-title {
         font-size: 18px;
@@ -117,7 +142,7 @@
       }
       .page-subtitle {
         font-size: 12px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         margin-top: 1px;
       }
 
@@ -153,7 +178,7 @@
       .bal-big {
         font-size: 20px;
         font-weight: 700;
-        font-family: "JetBrains Mono", monospace;
+        font-family: "DM Mono", monospace;
         line-height: 1;
       }
       .bal-unit {
@@ -184,13 +209,13 @@
       .bal-pill strong {
         font-size: 14px;
         font-weight: 700;
-        font-family: "JetBrains Mono", monospace;
+        font-family: "DM Mono", monospace;
       }
 
       /* ─── TABS ───────────────────────────────── */
       .tabs {
         display: flex;
-        background: var(--surface2);
+        background: var(--surface-2);
         border-radius: 10px;
         padding: 3px;
         margin-bottom: 16px;
@@ -206,7 +231,7 @@
         font-family: inherit;
         font-size: 11px;
         font-weight: 500;
-        color: var(--text-secondary);
+        color: var(--text-2);
         transition: all var(--transition);
         position: relative;
         line-height: 1.3;
@@ -260,7 +285,7 @@
         height: 32px;
         border-radius: 8px;
         border: 1px solid var(--border);
-        background: var(--surface2);
+        background: var(--surface-2);
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -300,7 +325,7 @@
         background: var(--surface);
         font-size: 12px;
         font-weight: 500;
-        color: var(--text-secondary);
+        color: var(--text-2);
         cursor: pointer;
         transition: all 0.2s;
         white-space: nowrap;
@@ -331,13 +356,13 @@
       }
       .lc-days {
         font-size: 11px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         margin-top: 2px;
-        font-family: "JetBrains Mono", monospace;
+        font-family: "DM Mono", monospace;
       }
       .lc-reason {
         font-size: 12px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         font-style: italic;
         margin-bottom: 10px;
         display: -webkit-box;
@@ -387,8 +412,8 @@
         color: var(--danger);
       }
       .status-badge.cancelled {
-        background: var(--surface2);
-        color: var(--text-muted);
+        background: var(--surface-2);
+        color: var(--text-3);
       }
       .approval-steps {
         display: flex;
@@ -418,11 +443,11 @@
         color: var(--danger);
       }
       .step-dot.na {
-        background: var(--surface2);
-        color: var(--text-muted);
+        background: var(--surface-2);
+        color: var(--text-3);
       }
       .step-arrow {
-        color: var(--text-muted);
+        color: var(--text-3);
         font-size: 10px;
       }
       .cancel-btn {
@@ -446,12 +471,12 @@
         padding: 12px 8px;
         border: 1.5px solid var(--border);
         border-radius: 12px;
-        background: var(--surface2);
+        background: var(--surface-2);
         cursor: pointer;
         font-family: inherit;
         font-size: 13px;
         font-weight: 500;
-        color: var(--text-secondary);
+        color: var(--text-2);
         text-align: center;
         transition: all 0.2s;
         line-height: 1.4;
@@ -491,7 +516,7 @@
         height: 32px;
         border-radius: 8px;
         border: 1px solid var(--border);
-        background: var(--surface2);
+        background: var(--surface-2);
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -522,7 +547,7 @@
         text-align: center;
         font-size: 10px;
         font-weight: 600;
-        color: var(--text-muted);
+        color: var(--text-3);
         text-transform: uppercase;
         letter-spacing: 0.4px;
         padding: 5px 0;
@@ -637,7 +662,7 @@
       .cal-day:not(.past):not(.other-month):not(.sel-start):not(
           .sel-end
         ):hover {
-        background: var(--surface2);
+        background: var(--surface-2);
       }
       /* legend */
       .cal-legend {
@@ -652,7 +677,7 @@
         align-items: center;
         gap: 4px;
         font-size: 10px;
-        color: var(--text-muted);
+        color: var(--text-3);
       }
       .leg-dot {
         width: 8px;
@@ -665,7 +690,7 @@
       .sel-hint {
         text-align: center;
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--text-3);
         padding: 4px 0;
       }
       .sel-summary {
@@ -691,7 +716,7 @@
       }
       .sel-days {
         font-size: 11px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         margin-top: 2px;
       }
       .sel-clear {
@@ -700,7 +725,7 @@
         cursor: pointer;
         font-family: inherit;
         font-size: 11px;
-        color: var(--text-muted);
+        color: var(--text-3);
         text-decoration: underline;
         text-underline-offset: 2px;
         flex-shrink: 0;
@@ -719,7 +744,7 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.4px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         display: block;
         margin-bottom: 8px;
       }
@@ -743,20 +768,20 @@
       }
       .char-hint {
         font-size: 11px;
-        color: var(--text-muted);
+        color: var(--text-3);
         margin-top: 5px;
       }
 
       /* ─── STICKY APPLY BAR ───────────────────── */
       .apply-bar {
         position: fixed;
-        bottom: 58px;
+        bottom: var(--nav-h);
         left: 0;
         right: 0;
         background: var(--surface);
         border-top: 1px solid var(--border);
         padding: 10px 16px;
-        z-index: 49;
+        z-index: 99;
         box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
       }
       .apply-bar-inner {
@@ -769,7 +794,7 @@
       .apply-bar-info {
         flex: 1;
         font-size: 12px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         line-height: 1.3;
         min-width: 0;
         white-space: nowrap;
@@ -844,7 +869,7 @@
         cursor: default;
       }
       .act-cell.future .act-day-num {
-        color: var(--text-muted);
+        color: var(--text-3);
         opacity: 0.5;
       }
 
@@ -862,7 +887,7 @@
         background: #fff7ed;
       } /* orange-light */
       .act-cell.weekly-off {
-        background: var(--surface2);
+        background: var(--surface-2);
       }
       .act-cell.regularized {
         background: #e0f2fe;
@@ -898,7 +923,7 @@
         background: #ea580c;
       }
       .weekly-off .act-status-dot {
-        background: var(--text-muted);
+        background: var(--text-3);
       }
       .regularized .act-status-dot {
         background: #0284c7;
@@ -919,14 +944,14 @@
         box-shadow: var(--shadow-xs);
       }
       .stat-num {
-        font-size: 20px;
+        font-size: 22px;
         font-weight: 700;
-        font-family: "JetBrains Mono", monospace;
+        font-family: "DM Sans", sans-serif;
         line-height: 1;
       }
       .stat-lbl {
         font-size: 10px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         margin-top: 3px;
       }
       .stat-chip.s-present .stat-num {
@@ -963,7 +988,7 @@
         align-items: center;
         gap: 5px;
         font-size: 11px;
-        color: var(--text-secondary);
+        color: var(--text-2);
       }
       .act-leg-swatch {
         width: 12px;
@@ -985,7 +1010,7 @@
         border-bottom: none;
       }
       .day-detail-lbl {
-        color: var(--text-secondary);
+        color: var(--text-2);
       }
       .day-detail-val {
         font-weight: 600;
@@ -1012,15 +1037,15 @@
       }
       .appr-meta {
         font-size: 12px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         margin-bottom: 8px;
       }
       .appr-reason {
-        background: var(--surface2);
+        background: var(--surface-2);
         border-radius: 8px;
         padding: 8px 10px;
         font-size: 12px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         font-style: italic;
         margin-bottom: 10px;
       }
@@ -1028,7 +1053,7 @@
         display: flex;
         justify-content: space-between;
         font-size: 12px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         margin-bottom: 4px;
       }
       .appr-row strong {
@@ -1092,7 +1117,7 @@
       }
       .empty-text {
         font-size: 13px;
-        color: var(--text-secondary);
+        color: var(--text-2);
       }
       .spinner-wrap {
         display: flex;
@@ -1119,7 +1144,7 @@
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.45);
-        z-index: 100;
+        z-index: 110;
         opacity: 0;
         pointer-events: none;
         transition: opacity var(--transition);
@@ -1137,7 +1162,7 @@
         background: var(--surface);
         border-radius: 20px 20px 0 0;
         padding: 0 16px max(20px, env(safe-area-inset-bottom));
-        z-index: 101;
+        z-index: 111;
         transform: translateY(100%);
         transition: transform var(--transition);
         max-height: 90dvh;
@@ -1160,7 +1185,7 @@
       }
       .sheet-sub {
         font-size: 13px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         margin-bottom: 14px;
       }
       .sheet-section {
@@ -1171,7 +1196,7 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.4px;
-        color: var(--text-secondary);
+        color: var(--text-2);
         margin-bottom: 6px;
       }
       .sheet-ta {
@@ -1191,7 +1216,7 @@
         border-color: var(--primary);
       }
       .info-card {
-        background: var(--surface2);
+        background: var(--surface-2);
         border-radius: 10px;
         padding: 10px 12px;
       }
@@ -1205,7 +1230,7 @@
         border-bottom: 1px solid var(--border-light);
       }
       .info-label {
-        color: var(--text-secondary);
+        color: var(--text-2);
       }
       .info-value {
         font-weight: 600;
@@ -1246,9 +1271,12 @@
         background: var(--surface);
         border-top: 1px solid var(--border);
         display: flex;
-        padding: 8px 0;
-        padding-bottom: max(8px, env(safe-area-inset-bottom));
-        z-index: 50;
+        gap: 8px;
+        padding: 8px max(8px, env(safe-area-inset-right))
+          max(8px, env(safe-area-inset-bottom))
+          max(8px, env(safe-area-inset-left));
+        z-index: 100;
+        flex-shrink: 0;
       }
       .nav-btn {
         flex: 1;
@@ -1256,32 +1284,36 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 3px;
-        padding: 6px 8px;
+        gap: 4px;
+        padding: 10px;
+        background: transparent;
         border: none;
-        background: none;
+        border-radius: 10px;
         cursor: pointer;
         text-decoration: none;
-        color: var(--text-muted);
         font-family: inherit;
-        transition: color 0.2s;
+        transition: all 0.2s ease;
       }
       .nav-btn:active {
         transform: scale(0.95);
       }
       .nav-btn.active {
-        color: var(--primary);
-      }
-      .nav-btn.active .nav-icon {
-        stroke: var(--primary);
+        background: var(--primary-light);
       }
       .nav-icon {
-        stroke: var(--text-muted);
+        stroke: var(--text-3);
         transition: stroke 0.2s;
       }
+      .nav-btn.active .nav-icon {
+        stroke: var(--primary-dark);
+      }
       .nav-label {
-        font-size: 10px;
-        font-weight: 500;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-2);
+      }
+      .nav-btn.active .nav-label {
+        color: var(--primary-dark);
       }
 
       /* ─── TOAST ──────────────────────────────── */
@@ -1318,177 +1350,90 @@
     </style>
   </head>
   <body>
-    <!-- HEADER -->
-    <div class="header">
-      <div class="header-left">
-        <a href="/employee" class="back-btn">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-        </a>
-        <div>
-          <div class="page-title">Attendance</div>
-          <div class="page-subtitle" id="userNameSub">Loading…</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- BALANCE CARD -->
-    <div class="balance-card">
-      <div class="bal-left">
-        <div class="bal-icon"></div>
-        <div>
-          <div class="bal-label">
-            Paid Leave Balance &nbsp;<span
-              id="balYear"
-              style="opacity: 0.6"
-            ></span>
-          </div>
-          <div
-            style="
-              display: flex;
-              align-items: baseline;
-              gap: 5px;
-              margin-top: 2px;
-            "
-          >
-            <div class="bal-big" id="balRemaining">—</div>
-            <div class="bal-unit">days left</div>
+    <div class="scroll-body">
+      <!-- HEADER -->
+      <div class="header">
+        <div class="header-left">
+          <a href="/employee" class="back-btn">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path d="M19 12H5M12 5l-7 7 7 7" />
+            </svg>
+          </a>
+          <div>
+            <div class="page-title">Attendance</div>
+            <div class="page-subtitle" id="userNameSub">Loading…</div>
           </div>
         </div>
       </div>
-      <div class="bal-pills">
-        <div class="bal-pill">
-          <span>Total</span><strong id="balTotal">—</strong>
+
+      <!-- BALANCE CARD -->
+      <div class="balance-card">
+        <div class="bal-left">
+          <div class="bal-icon"></div>
+          <div>
+            <div class="bal-label">
+              Paid Leave Balance &nbsp;<span
+                id="balYear"
+                style="opacity: 0.6"
+              ></span>
+            </div>
+            <div
+              style="
+                display: flex;
+                align-items: baseline;
+                gap: 5px;
+                margin-top: 2px;
+              "
+            >
+              <div class="bal-big" id="balRemaining">—</div>
+              <div class="bal-unit">days left</div>
+            </div>
+          </div>
         </div>
-        <div class="bal-pill">
-          <span>Used</span><strong id="balUsed">—</strong>
+        <div class="bal-pills">
+          <div class="bal-pill">
+            <span>Total</span><strong id="balTotal">—</strong>
+          </div>
+          <div class="bal-pill">
+            <span>Used</span><strong id="balUsed">—</strong>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- TABS (4) -->
-    <div class="tabs">
-      <button class="tab active" data-tab="mine" onclick="switchTab('mine')">
-        My Leaves
-      </button>
-      <button class="tab" data-tab="apply" onclick="switchTab('apply')">
-        Apply
-      </button>
-      <button class="tab" data-tab="activity" onclick="switchTab('activity')">
-        Activity
-      </button>
-      <button class="tab" data-tab="approvals" onclick="switchTab('approvals')">
-        Approvals
-        <span class="tab-badge" id="pendingBadge" style="display: none">0</span>
-      </button>
-    </div>
-
-    <!-- ═══════ MY LEAVES ═══════ -->
-    <div class="view active" id="mineView">
-      <div class="period-nav">
-        <button class="pnav-btn" onclick="changeYear(-1)">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
+      <!-- TABS (4) -->
+      <div class="tabs">
+        <button class="tab active" data-tab="mine" onclick="switchTab('mine')">
+          My Leaves
+        </button>
+        <button class="tab" data-tab="apply" onclick="switchTab('apply')">
+          Apply
+        </button>
+        <button class="tab" data-tab="activity" onclick="switchTab('activity')">
+          Activity
+        </button>
+        <button
+          class="tab"
+          data-tab="approvals"
+          onclick="switchTab('approvals')"
+        >
+          Approvals
+          <span class="tab-badge" id="pendingBadge" style="display: none"
+            >0</span
           >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <span class="pnav-label" id="yearDisplay">—</span>
-        <button
-          class="pnav-btn"
-          id="nextYearBtn"
-          disabled
-          onclick="changeYear(1)"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-          >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-      </div>
-      <div class="filter-chips" id="statusFilters">
-        <div
-          class="chip active"
-          data-status="all"
-          onclick="setFilter('all', this)"
-        >
-          All
-        </div>
-        <div
-          class="chip"
-          data-status="pending"
-          onclick="setFilter('pending', this)"
-        >
-          Pending
-        </div>
-        <div
-          class="chip"
-          data-status="approved"
-          onclick="setFilter('approved', this)"
-        >
-          Approved
-        </div>
-        <div
-          class="chip"
-          data-status="rejected"
-          onclick="setFilter('rejected', this)"
-        >
-          Rejected
-        </div>
-        <div
-          class="chip"
-          data-status="cancelled"
-          onclick="setFilter('cancelled', this)"
-        >
-          Cancelled
-        </div>
-      </div>
-      <div id="myLeavesList">
-        <div class="spinner-wrap"><div class="spinner"></div></div>
-      </div>
-    </div>
-
-    <!-- ═══════ APPLY ═══════ -->
-    <div class="view" id="applyView">
-      <div class="type-toggle">
-        <button
-          class="type-btn active paid"
-          id="btnPaid"
-          onclick="selectType('paid')"
-        >
-          <span class="ticon"></span>Paid Leave
-        </button>
-        <button
-          class="type-btn unpaid"
-          id="btnUnpaid"
-          onclick="selectType('unpaid')"
-        >
-          <span class="ticon"></span>Unpaid Leave
         </button>
       </div>
 
-      <div class="cal-card">
-        <div class="cal-nav-row">
-          <button class="cal-nav-btn" id="calPrev" onclick="calMove(-1)">
+      <!-- ═══════ MY LEAVES ═══════ -->
+      <div class="view active" id="mineView">
+        <div class="period-nav">
+          <button class="pnav-btn" onclick="changeYear(-1)">
             <svg
               width="14"
               height="14"
@@ -1500,8 +1445,13 @@
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
-          <span class="cal-month-label" id="calMonthLabel">—</span>
-          <button class="cal-nav-btn" id="calNext" onclick="calMove(1)">
+          <span class="pnav-label" id="yearDisplay">—</span>
+          <button
+            class="pnav-btn"
+            id="nextYearBtn"
+            disabled
+            onclick="changeYear(1)"
+          >
             <svg
               width="14"
               height="14"
@@ -1514,303 +1464,403 @@
             </svg>
           </button>
         </div>
-        <div class="cal-weekdays">
-          <div class="cal-wd we">Su</div>
-          <div class="cal-wd">Mo</div>
-          <div class="cal-wd">Tu</div>
-          <div class="cal-wd">We</div>
-          <div class="cal-wd">Th</div>
-          <div class="cal-wd">Fr</div>
-          <div class="cal-wd">Sa</div>
-        </div>
-        <div class="cal-grid" id="calGrid"></div>
-        <div class="cal-legend">
-          <div class="leg">
-            <div class="leg-dot" style="background: var(--primary)"></div>
-            Selected
+        <div class="filter-chips" id="statusFilters">
+          <div
+            class="chip active"
+            data-status="all"
+            onclick="setFilter('all', this)"
+          >
+            All
           </div>
-          <div class="leg">
+          <div
+            class="chip"
+            data-status="pending"
+            onclick="setFilter('pending', this)"
+          >
+            Pending
+          </div>
+          <div
+            class="chip"
+            data-status="approved"
+            onclick="setFilter('approved', this)"
+          >
+            Approved
+          </div>
+          <div
+            class="chip"
+            data-status="rejected"
+            onclick="setFilter('rejected', this)"
+          >
+            Rejected
+          </div>
+          <div
+            class="chip"
+            data-status="cancelled"
+            onclick="setFilter('cancelled', this)"
+          >
+            Cancelled
+          </div>
+        </div>
+        <div id="myLeavesList">
+          <div class="spinner-wrap"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <!-- ═══════ APPLY ═══════ -->
+      <div class="view" id="applyView">
+        <div class="type-toggle">
+          <button
+            class="type-btn active paid"
+            id="btnPaid"
+            onclick="selectType('paid')"
+          >
+            <span class="ticon"></span>Paid Leave
+          </button>
+          <button
+            class="type-btn unpaid"
+            id="btnUnpaid"
+            onclick="selectType('unpaid')"
+          >
+            <span class="ticon"></span>Unpaid Leave
+          </button>
+        </div>
+
+        <div class="cal-card">
+          <div class="cal-nav-row">
+            <button class="cal-nav-btn" id="calPrev" onclick="calMove(-1)">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <span class="cal-month-label" id="calMonthLabel">—</span>
+            <button class="cal-nav-btn" id="calNext" onclick="calMove(1)">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+          <div class="cal-weekdays">
+            <div class="cal-wd we">Su</div>
+            <div class="cal-wd">Mo</div>
+            <div class="cal-wd">Tu</div>
+            <div class="cal-wd">We</div>
+            <div class="cal-wd">Th</div>
+            <div class="cal-wd">Fr</div>
+            <div class="cal-wd">Sa</div>
+          </div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-legend">
+            <div class="leg">
+              <div class="leg-dot" style="background: var(--primary)"></div>
+              Selected
+            </div>
+            <div class="leg">
+              <div
+                class="leg-dot"
+                style="
+                  background: var(--primary-light);
+                  border: 1px solid var(--primary);
+                "
+              ></div>
+              Range
+            </div>
+            <div class="leg">
+              <div class="leg-dot" style="background: var(--danger)"></div>
+              Holiday / Sunday
+            </div>
+            <div class="leg">
+              <div
+                class="leg-dot"
+                style="
+                  background: var(--surface-2);
+                  border: 1px solid var(--border);
+                "
+              ></div>
+              Today
+            </div>
+          </div>
+        </div>
+
+        <div class="sel-hint" id="selHint">
+          Tap a date to start your selection
+        </div>
+        <div class="sel-summary" id="selSummary" style="display: none">
+          <div class="sel-icon"></div>
+          <div class="sel-info">
+            <div class="sel-dates" id="selDatesText">—</div>
+            <div class="sel-days" id="selDaysText">—</div>
+          </div>
+          <button class="sel-clear" onclick="clearSelection()">Clear</button>
+        </div>
+
+        <div class="reason-card">
+          <label class="reason-label"
+            >Reason <span style="color: var(--danger)">*</span></label
+          >
+          <textarea
+            class="reason-ta"
+            id="leaveReason"
+            placeholder="Briefly explain your reason (min 5 characters)…"
+            maxlength="500"
+            oninput="updateCharCount()"
+          ></textarea>
+          <div class="char-hint"><span id="charCount">0</span>/500</div>
+        </div>
+      </div>
+
+      <!-- ═══════ ACTIVITY ═══════ -->
+      <div class="view" id="activityView">
+        <div class="period-nav">
+          <button class="pnav-btn" onclick="actMove(-1)">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <span class="pnav-label" id="actMonthLabel">—</span>
+          <button class="pnav-btn" id="actNext" onclick="actMove(1)">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Stats row -->
+        <div class="act-stats" id="actStats">
+          <div class="stat-chip s-present">
+            <div class="stat-num" id="statPresent">—</div>
+            <div class="stat-lbl">Present</div>
+          </div>
+          <div class="stat-chip s-absent">
+            <div class="stat-num" id="statAbsent">—</div>
+            <div class="stat-lbl">Absent</div>
+          </div>
+          <div class="stat-chip s-leave">
+            <div class="stat-num" id="statLeave">—</div>
+            <div class="stat-lbl">Leave</div>
+          </div>
+          <div class="stat-chip s-reg">
+            <div class="stat-num" id="statReg">—</div>
+            <div class="stat-lbl">Regularized</div>
+          </div>
+          <div class="stat-chip s-holiday">
+            <div class="stat-num" id="statHoliday">—</div>
+            <div class="stat-lbl">Holidays</div>
+          </div>
+          <div class="stat-chip s-late">
+            <div class="stat-num" id="statLate">—</div>
+            <div class="stat-lbl">Late Days</div>
+          </div>
+        </div>
+
+        <!-- Activity calendar -->
+        <div class="act-month-card">
+          <div class="act-cal-weekdays">
+            <div class="cal-wd we">Su</div>
+            <div class="cal-wd">Mo</div>
+            <div class="cal-wd">Tu</div>
+            <div class="cal-wd">We</div>
+            <div class="cal-wd">Th</div>
+            <div class="cal-wd">Fr</div>
+            <div class="cal-wd">Sa</div>
+          </div>
+          <div class="act-cal-grid" id="actGrid">
+            <div class="spinner-wrap" style="grid-column: span 7">
+              <div class="spinner"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="act-legend">
+          <div class="act-leg-item">
             <div
-              class="leg-dot"
+              class="act-leg-swatch"
               style="
-                background: var(--primary-light);
-                border: 1px solid var(--primary);
+                background: var(--success-light);
+                border: 1px solid var(--success);
               "
             ></div>
-            Range
+            Present
           </div>
-          <div class="leg">
-            <div class="leg-dot" style="background: var(--danger)"></div>
-            Holiday / Sunday
-          </div>
-          <div class="leg">
+          <div class="act-leg-item">
             <div
-              class="leg-dot"
+              class="act-leg-swatch"
               style="
-                background: var(--surface2);
+                background: var(--danger-light);
+                border: 1px solid var(--danger);
+              "
+            ></div>
+            Absent
+          </div>
+          <div class="act-leg-item">
+            <div
+              class="act-leg-swatch"
+              style="background: #ede9fe; border: 1px solid #7c3aed"
+            ></div>
+            Leave
+          </div>
+          <div class="act-leg-item">
+            <div
+              class="act-leg-swatch"
+              style="background: #e0f2fe; border: 1px solid #0284c7"
+            ></div>
+            Regularized
+          </div>
+          <div class="act-leg-item">
+            <div
+              class="act-leg-swatch"
+              style="background: #fff7ed; border: 1px solid #ea580c"
+            ></div>
+            Holiday
+          </div>
+          <div class="act-leg-item">
+            <div
+              class="act-leg-swatch"
+              style="
+                background: var(--surface-2);
                 border: 1px solid var(--border);
               "
             ></div>
-            Today
+            Week Off
           </div>
         </div>
       </div>
 
-      <div class="sel-hint" id="selHint">
-        Tap a date to start your selection
-      </div>
-      <div class="sel-summary" id="selSummary" style="display: none">
-        <div class="sel-icon"></div>
-        <div class="sel-info">
-          <div class="sel-dates" id="selDatesText">—</div>
-          <div class="sel-days" id="selDaysText">—</div>
+      <!-- ═══════ APPROVALS ═══════ -->
+      <div class="view" id="approvalsView">
+        <div id="approvalsList">
+          <div class="spinner-wrap"><div class="spinner"></div></div>
         </div>
-        <button class="sel-clear" onclick="clearSelection()">Clear</button>
       </div>
 
-      <div class="reason-card">
-        <label class="reason-label"
-          >Reason <span style="color: var(--danger)">*</span></label
-        >
-        <textarea
-          class="reason-ta"
-          id="leaveReason"
-          placeholder="Briefly explain your reason (min 5 characters)…"
-          maxlength="500"
-          oninput="updateCharCount()"
-        ></textarea>
-        <div class="char-hint"><span id="charCount">0</span>/500</div>
-      </div>
-    </div>
-
-    <!-- ═══════ ACTIVITY ═══════ -->
-    <div class="view" id="activityView">
-      <div class="period-nav">
-        <button class="pnav-btn" onclick="actMove(-1)">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
+      <!-- BOTTOM SHEET: APPROVAL ACTION -->
+      <div
+        class="sheet-overlay"
+        id="actionOverlay"
+        onclick="closeActionSheet()"
+      ></div>
+      <div class="bottom-sheet" id="actionSheet">
+        <div class="sheet-handle"></div>
+        <h2 class="sheet-title" id="actionTitle">Review Request</h2>
+        <p class="sheet-sub" id="actionSubtitle"></p>
+        <div class="sheet-section">
+          <div class="sheet-label">Details</div>
+          <div class="info-card">
+            <div class="info-row">
+              <span class="info-label">Employee</span
+              ><span class="info-value" id="actionEmp">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Dates</span>
+              <span class="info-value" id="actionDates">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Days</span>
+              <span class="info-value" id="actionDays">—</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Type</span>
+              <span class="info-value" id="actionType">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="sheet-section">
+          <div class="sheet-label">Reason</div>
+          <div class="appr-reason" id="actionReason">—</div>
+        </div>
+        <div class="sheet-section">
+          <div class="sheet-label">
+            Comment
+            <span
+              id="commentRequired"
+              style="color: var(--danger); display: none"
+              >*</span
+            >
+          </div>
+          <textarea
+            class="sheet-ta"
+            id="actionComment"
+            placeholder="Add a comment…"
+            maxlength="500"
+          ></textarea>
+        </div>
+        <div class="sheet-actions">
+          <button
+            class="btn btn-dng"
+            id="rejectBtn"
+            onclick="submitAction('reject')"
           >
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <span class="pnav-label" id="actMonthLabel">—</span>
-        <button class="pnav-btn" id="actNext" onclick="actMove(1)">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
+            Reject
+          </button>
+          <button
+            class="btn btn-pri"
+            id="approveBtn"
+            onclick="submitAction('approve')"
           >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Stats row -->
-      <div class="act-stats" id="actStats">
-        <div class="stat-chip s-present">
-          <div class="stat-num" id="statPresent">—</div>
-          <div class="stat-lbl">Present</div>
-        </div>
-        <div class="stat-chip s-absent">
-          <div class="stat-num" id="statAbsent">—</div>
-          <div class="stat-lbl">Absent</div>
-        </div>
-        <div class="stat-chip s-leave">
-          <div class="stat-num" id="statLeave">—</div>
-          <div class="stat-lbl">Leave</div>
-        </div>
-        <div class="stat-chip s-reg">
-          <div class="stat-num" id="statReg">—</div>
-          <div class="stat-lbl">Regularized</div>
-        </div>
-        <div class="stat-chip s-holiday">
-          <div class="stat-num" id="statHoliday">—</div>
-          <div class="stat-lbl">Holidays</div>
-        </div>
-        <div class="stat-chip s-late">
-          <div class="stat-num" id="statLate">—</div>
-          <div class="stat-lbl">Late Days</div>
+            Approve
+          </button>
         </div>
       </div>
 
-      <!-- Activity calendar -->
-      <div class="act-month-card">
-        <div class="act-cal-weekdays">
-          <div class="cal-wd we">Su</div>
-          <div class="cal-wd">Mo</div>
-          <div class="cal-wd">Tu</div>
-          <div class="cal-wd">We</div>
-          <div class="cal-wd">Th</div>
-          <div class="cal-wd">Fr</div>
-          <div class="cal-wd">Sa</div>
-        </div>
-        <div class="act-cal-grid" id="actGrid">
-          <div class="spinner-wrap" style="grid-column: span 7">
-            <div class="spinner"></div>
-          </div>
-        </div>
+      <!-- BOTTOM SHEET: DAY DETAIL -->
+      <div
+        class="sheet-overlay"
+        id="dayOverlay"
+        onclick="closeDaySheet()"
+      ></div>
+      <div class="bottom-sheet" id="daySheet">
+        <div class="sheet-handle"></div>
+        <h2 class="sheet-title" id="daySheetTitle">—</h2>
+        <p class="sheet-sub" id="daySheetSub"></p>
+        <div id="daySheetContent"></div>
       </div>
 
-      <!-- Legend -->
-      <div class="act-legend">
-        <div class="act-leg-item">
-          <div
-            class="act-leg-swatch"
-            style="
-              background: var(--success-light);
-              border: 1px solid var(--success);
-            "
-          ></div>
-          Present
-        </div>
-        <div class="act-leg-item">
-          <div
-            class="act-leg-swatch"
-            style="
-              background: var(--danger-light);
-              border: 1px solid var(--danger);
-            "
-          ></div>
-          Absent
-        </div>
-        <div class="act-leg-item">
-          <div
-            class="act-leg-swatch"
-            style="background: #ede9fe; border: 1px solid #7c3aed"
-          ></div>
-          Leave
-        </div>
-        <div class="act-leg-item">
-          <div
-            class="act-leg-swatch"
-            style="background: #e0f2fe; border: 1px solid #0284c7"
-          ></div>
-          Regularized
-        </div>
-        <div class="act-leg-item">
-          <div
-            class="act-leg-swatch"
-            style="background: #fff7ed; border: 1px solid #ea580c"
-          ></div>
-          Holiday
-        </div>
-        <div class="act-leg-item">
-          <div
-            class="act-leg-swatch"
-            style="background: var(--surface2); border: 1px solid var(--border)"
-          ></div>
-          Week Off
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══════ APPROVALS ═══════ -->
-    <div class="view" id="approvalsView">
-      <div id="approvalsList">
-        <div class="spinner-wrap"><div class="spinner"></div></div>
-      </div>
-    </div>
-
-    <!-- BOTTOM SHEET: APPROVAL ACTION -->
-    <div
-      class="sheet-overlay"
-      id="actionOverlay"
-      onclick="closeActionSheet()"
-    ></div>
-    <div class="bottom-sheet" id="actionSheet">
-      <div class="sheet-handle"></div>
-      <h2 class="sheet-title" id="actionTitle">Review Request</h2>
-      <p class="sheet-sub" id="actionSubtitle"></p>
-      <div class="sheet-section">
-        <div class="sheet-label">Details</div>
-        <div class="info-card">
-          <div class="info-row">
-            <span class="info-label">Employee</span
-            ><span class="info-value" id="actionEmp">—</span>
+      <!-- STICKY APPLY BAR -->
+      <div class="apply-bar" id="applyBar" style="display: none">
+        <div class="apply-bar-inner">
+          <div class="apply-bar-info" id="applyBarInfo">
+            Select dates to apply
           </div>
-          <div class="info-row">
-            <span class="info-label">Dates</span>
-            <span class="info-value" id="actionDates">—</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Days</span>
-            <span class="info-value" id="actionDays">—</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">Type</span>
-            <span class="info-value" id="actionType">—</span>
-          </div>
-        </div>
-      </div>
-      <div class="sheet-section">
-        <div class="sheet-label">Reason</div>
-        <div class="appr-reason" id="actionReason">—</div>
-      </div>
-      <div class="sheet-section">
-        <div class="sheet-label">
-          Comment
-          <span id="commentRequired" style="color: var(--danger); display: none"
-            >*</span
+          <button
+            class="apply-bar-btn"
+            id="applyBtn"
+            onclick="submitLeave()"
+            disabled
           >
+            Submit Leave
+          </button>
         </div>
-        <textarea
-          class="sheet-ta"
-          id="actionComment"
-          placeholder="Add a comment…"
-          maxlength="500"
-        ></textarea>
-      </div>
-      <div class="sheet-actions">
-        <button
-          class="btn btn-dng"
-          id="rejectBtn"
-          onclick="submitAction('reject')"
-        >
-          Reject
-        </button>
-        <button
-          class="btn btn-pri"
-          id="approveBtn"
-          onclick="submitAction('approve')"
-        >
-          Approve
-        </button>
       </div>
     </div>
-
-    <!-- BOTTOM SHEET: DAY DETAIL -->
-    <div class="sheet-overlay" id="dayOverlay" onclick="closeDaySheet()"></div>
-    <div class="bottom-sheet" id="daySheet">
-      <div class="sheet-handle"></div>
-      <h2 class="sheet-title" id="daySheetTitle">—</h2>
-      <p class="sheet-sub" id="daySheetSub"></p>
-      <div id="daySheetContent"></div>
-    </div>
-
-    <!-- STICKY APPLY BAR -->
-    <div class="apply-bar" id="applyBar" style="display: none">
-      <div class="apply-bar-inner">
-        <div class="apply-bar-info" id="applyBarInfo">
-          Select dates to apply
-        </div>
-        <button
-          class="apply-bar-btn"
-          id="applyBtn"
-          onclick="submitLeave()"
-          disabled
-        >
-          Submit Leave
-        </button>
-      </div>
-    </div>
+    <!-- /.scroll-body -->
 
     <!-- BOTTOM NAV -->
     <div class="bottom-nav">
@@ -2571,8 +2621,8 @@
           leave: "#7c3aed",
           regularized: "#0284c7",
           holiday: "#ea580c",
-          "weekly-off": "var(--text-muted)",
-          future: "var(--text-muted)",
+          "weekly-off": "var(--text-3)",
+          future: "var(--text-3)",
         };
         const statusLabels = {
           present: "Present",
@@ -2584,7 +2634,7 @@
           future: "Upcoming",
         };
 
-        const color = statusColors[cell.status] || "var(--text-muted)";
+        const color = statusColors[cell.status] || "var(--text-3)";
         const label = statusLabels[cell.status] || cap(cell.status);
 
         rows.push(
@@ -2638,13 +2688,13 @@
 
         document.getElementById("dayOverlay").classList.add("active");
         document.getElementById("daySheet").classList.add("active");
-        document.body.style.overflow = "hidden";
+        document.querySelector(".scroll-body").style.overflow = "hidden";
       }
 
       function closeDaySheet() {
         document.getElementById("dayOverlay").classList.remove("active");
         document.getElementById("daySheet").classList.remove("active");
-        document.body.style.overflow = "";
+        document.querySelector(".scroll-body").style.overflow = "";
       }
 
       // ══════════════════════════════════════════
@@ -2738,12 +2788,12 @@
         ).textContent = isReject ? "Confirm Rejection" : "Confirm Approval";
         document.getElementById("actionOverlay").classList.add("active");
         document.getElementById("actionSheet").classList.add("active");
-        document.body.style.overflow = "hidden";
+        document.querySelector(".scroll-body").style.overflow = "hidden";
       }
       function closeActionSheet() {
         document.getElementById("actionOverlay").classList.remove("active");
         document.getElementById("actionSheet").classList.remove("active");
-        document.body.style.overflow = "";
+        document.querySelector(".scroll-body").style.overflow = "";
         selectedApproval = actionReqId = actionRole = actionType = null;
       }
       async function submitAction(type) {

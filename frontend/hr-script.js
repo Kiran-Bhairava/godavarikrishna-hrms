@@ -102,6 +102,7 @@ const API = "/api";
           onboarding: "Onboarding",
           addEmployee: "Add New Employee",
           regAudit: "Regularizations",
+          leaveApprovals: "Leave Approvals",
         };
         document.getElementById("topbarSection").textContent =
           labels[name] || name;
@@ -113,6 +114,8 @@ const API = "/api";
             ?.classList.add("active");
         if (name === "regAudit")
           document.getElementById("navRegAudit")?.classList.add("active");
+        if (name === "leaveApprovals")
+          document.getElementById("navLeaveApprovals")?.classList.add("active");
         if (name === "addEmployee") {
           goToStep(1);
           populateBranchDropdown();
@@ -121,6 +124,7 @@ const API = "/api";
         if (name === "onboarding") loadOnboarding();
         if (name === "regAudit") loadRegAudit(1);
         if (name === "attendance") loadReport();
+        if (name === "leaveApprovals") initLeaveApprovals();
         // Persist view so page refresh restores same section
         try { sessionStorage.setItem("hr_view", name); } catch(_) {}
         window.scrollTo(0, 0);
@@ -150,7 +154,7 @@ const API = "/api";
         // ── Restore view FIRST, before any slow data fetches ────────
         // This eliminates the flash: onboarding → target view.
         // All views are hidden in HTML; JS reveals the right one immediately.
-        const VALID_VIEWS = ["attendance", "onboarding", "regAudit"];
+        const VALID_VIEWS = ["attendance", "onboarding", "regAudit", "leaveApprovals"];
         let savedView = "onboarding";
         try { savedView = sessionStorage.getItem("hr_view") || "onboarding"; } catch(_) {}
         if (!VALID_VIEWS.includes(savedView)) savedView = "onboarding";
@@ -161,6 +165,8 @@ const API = "/api";
         // Only pre-fetch attendance report data if that view is active,
         // otherwise it loads on demand when user navigates to it.
         if (savedView === "attendance") await loadReport();
+        // Load leave pending badge count silently in background
+        loadLeavePendingBadge();
       }
 
       // ── Branches ─────────────────────────────────────────────────
@@ -1438,4 +1444,312 @@ const API = "/api";
       function closeAuditDrawer() {
         document.getElementById("auditDrawerOverlay").style.display = "none";
         document.getElementById("auditDrawer").style.display = "none";
+      }
+      // ══════════════════════════════════════════════════════════════
+      // LEAVE APPROVALS
+      // ══════════════════════════════════════════════════════════════
+
+      let leaveCurrentTab = 'pending';   // 'pending' | 'all'
+      let leaveActionState = null;       // { requestId, action, leaveType, employeeName, dateFrom, dateTo, numDays }
+
+      function leaveSetTab(tab, el) {
+        leaveCurrentTab = tab;
+        document.querySelectorAll('#leaveApprovalsView .filter-tab')
+          .forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+
+        // Show/hide All-tab filters
+        const showFilters = tab === 'all';
+        document.getElementById('leaveFilterStatus').style.display = showFilters ? '' : 'none';
+        document.getElementById('leaveFilterMonth').style.display  = showFilters ? '' : 'none';
+
+        if (tab === 'pending') loadLeavePending();
+        else loadLeaveAll();
+      }
+
+      async function initLeaveApprovals() {
+        // Default month filter to current month
+        const now = new Date();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('leaveFilterMonth').value = `${now.getFullYear()}-${mm}`;
+        leaveCurrentTab = 'pending';
+        document.getElementById('leaveTabPending').classList.add('active');
+        document.getElementById('leaveTabAll').classList.remove('active');
+        document.getElementById('leaveFilterStatus').style.display = 'none';
+        document.getElementById('leaveFilterMonth').style.display  = 'none';
+        await loadLeavePending();
+      }
+
+      function refreshLeaveView() {
+        if (leaveCurrentTab === 'pending') loadLeavePending();
+        else loadLeaveAll();
+      }
+
+      // ── Helpers ──────────────────────────────────────────────────
+      function leaveFmtDate(s) {
+        if (!s) return '—';
+        const [y, mo, d] = String(s).split('T')[0].split('-');
+        const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        return `${parseInt(d)} ${M[parseInt(mo)-1]} ${y}`;
+      }
+
+      function leaveStatusBadge(s) {
+        const map = {
+          approved: 'background:#d1fae5;color:#065f46;',
+          rejected: 'background:#fee2e2;color:#991b1b;',
+          pending:  'background:#fef3c7;color:#92400e;',
+          cancelled:'background:#f3f4f6;color:#374151;',
+          na:       'background:#f3f4f6;color:#9ca3af;',
+        };
+        const style = map[s] || '';
+        return `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;${style}">${s||'—'}</span>`;
+      }
+
+      function leaveTypeBadge(t) {
+        return t === 'paid'
+          ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:#dbeafe;color:#1e40af;">Paid</span>`
+          : `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:#f3f4f6;color:#374151;">Unpaid</span>`;
+      }
+
+      function leaveEmpColor(name) {
+        const COLS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3aed'];
+        return COLS[(name?.charCodeAt(0) || 65) % COLS.length];
+      }
+
+      // ── Render shared table ──────────────────────────────────────
+      function renderLeaveTable(rows, showActions) {
+        const loading = document.getElementById('leaveLoading');
+        const table   = document.getElementById('leaveTable');
+        const empty   = document.getElementById('leaveEmpty');
+
+        loading.style.display = 'none';
+
+        if (!rows.length) {
+          table.style.display = 'none';
+          empty.style.display = 'block';
+          empty.textContent = showActions
+            ? 'No pending leave requests. ✓'
+            : 'No leave requests found.';
+          return;
+        }
+
+        empty.style.display = 'none';
+        table.style.display = 'table';
+
+        const tbody = document.getElementById('leaveTbody');
+        tbody.innerHTML = rows.map(r => {
+          const name   = r.employee_name || '?';
+          const letter = name[0].toUpperCase();
+          const color  = leaveEmpColor(name);
+
+          // L1 cell
+          const l1 = r.l1_status
+            ? `${leaveStatusBadge(r.l1_status)}<div style="font-size:11px;color:#9ca3af;margin-top:2px;">${r.l1_manager_name||''}</div>`
+            : '—';
+
+          // Action buttons — only for pending tab
+          let actions = '<span style="color:#d1d5db;font-size:12px;">—</span>';
+          if (showActions && r.final_status === 'pending') {
+            // Determine which action level this HR user takes
+            // If l1 already approved → this is L2 action
+            // If l1 still pending → this HR user is acting as L1 (their own L1 queue)
+            const isL2Action = r.l1_status === 'approved';
+            const approveEndpoint = isL2Action ? `l2-approve` : `l1-approve`;
+            const rejectEndpoint  = isL2Action ? `l2-reject`  : `l1-reject`;
+            actions = `
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-primary" style="padding:4px 12px;font-size:12px;"
+                  onclick="openLeaveAction(${r.request_id},'${approveEndpoint}','${r.leave_type}',${JSON.stringify(name)},'${r.date_from}','${r.date_to}',${r.num_days})">
+                  ✓ Approve
+                </button>
+                <button class="btn" style="padding:4px 12px;font-size:12px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;"
+                  onclick="openLeaveAction(${r.request_id},'${rejectEndpoint}','${r.leave_type}',${JSON.stringify(name)},'${r.date_from}','${r.date_to}',${r.num_days})">
+                  ✗ Reject
+                </button>
+              </div>`;
+          } else if (!showActions) {
+            // All-tab: show final status only
+            actions = leaveStatusBadge(r.final_status);
+          }
+
+          return `<tr>
+            <td>
+              <div class="emp-cell">
+                <div class="emp-avatar" style="background:${color};flex-shrink:0;">${letter}</div>
+                <div>
+                  <div class="emp-name">${name}</div>
+                  <div class="emp-role" style="font-size:11px;color:#9ca3af;">${r.employee_id||''}</div>
+                </div>
+              </div>
+            </td>
+            <td style="white-space:nowrap;font-size:13px;">
+              ${leaveFmtDate(r.date_from)}<br>
+              <span style="color:#9ca3af;font-size:11px;">to ${leaveFmtDate(r.date_to)}</span>
+            </td>
+            <td style="font-weight:600;text-align:center;">${r.num_days}</td>
+            <td>${leaveTypeBadge(r.leave_type)}</td>
+            <td style="max-width:180px;font-size:12px;color:#374151;">${r.reason||'—'}</td>
+            <td>${l1}</td>
+            <td>${leaveStatusBadge(r.l1_status === 'approved' ? (showActions ? 'pending L2' : r.final_status) : r.l1_status||'pending')}</td>
+            <td>${actions}</td>
+          </tr>`;
+        }).join('');
+      }
+
+      // ── Load pending (L1 queue for this HR + all L2-ready) ───────
+      async function loadLeavePending() {
+        const loading = document.getElementById('leaveLoading');
+        const table   = document.getElementById('leaveTable');
+        const empty   = document.getElementById('leaveEmpty');
+        loading.style.display = 'flex';
+        table.style.display   = 'none';
+        empty.style.display   = 'none';
+
+        try {
+          const data = await apiFetch('/leave/pending');
+          const rows = data.pending_requests || [];
+
+          // Update sidebar badge
+          const badge = document.getElementById('leavePendingBadge');
+          if (rows.length > 0) {
+            badge.textContent = rows.length;
+            badge.style.display = '';
+          } else {
+            badge.style.display = 'none';
+          }
+
+          // KPI
+          document.getElementById('leaveKpiPending').textContent  = rows.length;
+          document.getElementById('leaveKpiApproved').textContent = '—';
+          document.getElementById('leaveKpiRejected').textContent = '—';
+          document.getElementById('leaveKpiTotal').textContent    = rows.length;
+
+          renderLeaveTable(rows, true);
+        } catch(e) {
+          loading.style.display = 'none';
+          empty.style.display = 'block';
+          empty.textContent = 'Failed to load: ' + (e.message || 'Unknown error');
+          toast('Failed to load pending leaves', 'error');
+        }
+      }
+
+      // ── Load all (HR full view) ───────────────────────────────────
+      async function loadLeaveAll() {
+        const loading = document.getElementById('leaveLoading');
+        const table   = document.getElementById('leaveTable');
+        const empty   = document.getElementById('leaveEmpty');
+        loading.style.display = 'flex';
+        table.style.display   = 'none';
+        empty.style.display   = 'none';
+
+        const params = new URLSearchParams();
+        const monthVal  = document.getElementById('leaveFilterMonth').value;
+        const statusVal = document.getElementById('leaveFilterStatus').value;
+        if (monthVal) {
+          const [y, m] = monthVal.split('-');
+          params.set('year', y);
+          params.set('month', m);
+        }
+        if (statusVal && statusVal !== 'all') params.set('status', statusVal);
+
+        try {
+          const data = await apiFetch(`/leave/hr/requests?${params}`);
+          const rows = data.requests || [];
+
+          const approved  = rows.filter(r => r.final_status === 'approved').length;
+          const rejected  = rows.filter(r => r.final_status === 'rejected').length;
+          const pending   = rows.filter(r => r.final_status === 'pending').length;
+          document.getElementById('leaveKpiPending').textContent  = pending;
+          document.getElementById('leaveKpiApproved').textContent = approved;
+          document.getElementById('leaveKpiRejected').textContent = rejected;
+          document.getElementById('leaveKpiTotal').textContent    = rows.length;
+
+          renderLeaveTable(rows, false);
+        } catch(e) {
+          loading.style.display = 'none';
+          empty.style.display = 'block';
+          empty.textContent = 'Failed to load: ' + (e.message || 'Unknown error');
+          toast('Failed to load leave requests', 'error');
+        }
+      }
+
+      // ── Action modal ─────────────────────────────────────────────
+      function openLeaveAction(requestId, endpoint, leaveType, employeeName, dateFrom, dateTo, numDays) {
+        const isApprove = endpoint.includes('approve');
+        leaveActionState = { requestId, endpoint, leaveType, employeeName, dateFrom, dateTo, numDays, isApprove };
+
+        document.getElementById('leaveActionTitle').textContent =
+          isApprove ? 'Approve Leave Request' : 'Reject Leave Request';
+
+        document.getElementById('leaveActionSummary').innerHTML = `
+          <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Request Summary</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <div><span style="color:#9ca3af;">Employee:</span> <strong>${employeeName}</strong></div>
+            <div><span style="color:#9ca3af;">Type:</span> ${leaveTypeBadge(leaveType)}</div>
+            <div><span style="color:#9ca3af;">From:</span> ${leaveFmtDate(dateFrom)}</div>
+            <div><span style="color:#9ca3af;">To:</span> ${leaveFmtDate(dateTo)}</div>
+            <div><span style="color:#9ca3af;">Days:</span> <strong>${numDays}</strong></div>
+          </div>`;
+
+        // Rejection requires comment, approval is optional
+        const reqSpan = document.getElementById('leaveCommentRequired');
+        reqSpan.style.display = isApprove ? 'none' : 'inline';
+        document.getElementById('leaveActionComment').value = '';
+        document.getElementById('leaveActionComment').placeholder =
+          isApprove ? 'Optional comment…' : 'Reason for rejection (required)…';
+
+        const btn = document.getElementById('leaveActionConfirmBtn');
+        btn.textContent = isApprove ? '✓ Approve' : '✗ Reject';
+        btn.style.background  = isApprove ? 'var(--primary)' : '#ef4444';
+        btn.style.color       = '#fff';
+        btn.style.border      = 'none';
+
+        document.getElementById('leaveActionModal').classList.add('open');
+      }
+
+      function closeLeaveActionModal() {
+        document.getElementById('leaveActionModal').classList.remove('open');
+        leaveActionState = null;
+      }
+
+      async function submitLeaveAction() {
+        if (!leaveActionState) return;
+        const { requestId, endpoint, isApprove, employeeName } = leaveActionState;
+        const comment = document.getElementById('leaveActionComment').value.trim();
+
+        if (!isApprove && comment.length < 3) {
+          toast('Rejection reason is required', 'error');
+          return;
+        }
+
+        const btn = document.getElementById('leaveActionConfirmBtn');
+        btn.disabled = true;
+        btn.textContent = 'Processing…';
+
+        try {
+          await apiFetch(`/leave/requests/${requestId}/${endpoint}`, 'POST', { comment });
+          closeLeaveActionModal();
+          toast(`Leave ${isApprove ? 'approved' : 'rejected'} for ${employeeName}`, 'success');
+          // Refresh badge and current tab
+          loadLeavePending();
+          if (leaveCurrentTab === 'all') loadLeaveAll();
+        } catch(e) {
+          toast(e.message || 'Action failed', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = isApprove ? '✓ Approve' : '✗ Reject';
+        }
+      }
+
+      // Load badge count without rendering any table
+      async function loadLeavePendingBadge() {
+        try {
+          const data = await apiFetch('/leave/pending');
+          const count = (data.pending_requests || []).length;
+          const badge = document.getElementById('leavePendingBadge');
+          if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = '';
+          }
+        } catch(_) {}
       }

@@ -813,12 +813,17 @@ async def punch_out(
     if not user["branch_id"]:
         raise HTTPException(400, "No branch assigned. Contact HR.")
 
-    distance = 0
-    if user["branch_lat"] and user["branch_lng"]:
-        distance = haversine(
-            req.latitude, req.longitude,
-            float(user["branch_lat"]), float(user["branch_lng"]),
-        )
+    if user["branch_lat"] is None or user["branch_lng"] is None:
+        raise HTTPException(400, "Branch location not configured. Contact HR.")
+
+    distance = haversine(
+        req.latitude, req.longitude,
+        float(user["branch_lat"]), float(user["branch_lng"]),
+    )
+
+    radius = user["radius_meters"] or 200
+    if distance > radius:
+        raise HTTPException(403, f"You are {int(distance)}m away. Must be within {radius}m.")
 
     punches = await _today_punches(db, user["id"])
     if not punches or punches[-1] != "in":
