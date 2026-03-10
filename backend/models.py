@@ -316,6 +316,9 @@ class DailySummary(Base):
     # Set when a leave request is approved for this day
     leave_request_id        = Column(Integer, ForeignKey("leave_requests.id", ondelete="SET NULL"))
 
+    # Set when a holiday is declared for this day — used to reliably revert on holiday removal/rename
+    holiday_id              = Column(Integer, ForeignKey("holiday_calendar.id", ondelete="SET NULL"))
+
     # ── Payroll fields ─────────────────────────────────────────
     payroll_status          = Column(String(20), server_default="absent")  # present, partial, absent
     payroll_minutes         = Column(Integer, server_default="0")

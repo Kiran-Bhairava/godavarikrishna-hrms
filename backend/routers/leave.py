@@ -487,10 +487,15 @@ async def get_pending_approvals(
     """
     GET /api/leave/pending
     L1 and L2 are both plain employees — role is irrelevant.
-    Show requests where this employee is assigned as L1 (l1 pending)
-    OR assigned as L2 (l1 approved, l2 still pending).
+    HR/admin users without an employee profile get an empty list, not a 404.
     """
-    emp = await _get_employee(user["id"], db)
+    # Soft lookup — HR users may not have an employees row
+    emp = await db.fetchrow(
+        "SELECT id FROM employees WHERE user_id = $1 AND is_active = TRUE",
+        user["id"],
+    )
+    if not emp:
+        return LeavePendingApprovalsResponse(pending_count=0, pending_requests=[])
 
     rows = await db.fetch(
         """
@@ -625,21 +630,29 @@ async def l2_approve(
     db: asyncpg.Connection = Depends(get_db),
 ) -> LeaveApprovalResponse:
     """
-    HR (L2) final approval.
+    L2 (assigned employee manager) final approval.
     - Updates daily_summary for each working day in range
     - Deducts paid leave balance
+    - Only the employee assigned as l2_manager_id can approve
     """
+    emp_id = await db.fetchval(
+        "SELECT id FROM employees WHERE user_id = $1 AND is_active = TRUE",
+        user["id"],
+    )
+    if not emp_id:
+        raise HTTPException(403, "No employee profile found.")
+
     req = await db.fetchrow(
         """
         SELECT lr.*, e.user_id AS employee_user_id
         FROM leave_requests lr
         JOIN employees e ON e.id = lr.employee_id
-        WHERE lr.id = $1
+        WHERE lr.id = $1 AND lr.l2_manager_id = $2
         """,
-        request_id,
+        request_id, emp_id,
     )
     if not req:
-        raise HTTPException(404, "Leave request not found")
+        raise HTTPException(404, "Leave request not found or not your assignment")
     if req["l1_status"] != "approved":
         raise HTTPException(400, "L1 approval required before HR can act")
     if req["l2_status"] != "pending":
@@ -672,7 +685,7 @@ async def l2_approve(
             await _adjust_balance(
                 db, employee_id=req["employee_id"],
                 year=req["date_from"].year,
-                delta=len(working_days),  # live count, not stale num_days
+                delta=req["num_days"],  # use stored count — what was shown to employee at submission
             )
 
     logger.info(
@@ -697,13 +710,20 @@ async def l2_reject(
     user: dict = Depends(get_current_user),
     db: asyncpg.Connection = Depends(get_db),
 ) -> LeaveApprovalResponse:
-    """HR (L2) rejects leave."""
+    """L2 (assigned employee manager) rejects leave. Only the assigned l2_manager_id can reject."""
+    emp_id = await db.fetchval(
+        "SELECT id FROM employees WHERE user_id = $1 AND is_active = TRUE",
+        user["id"],
+    )
+    if not emp_id:
+        raise HTTPException(403, "No employee profile found.")
+
     req = await db.fetchrow(
-        "SELECT * FROM leave_requests WHERE id=$1",
-        request_id,
+        "SELECT * FROM leave_requests WHERE id=$1 AND l2_manager_id=$2",
+        request_id, emp_id,
     )
     if not req:
-        raise HTTPException(404, "Leave request not found")
+        raise HTTPException(404, "Leave request not found or not your assignment")
     if req["l1_status"] != "approved":
         raise HTTPException(400, "L1 approval required before HR can act")
     if req["l2_status"] != "pending":
@@ -735,6 +755,7 @@ async def l2_reject(
 async def _sync_holiday_to_daily_summary(
     db: asyncpg.Connection,
     *,
+    holiday_id: int,
     holiday_date: date,
     holiday_name: str,
     activate: bool,           # True = mark as holiday, False = revert
@@ -744,12 +765,13 @@ async def _sync_holiday_to_daily_summary(
 
     activate=True:
         Bulk-upsert one row per active employee for that date.
-        Sets status='present', payroll_status='present', payroll_notes='Holiday: <n>'.
+        Sets status='present', payroll_status='present', payroll_notes='Holiday: <n>',
+        holiday_id=<id> (used for reliable revert).
         Rows that already have an approved leave (leave_request_id IS NOT NULL) are
         left untouched — leave takes priority over holiday.
 
     activate=False (holiday removed):
-        Bulk-update rows that were set by this holiday (matched by payroll_notes).
+        Bulk-update rows where holiday_id matches — immune to name changes/renames.
         Rows with punch data revert to 'present'; rows without revert to 'absent'.
         Rows owned by a leave request are left untouched.
 
@@ -763,8 +785,8 @@ async def _sync_holiday_to_daily_summary(
             """
             INSERT INTO daily_summary
                 (user_id, work_date, total_minutes, status,
-                 payroll_status, payroll_minutes, payroll_notes)
-            SELECT e.user_id, $1, 0, 'present', 'present', 0, $2
+                 payroll_status, payroll_minutes, payroll_notes, holiday_id)
+            SELECT e.user_id, $1, 0, 'present', 'present', 0, $2, $3
             FROM employees e
             JOIN users u ON u.id = e.user_id
             WHERE e.is_active = TRUE AND u.is_active = TRUE
@@ -780,22 +802,28 @@ async def _sync_holiday_to_daily_summary(
                     payroll_notes  = CASE
                         WHEN daily_summary.leave_request_id IS NOT NULL THEN daily_summary.payroll_notes
                         ELSE $2
+                    END,
+                    holiday_id     = CASE
+                        WHEN daily_summary.leave_request_id IS NOT NULL THEN daily_summary.holiday_id
+                        ELSE $3
                     END
             """,
-            holiday_date, note,
+            holiday_date, note, holiday_id,
         )
     else:
+        # Match by holiday_id — survives renames and is always exact
         result = await db.execute(
             """
             UPDATE daily_summary
             SET status         = CASE WHEN total_minutes > 0 THEN 'present' ELSE 'absent' END,
                 payroll_status = CASE WHEN total_minutes > 0 THEN 'present' ELSE 'absent' END,
-                payroll_notes  = NULL
+                payroll_notes  = NULL,
+                holiday_id     = NULL
             WHERE work_date = $1
-              AND payroll_notes = $2
+              AND holiday_id = $2
               AND leave_request_id IS NULL
             """,
-            holiday_date, note,
+            holiday_date, holiday_id,
         )
 
     # asyncpg returns "INSERT N" or "UPDATE N" — extract the count
@@ -856,6 +884,7 @@ async def add_holiday(
 
         affected = await _sync_holiday_to_daily_summary(
             db,
+            holiday_id=row["id"],
             holiday_date=body.holiday_date,
             holiday_name=body.name,
             activate=True,
@@ -901,6 +930,7 @@ async def remove_holiday(
 
         affected = await _sync_holiday_to_daily_summary(
             db,
+            holiday_id=holiday["id"],
             holiday_date=holiday["holiday_date"],
             holiday_name=holiday["name"],
             activate=False,
@@ -951,15 +981,17 @@ async def update_holiday(
             holiday_id, body.name, body.holiday_type,
         )
 
-        # Revert old name rows, then re-apply with new name
+        # Revert by holiday_id (immune to name change), then re-apply with new name
         await _sync_holiday_to_daily_summary(
             db,
+            holiday_id=holiday_id,
             holiday_date=existing["holiday_date"],
             holiday_name=existing["name"],
             activate=False,
         )
         affected = await _sync_holiday_to_daily_summary(
             db,
+            holiday_id=holiday_id,
             holiday_date=existing["holiday_date"],
             holiday_name=body.name,
             activate=True,
@@ -1003,7 +1035,14 @@ async def hr_adjust_balance(
 ) -> LeaveBalanceResponse:
     """HR sets total_paid_days for an employee (carry-forward, corrections)."""
     year = body.year or date.today().year
-    await _get_or_init_balance(db, employee_id, year)  # ensure row exists
+    bal = await _get_or_init_balance(db, employee_id, year)  # ensure row exists
+
+    # Guard: can't set total below already-used days — would make remaining negative
+    if body.total_paid_days < bal["used_paid_days"]:
+        raise HTTPException(
+            400,
+            f"Cannot set total to {body.total_paid_days} — employee has already used {bal['used_paid_days']} day(s).",
+        )
 
     row = await db.fetchrow(
         """

@@ -649,7 +649,9 @@ async def get_regularization_detail(
             e.shift_start, e.shift_end,
             u.full_name     AS employee_name,
             l1_u.full_name  AS l1_manager_name,
-            l2_u.full_name  AS l2_manager_name
+            l2_u.full_name  AS l2_manager_name,
+            ds.payroll_status AS ds_payroll_status,
+            ds.payroll_notes  AS ds_payroll_notes
         FROM regularization_requests r
         JOIN  employees e    ON e.id    = r.employee_id
         JOIN  users     u    ON u.id    = e.user_id
@@ -657,6 +659,7 @@ async def get_regularization_detail(
         LEFT JOIN users     l1_u ON l1_u.id = l1_e.user_id
         LEFT JOIN employees l2_e ON l2_e.id = r.l2_manager_id
         LEFT JOIN users     l2_u ON l2_u.id = l2_e.user_id
+        LEFT JOIN daily_summary ds ON ds.user_id = e.user_id AND ds.work_date = r.work_date
         WHERE r.id = $1
         """,
         request_id,
@@ -713,8 +716,8 @@ async def get_regularization_detail(
         requires_l2_approval=req["l2_status"] is not None,
         final_status=req["final_status"],
         is_regularized=req["final_status"] == "approved",
-        payroll_status="present" if req["final_status"] == "approved" else "absent",
-        payroll_notes=f"{'Regularized' if req['final_status'] == 'approved' else 'Not regularized'} {minutes_to_display(req['requested_minutes'])}",
+        payroll_status=req["ds_payroll_status"] or "absent",
+        payroll_notes=req["ds_payroll_notes"] or f"{'Regularized' if req['final_status'] == 'approved' else 'Not regularized'} {minutes_to_display(req['requested_minutes'])}",
     )
 
 
@@ -854,10 +857,19 @@ async def approve_regularization(
     async with db.transaction():
 
         if is_l1 and req["l1_status"] == "pending":
-            # Determine L2 requirement at approval time using live approved count.
-            # This is the correct place — not submit time — because multiple
-            # requests can be pending simultaneously and the tier must reflect
-            # how many have actually been approved when L1 acts.
+            # Lock all this employee's regularization rows for the month before counting.
+            # Prevents two concurrent L1 approvals from both reading count=2 and both
+            # skipping L2 escalation when together they'd push past the threshold.
+            await db.execute(
+                """
+                SELECT id FROM regularization_requests
+                WHERE employee_id = $1
+                  AND EXTRACT(YEAR  FROM work_date) = $2
+                  AND EXTRACT(MONTH FROM work_date) = $3
+                FOR UPDATE
+                """,
+                req["employee_id"], req["work_date"].year, req["work_date"].month,
+            )
             approved_count = await get_approved_request_count_for_month(
                 req["employee_id"], req["work_date"].year, req["work_date"].month, db
             )

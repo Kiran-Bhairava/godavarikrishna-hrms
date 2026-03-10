@@ -137,8 +137,7 @@
           <line x1="3" y1="10" x2="21" y2="10"/>
           <path d="M8 14h.01M12 14h.01M16 14h.01"/>
         </svg>
-        Leave Approvals
-        <span class="nav-badge" id="leavePendingBadge" style="display:none">0</span>
+        Leave Activity
       </button>
 
       <!-- <div class="sidebar-section-label">Reports</div>
@@ -2304,20 +2303,18 @@
     <div class="view page" id="leaveApprovalsView">
       <div class="container">
 
-        <!-- Tabs: Pending / All -->
+        <!-- Filters -->
         <div style="display:flex;gap:8px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);align-items:center;flex-wrap:wrap;">
-          <button class="filter-tab active" id="leaveTabPending" onclick="leaveSetTab('pending',this)">Pending Approvals</button>
-          <button class="filter-tab" id="leaveTabAll" onclick="leaveSetTab('all',this)">All Requests</button>
-          <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <select id="leaveFilterStatus" class="form-select" style="width:140px;display:none;" onchange="loadLeaveAll()">
-              <option value="all">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-            <input type="month" id="leaveFilterMonth" class="form-input" style="width:155px;display:none;" onchange="loadLeaveAll()"/>
-            <button class="btn btn-secondary" onclick="refreshLeaveView()" style="padding:6px 14px;font-size:13px;">↻ Refresh</button>
+          <select id="leaveFilterStatus" class="form-select" style="width:150px;" onchange="loadLeaveLog()">
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <input type="month" id="leaveFilterMonth" class="form-input" style="width:155px;" onchange="loadLeaveLog()"/>
+          <div style="margin-left:auto;">
+            <button class="btn btn-secondary" onclick="loadLeaveLog()" style="padding:6px 14px;font-size:13px;">↻ Refresh</button>
           </div>
         </div>
 
@@ -2354,36 +2351,17 @@
                 <th>Days</th>
                 <th>Type</th>
                 <th>Reason</th>
-                <th>L1</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>L1 Manager</th>
+                <th>L1 Status</th>
+                <th>L2 Manager</th>
+                <th>L2 Status</th>
+                <th>Final Status</th>
               </tr>
             </thead>
             <tbody id="leaveTbody"></tbody>
           </table>
           <div id="leaveEmpty" style="display:none;text-align:center;padding:48px;color:#6b7280;font-size:14px;">
             No leave requests found.
-          </div>
-        </div>
-      </div>
-
-      <!-- Action Modal -->
-      <div class="modal-overlay" id="leaveActionModal">
-        <div class="modal" style="max-width:480px;">
-          <div class="modal-header">
-            <h3 id="leaveActionTitle">Approve Leave</h3>
-            <button class="modal-close" onclick="closeLeaveActionModal()">✕</button>
-          </div>
-          <div class="modal-body">
-            <div id="leaveActionSummary" style="background:#f9fafb;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:13px;line-height:1.8;"></div>
-            <div class="form-field">
-              <label class="form-label">Comment <span id="leaveCommentRequired" style="color:#ef4444;display:none;">*</span></label>
-              <textarea id="leaveActionComment" class="form-input" rows="3" placeholder="Optional comment…" style="resize:vertical;"></textarea>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeLeaveActionModal()">Cancel</button>
-            <button class="btn" id="leaveActionConfirmBtn" onclick="submitLeaveAction()">Confirm</button>
           </div>
         </div>
       </div>

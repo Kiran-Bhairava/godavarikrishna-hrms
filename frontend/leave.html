@@ -1274,15 +1274,15 @@
         bottom: 0;
         left: 0;
         right: 0;
+        height: calc(var(--nav-h) + max(0px, env(safe-area-inset-bottom)));
         background: var(--surface);
         border-top: 1px solid var(--border);
-        padding: 8px max(8px, env(safe-area-inset-right))
-          max(8px, env(safe-area-inset-bottom))
-          max(8px, env(safe-area-inset-left));
+        padding: 0 8px;
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
         display: flex;
-        gap: 8px;
+        align-items: stretch;
         z-index: 100;
-        flex-shrink: 0;
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
       }
       .nav-btn {
         flex: 1;
@@ -1291,36 +1291,43 @@
         align-items: center;
         justify-content: center;
         gap: 4px;
-        padding: 10px;
+        padding: 10px 6px;
         background: transparent;
         border: none;
-        border-radius: 10px;
+        border-radius: 12px;
         cursor: pointer;
-        transition: all 0.2s ease;
         text-decoration: none;
-        font-family: inherit;
+        color: var(--text-3);
+        margin: 6px 2px;
+        position: relative;
+        transition: all 0.2s ease;
       }
       .nav-btn:active {
-        transform: scale(0.95);
+        transform: scale(0.93);
       }
       .nav-btn.active {
         background: var(--primary-light);
+        color: var(--primary);
+      }
+      .nav-btn.active::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 25%;
+        right: 25%;
+        height: 2px;
+        background: var(--primary);
+        border-radius: 0 0 2px 2px;
       }
       .nav-icon {
-        flex-shrink: 0;
-      }
-      .nav-btn.active .nav-icon {
-        color: var(--primary-dark);
+        width: 22px;
+        height: 22px;
       }
       .nav-label {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
-        color: var(--text-2);
+        letter-spacing: 0.3px;
       }
-      .nav-btn.active .nav-label {
-        color: var(--primary-dark);
-      }
-
       /* ─── TOAST ──────────────────────────────── */
       .toast {
         position: fixed;
@@ -2278,15 +2285,17 @@
           selEnd = null;
           pickStep = 1;
           document.getElementById("selHint").textContent =
-            "Now tap the end date";
+            "Tap end date, or tap same date again for single day";
           document.getElementById("selHint").style.display = "block";
         } else {
-          if (iso <= selStart) {
+          if (iso < selStart) {
+            // Tapped before start — restart selection
             selStart = iso;
             selEnd = null;
             document.getElementById("selHint").textContent =
-              "Now tap the end date";
+              "Tap end date, or tap same date again for single day";
           } else {
+            // iso >= selStart: same date = single day, future date = range
             selEnd = iso;
             pickStep = 0;
             document.getElementById("selHint").style.display = "none";
@@ -2348,8 +2357,10 @@
           info.textContent = "Tap calendar to select dates";
           btn.disabled = true;
         } else if (!selEnd) {
-          info.textContent = `From ${fmtDate(selStart)} — tap end date`;
-          btn.disabled = true;
+          // Start selected but no end yet — still valid (single day)
+          const days = countWorkDays(selStart, selStart);
+          info.textContent = `${fmtDate(selStart)} · ${days} day${days !== 1 ? "s" : ""} — tap end date to extend`;
+          btn.disabled = false;
         } else {
           const days = countWorkDays(selStart, selEnd);
           info.textContent = `${fmtDate(selStart)} – ${fmtDate(selEnd)} · ${days} day${days !== 1 ? "s" : ""}`;
@@ -2375,10 +2386,12 @@
       }
 
       async function submitLeave() {
-        if (!selStart || !selEnd) {
-          showToast("Please select a date range on the calendar", "error");
+        if (!selStart) {
+          showToast("Please select a date on the calendar", "error");
           return;
         }
+        // Single-day: if user only tapped start, treat end = start
+        if (!selEnd) selEnd = selStart;
         const reason = document.getElementById("leaveReason").value.trim();
         if (reason.length < 5) {
           showToast("Reason must be at least 5 characters", "error");
