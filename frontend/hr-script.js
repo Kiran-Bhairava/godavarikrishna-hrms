@@ -512,8 +512,8 @@ const API = "/api";
           ${
             isDeactivated
               ? `
-                <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px"
-                  onclick="reactivateEmployee(${r.id}, ${JSON.stringify(r.full_name)})">
+                <button class="btn btn-secondary"
+                  onclick="reactivateEmployee(${r.id}, '${r.full_name.replace(/'/g, "\\'")}')">
                   Reactivate
                 </button>
               `
