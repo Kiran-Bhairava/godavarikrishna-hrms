@@ -1215,6 +1215,14 @@
                   </svg>
                   Process & Generate Payslips
                 </button>
+                <!-- SANDWICH REVIEW BUTTON -->
+                <button
+                  class="btn btn-primary"
+                  onclick="goToSandwichReview()"
+                  style="margin-right: 10px"
+                >
+                  🥪 Review Sandwich Leaves
+                </button>
                 <button
                   class="btn btn-secondary"
                   id="clearFileBtn"
@@ -1625,6 +1633,21 @@
           onFileSelected({ target: { files: [file] } });
         }
       });
+
+      function goToSandwichReview() {
+        const year =
+          document.getElementById("year")?.value || new Date().getFullYear();
+        const month =
+          document.getElementById("month")?.value || new Date().getMonth() + 1;
+        const branchId = document.getElementById("branch")?.value;
+        const employeeIds = document.getElementById("employee_ids")?.value;
+
+        let url = `/sandwich-review.html?year=${year}&month=${month}`;
+        if (branchId) url += `&branch_id=${branchId}`;
+        if (employeeIds) url += `&employee_ids=${employeeIds}`;
+
+        window.location.href = url;
+      }
 
       // ── STEP 3: Process ───────────────────────────────────
       let resultBlob = null;

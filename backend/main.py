@@ -40,7 +40,7 @@ from schemas import LoginResponse
 from api_credentials import generate_temp_password
 
 # ── mandate Include routers ──────────────────────────────────
-from routers import regularization_router, leave_router, payroll_router
+from routers import regularization_router, leave_router, payroll_router,sandwich_router
 
 dotenv.load_dotenv()
 
@@ -91,6 +91,7 @@ if settings.allowed_origins:
 app.include_router(regularization_router)
 app.include_router(leave_router)
 app.include_router(payroll_router)
+app.include_router(sandwich_router)
 # ══════════════════════════════════════════════════════════════
 # SCHEMAS (LOCAL ONLY)
 # ══════════════════════════════════════════════════════════════

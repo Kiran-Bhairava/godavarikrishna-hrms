@@ -47,6 +47,7 @@ from openpyxl.utils import get_column_letter
 
 from auth import require_hr
 from db import get_db
+from routers.sandwich import get_sandwich_days_for_payroll
 
 logger = logging.getLogger("payroll")
 router = APIRouter(prefix="/api/payroll", tags=["payroll"])
@@ -446,6 +447,14 @@ async def _fetch_employees(
         )
         available_leaves      = int(leave_bal["remaining_paid_days"]) if leave_bal else 0
         carry_forward_leaves  = available_leaves  # at month end, remaining = carry forward
+
+        # ── SANDWICH LEAVE ADJUSTMENT ─────────────────────────────
+        # Check if HR decided to apply sandwich for this employee/month
+        sandwich_days_applied = await get_sandwich_days_for_payroll(
+            db, emp["employee_id"], year, month
+        )
+        if sandwich_days_applied > 0:
+            leaves_taken += sandwich_days_applied
 
         # Per day salary = Gross / Calendar days
         eff_cal = eligible_days if eligible_days < cal_days else cal_days

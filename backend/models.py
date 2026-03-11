@@ -621,3 +621,56 @@ Index("idx_leave_req_date_from",    LeaveRequest.date_from)
 Index("idx_leave_req_final_status", LeaveRequest.final_status)
 Index("idx_leave_req_l1_manager",   LeaveRequest.l1_manager_id)
 Index("idx_leave_req_l2_manager",   LeaveRequest.l2_manager_id)
+
+
+# ── payroll_sandwich_reviews ──────────────────────────────────
+class PayrollSandwichReview(Base):
+    """
+    Sandwich leave detection and HR decision tracking for payroll.
+    
+    Sandwich Rule: If employee takes leave before AND after a non-working day 
+    (Sunday or public holiday), that non-working day is also counted as leave.
+    
+    Example:
+        Fri - Paid Leave
+        Sat - Working day (no leave)
+        Sun - Sunday (weekly off) → SANDWICH
+        Mon - Paid Leave
+        
+        Without sandwich: 2 days deducted
+        With sandwich: 3 days deducted (Fri + Sun + Mon)
+    
+    HR decides during payroll processing whether to apply sandwich per employee.
+    """
+    __tablename__ = "payroll_sandwich_reviews"
+
+    id                     = Column(Integer, primary_key=True)
+    employee_id            = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    payroll_month          = Column(Date, nullable=False)  # YYYY-MM-01 format
+    
+    # Detection results
+    sandwich_days_detected = Column(Integer, nullable=False, server_default="0")
+    sandwich_pattern       = Column(sa.JSON)  # [{date: '2024-03-16', reason: 'Sunday', between_leaves: [...]}]
+    
+    # HR decision
+    sandwich_applied       = Column(Boolean, server_default="false")
+    decision_by_user_id    = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+    decision_at            = Column(TIMESTAMP(timezone=True))
+    decision_reason        = Column(Text)  # Optional reason for not applying
+    
+    created_at             = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+    updated_at             = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
+    
+    # Relationships
+    employee         = relationship("Employee")
+    decision_by_user = relationship("User")
+    
+    __table_args__ = (
+        UniqueConstraint("employee_id", "payroll_month", name="uq_sandwich_review_emp_month"),
+        CheckConstraint("sandwich_days_detected >= 0", name="sandwich_days_non_negative"),
+    )
+
+
+Index("idx_sandwich_review_emp",     PayrollSandwichReview.employee_id)
+Index("idx_sandwich_review_month",   PayrollSandwichReview.payroll_month)
+Index("idx_sandwich_review_applied", PayrollSandwichReview.sandwich_applied)

@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sandwich Leave Review - HRMS</title>
+    <link rel="stylesheet" href="hr-styles.css" />
+    <style>
+      .sandwich-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .sandwich-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+
+      .sandwich-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 28px;
+      }
+
+      .sandwich-header p {
+        margin: 0;
+        opacity: 0.9;
+      }
+
+      .summary-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .summary-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+
+      .summary-card h3 {
+        margin: 0 0 10px 0;
+        font-size: 32px;
+        color: #667eea;
+      }
+
+      .summary-card p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+      }
+
+      .employee-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+        margin-bottom: 20px;
+      }
+
+      .employee-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+      }
+
+      .employee-name {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .sandwich-badge {
+        background: #ffd700;
+        color: #333;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .pattern-list {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .pattern-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        margin-bottom: 10px;
+        background: white;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+      }
+
+      .pattern-date {
+        font-weight: 600;
+        color: #667eea;
+        min-width: 100px;
+      }
+
+      .pattern-reason {
+        flex: 1;
+        color: #666;
+      }
+
+      .pattern-context {
+        font-size: 12px;
+        color: #999;
+      }
+
+      .balance-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .balance-box {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .balance-label {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+      }
+
+      .balance-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+      }
+
+      .balance-value.warning {
+        color: #e74c3c;
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .btn-apply {
+        background: #667eea;
+        color: white;
+      }
+
+      .btn-apply:hover {
+        background: #5568d3;
+      }
+
+      .btn-skip {
+        background: #e0e0e0;
+        color: #333;
+      }
+
+      .btn-skip:hover {
+        background: #d0d0d0;
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .bulk-actions {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        display: flex;
+        gap: 15px;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .bulk-actions-left {
+        display: flex;
+        gap: 15px;
+      }
+
+      .btn-bulk {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn-apply-all {
+        background: #28a745;
+        color: white;
+      }
+
+      .btn-skip-all {
+        background: #dc3545;
+        color: white;
+      }
+
+      .btn-continue {
+        background: #667eea;
+        color: white;
+        padding: 12px 32px;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .empty-state h2 {
+        color: #667eea;
+        margin-bottom: 10px;
+      }
+
+      .empty-state p {
+        color: #666;
+        margin-bottom: 20px;
+      }
+
+      .decided-badge {
+        background: #28a745;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-left: 10px;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        font-size: 18px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sandwich-container">
+      <div class="sandwich-header">
+        <h1>Sandwich Leave Review</h1>
+        <p id="period-display">Loading...</p>
+      </div>
+
+      <div id="loading-state" class="loading">
+        <p>Detecting sandwich patterns...</p>
+      </div>
+
+      <div id="content" style="display: none">
+        <div class="summary-cards">
+          <div class="summary-card">
+            <h3 id="total-employees">0</h3>
+            <p>Employees with Sandwich</p>
+          </div>
+          <div class="summary-card">
+            <h3 id="total-days">0</h3>
+            <p>Total Sandwich Days</p>
+          </div>
+          <div class="summary-card">
+            <h3 id="decided-count">0</h3>
+            <p>Decisions Made</p>
+          </div>
+        </div>
+
+        <div class="bulk-actions">
+          <div class="bulk-actions-left">
+            <button class="btn-bulk btn-apply-all" onclick="applyBulk(true)">
+              ✓ Apply to All
+            </button>
+            <button class="btn-bulk btn-skip-all" onclick="applyBulk(false)">
+              ✗ Skip All
+            </button>
+          </div>
+          <button class="btn-continue btn-bulk" onclick="continueToPayroll()">
+            Continue to Payroll →
+          </button>
+        </div>
+
+        <div id="employees-list"></div>
+
+        <div id="empty-state" class="empty-state" style="display: none">
+          <h2>✓ No Sandwich Patterns Detected</h2>
+          <p>
+            All employees are clear. You can proceed with payroll processing.
+          </p>
+          <button class="btn-continue btn-bulk" onclick="continueToPayroll()">
+            Continue to Payroll →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = "/api";
+      let currentYear, currentMonth;
+      let reviewData = null;
+
+      // Get URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      currentYear = parseInt(urlParams.get("year")) || new Date().getFullYear();
+      currentMonth =
+        parseInt(urlParams.get("month")) || new Date().getMonth() + 1;
+      const branchId = urlParams.get("branch_id");
+      const employeeIds = urlParams.get("employee_ids");
+
+      // Initialize
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("period-display").textContent =
+          `${getMonthName(currentMonth)} ${currentYear}`;
+        loadSandwichReview();
+      });
+
+      async function loadSandwichReview() {
+        try {
+          const token = localStorage.getItem("token");
+          let url = `${API_BASE}/sandwich/review?year=${currentYear}&month=${currentMonth}`;
+          if (branchId) url += `&branch_id=${branchId}`;
+          if (employeeIds) url += `&employee_ids=${employeeIds}`;
+
+          const response = await fetch(url, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!response.ok) throw new Error("Failed to load sandwich review");
+
+          reviewData = await response.json();
+          displayReview(reviewData);
+        } catch (error) {
+          console.error("Error loading sandwich review:", error);
+          alert("Failed to load sandwich review. Please try again.");
+        }
+      }
+
+      function displayReview(data) {
+        document.getElementById("loading-state").style.display = "none";
+        document.getElementById("content").style.display = "block";
+
+        // Update summary
+        document.getElementById("total-employees").textContent =
+          data.total_employees;
+        const totalDays = data.employees_with_sandwich.reduce(
+          (sum, e) => sum + e.sandwich_days,
+          0,
+        );
+        document.getElementById("total-days").textContent = totalDays;
+        const decidedCount = data.employees_with_sandwich.filter(
+          (e) => e.sandwich_already_decided,
+        ).length;
+        document.getElementById("decided-count").textContent = decidedCount;
+
+        // Display employees
+        const listContainer = document.getElementById("employees-list");
+        const emptyState = document.getElementById("empty-state");
+
+        if (data.total_employees === 0) {
+          listContainer.style.display = "none";
+          emptyState.style.display = "block";
+          return;
+        }
+
+        listContainer.innerHTML = data.employees_with_sandwich
+          .map(
+            (emp) => `
+                <div class="employee-card" data-emp-id="${emp.employee_id}">
+                    <div class="employee-header">
+                        <div>
+                            <span class="employee-name">${emp.employee_name}</span>
+                            ${
+                              emp.sandwich_already_decided
+                                ? `<span class="decided-badge">${emp.sandwich_decision ? "Applied" : "Skipped"}</span>`
+                                : ""
+                            }
+                        </div>
+                        <span class="sandwich-badge">${emp.sandwich_days} Sandwich Day${emp.sandwich_days > 1 ? "s" : ""}</span>
+                    </div>
+
+                    <div class="pattern-list">
+                        <h4 style="margin: 0 0 15px 0; color: #333;">Sandwich Pattern:</h4>
+                        ${emp.pattern
+                          .map(
+                            (day) => `
+                            <div class="pattern-item">
+                                <div class="pattern-date">${formatDate(day.date)}</div>
+                                <div class="pattern-reason">${day.reason}</div>
+                                <div class="pattern-context">Between leaves: ${day.between_leaves.join(" - ")}</div>
+                            </div>
+                        `,
+                          )
+                          .join("")}
+                    </div>
+
+                    <div class="balance-info">
+                        <div class="balance-box">
+                            <div class="balance-label">Current Leave Balance</div>
+                            <div class="balance-value">${emp.leave_balance_current} days</div>
+                        </div>
+                        <div class="balance-box">
+                            <div class="balance-label">Balance After Sandwich</div>
+                            <div class="balance-value ${emp.leave_balance_after < 0 ? "warning" : ""}">
+                                ${emp.leave_balance_after} days
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-skip" onclick="applyIndividual(${emp.employee_id}, false)"
+                                ${emp.sandwich_already_decided ? "disabled" : ""}>
+                            Skip Sandwich
+                        </button>
+                        <button class="btn btn-apply" onclick="applyIndividual(${emp.employee_id}, true)"
+                                ${emp.sandwich_already_decided ? "disabled" : ""}>
+                            Apply Sandwich
+                        </button>
+                    </div>
+                </div>
+            `,
+          )
+          .join("");
+      }
+
+      async function applyIndividual(employeeId, apply) {
+        try {
+          const token = localStorage.getItem("token");
+          const response = await fetch(
+            `${API_BASE}/sandwich/apply/${employeeId}`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                year: currentYear,
+                month: currentMonth,
+                apply_sandwich: apply,
+              }),
+            },
+          );
+
+          if (!response.ok) throw new Error("Failed to apply decision");
+
+          // Reload to show updated state
+          loadSandwichReview();
+        } catch (error) {
+          console.error("Error applying decision:", error);
+          alert("Failed to apply decision. Please try again.");
+        }
+      }
+
+      async function applyBulk(apply) {
+        const action = apply ? "apply" : "skip";
+        if (
+          !confirm(
+            `Are you sure you want to ${action} sandwich for ALL employees?`,
+          )
+        ) {
+          return;
+        }
+
+        try {
+          const token = localStorage.getItem("token");
+          const response = await fetch(`${API_BASE}/sandwich/apply-bulk`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              year: currentYear,
+              month: currentMonth,
+              employee_ids: "all",
+              apply_sandwich: apply,
+            }),
+          });
+
+          if (!response.ok) throw new Error("Failed to apply bulk decision");
+
+          const result = await response.json();
+          alert(result.message);
+          loadSandwichReview();
+        } catch (error) {
+          console.error("Error applying bulk decision:", error);
+          alert("Failed to apply bulk decision. Please try again.");
+        }
+      }
+
+      function continueToPayroll() {
+        // Build payroll URL with same filters
+        let url = `/payroll.html?year=${currentYear}&month=${currentMonth}`;
+        if (branchId) url += `&branch_id=${branchId}`;
+        if (employeeIds) url += `&employee_ids=${employeeIds}`;
+        window.location.href = url;
+      }
+
+      function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        return `${days[date.getDay()]}, ${date.getDate()}-${getMonthName(date.getMonth() + 1).substring(0, 3)}`;
+      }
+
+      function getMonthName(month) {
+        const months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+        return months[month - 1];
+      }
+    </script>
+  </body>
+</html>

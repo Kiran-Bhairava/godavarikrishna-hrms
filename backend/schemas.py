@@ -7,7 +7,7 @@ the API is self-documenting, and frontend contract breakage is caught at runtime
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List, Union
 from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 
 
@@ -585,3 +585,58 @@ class LeaveBalanceAdjust(BaseModel):
         if v < 0 or v > 365:
             raise ValueError("total_paid_days must be between 0 and 365")
         return v
+
+
+# ══════════════════════════════════════════════════════════════
+# SANDWICH LEAVE SCHEMAS
+# ══════════════════════════════════════════════════════════════
+
+class SandwichDayDetail(BaseModel):
+    """Single sandwich day detail"""
+    date:           date
+    reason:         str  # 'Sunday (weekly off)' | 'Holi (public holiday)'
+    between_leaves: List[str]  # e.g., ["2024-03-15", "2024-03-17"]
+
+
+class SandwichEmployeeReview(BaseModel):
+    """Sandwich review for one employee"""
+    employee_id:               int
+    employee_name:             str
+    sandwich_days:             int
+    pattern:                   List[SandwichDayDetail]
+    leave_balance_current:     int
+    leave_balance_after:       int
+    sandwich_already_decided:  bool = False
+    sandwich_decision:         Optional[bool] = None
+
+
+class SandwichReviewResponse(BaseModel):
+    """Full sandwich review for payroll batch"""
+    year:                      int
+    month:                     int
+    total_employees:           int
+    employees_with_sandwich:   List[SandwichEmployeeReview]
+
+
+class SandwichApplyBulkRequest(BaseModel):
+    """Bulk sandwich application request"""
+    year:            int
+    month:           int
+    employee_ids:    Union[List[int], str]  # List of IDs or "all"
+    apply_sandwich:  bool
+    reason:          Optional[str] = None
+
+    @field_validator("employee_ids")
+    @classmethod
+    def validate_employee_ids(cls, v):
+        if isinstance(v, str) and v != "all":
+            raise ValueError("employee_ids must be list of integers or 'all'")
+        return v
+
+
+class SandwichApplyIndividualRequest(BaseModel):
+    """Individual sandwich application request"""
+    year:            int
+    month:           int
+    apply_sandwich:  bool
+    reason:          Optional[str] = None
