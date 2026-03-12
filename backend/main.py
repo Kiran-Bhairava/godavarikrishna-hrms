@@ -31,7 +31,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, field_validator
 import re
-
+import asyncio
 # ── Local imports ──────────────────────────────────────────────
 from config import settings
 from db import get_db, init_db, close_db
@@ -60,12 +60,20 @@ logger = logging.getLogger("attendance")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown logic."""
-    # Startup
     await init_db()
     logger.info("✓ Database pool initialized")
+
+    scheduler_task = asyncio.create_task(_run_auto_punchout())
+    logger.info("✓ Auto punch-out scheduler started")
+
     yield
-    # Shutdown
+
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
+
     await close_db()
     logger.info("✓ Database pool closed")
 
@@ -456,7 +464,137 @@ def validate_update_payload(req: UpdateEmployeeRequest):
         probation_end=req.probation_end,
         contract_end=req.contract_end,
     )
+# ══════════════════════════════════════════════════════════════
+# AUTO PUNCH-OUT SCHEDULER
+# ══════════════════════════════════════════════════════════════
 
+async def _run_auto_punchout():
+    """
+    Daily job: auto punch-out any employee still clocked in at 20:00 local time.
+    Runs in a background loop, fires once per day.
+
+    Flags:
+      - attendance_logs: is_valid=FALSE  → HR can identify auto-generated punches
+      - daily_summary:   payroll_notes   → visible in HR daily report
+    """
+    import db as _db
+
+    tz = pytz.timezone(settings.office_timezone)
+
+    while True:
+        try:
+            now    = datetime.now(tz)
+            target = now.replace(hour=20, minute=0, second=0, microsecond=0)
+            if now >= target:
+                target += timedelta(days=1)
+
+            wait_seconds = (target - now).total_seconds()
+            logger.info(
+                "Auto punch-out: next run in %.0fs (at %s)",
+                wait_seconds, target.strftime("%Y-%m-%d %H:%M"),
+            )
+            await asyncio.sleep(wait_seconds)
+
+            now   = datetime.now(tz)
+            today = now.date()
+
+            # Fixed auto punch-out time: 20:00 local, stored as UTC (naive) for DB consistency
+            auto_out_local = datetime.combine(today, time(20, 0)).replace(tzinfo=tz)
+            auto_out_utc   = auto_out_local.astimezone(pytz.utc).replace(tzinfo=None)
+
+            async with _db.db_pool.acquire() as conn:
+                # All employees with an open punch-in today (punch-in exists, no punch-out)
+                open_rows = await conn.fetch(
+                    """
+                    SELECT DISTINCT ON (al.user_id)
+                        al.user_id,
+                        al.branch_id,
+                        ds.first_punch_in
+                    FROM attendance_logs al
+                    JOIN employees e ON e.user_id = al.user_id
+                    LEFT JOIN daily_summary ds
+                           ON ds.user_id   = al.user_id
+                          AND ds.work_date = $1
+                    WHERE (al.punched_at AT TIME ZONE $2)::date = $1
+                      AND al.punch_type = 'in'
+                      AND e.is_active = TRUE
+                      AND NOT EXISTS (
+                          SELECT 1 FROM attendance_logs al2
+                          WHERE al2.user_id = al.user_id
+                            AND (al2.punched_at AT TIME ZONE $2)::date = $1
+                            AND al2.punch_type = 'out'
+                      )
+                    ORDER BY al.user_id, al.punched_at DESC
+                    """,
+                    today, settings.office_timezone,
+                )
+
+                if not open_rows:
+                    logger.info("Auto punch-out: no open punch-ins for %s", today)
+                    continue
+
+                logger.info(
+                    "Auto punch-out: closing %d open punch-in(s) for %s",
+                    len(open_rows), today,
+                )
+
+                for row in open_rows:
+                    user_id   = row["user_id"]
+                    branch_id = row["branch_id"]
+
+                    # Minutes = 8 PM minus first_punch_in (0 if punch-in row missing)
+                    total_min = 0
+                    if row["first_punch_in"]:
+                        raw_in = row["first_punch_in"]
+                        # first_punch_in is stored timezone-aware (UTC) in the DB
+                        if raw_in.tzinfo is not None:
+                            raw_in = raw_in.replace(tzinfo=None)
+                        total_min = max(0, int(
+                            (auto_out_utc - raw_in).total_seconds() / 60
+                        ))
+
+                    async with conn.transaction():
+                        await conn.execute(
+                            """
+                            INSERT INTO attendance_logs
+                                (user_id, branch_id, punch_type,
+                                 latitude, longitude, distance_meters,
+                                 is_valid, punched_at)
+                            VALUES ($1, $2, 'out', 0, 0, 0, FALSE, $3)
+                            """,
+                            user_id, branch_id, auto_out_utc,
+                        )
+
+                        await conn.execute(
+                            """
+                            UPDATE daily_summary
+                            SET last_punch_out  = $2,
+                                total_minutes   = CASE WHEN is_regularized
+                                                       THEN total_minutes
+                                                       ELSE $3 END,
+                                payroll_minutes = CASE WHEN is_regularized
+                                                       THEN payroll_minutes
+                                                       ELSE $3 END,
+                                payroll_notes   = CASE WHEN is_regularized
+                                                       THEN payroll_notes
+                                                       ELSE 'Auto punch-out at 20:00 — verify if needed'
+                                                  END
+                            WHERE user_id = $1 AND work_date = $4
+                            """,
+                            user_id, auto_out_utc, total_min, today,
+                        )
+
+                    logger.info(
+                        "Auto punch-out done: user_id=%s total_min=%d",
+                        user_id, total_min,
+                    )
+
+        except asyncio.CancelledError:
+            logger.info("Auto punch-out scheduler stopped")
+            break
+        except Exception as e:
+            logger.error("Auto punch-out error: %s", e, exc_info=True)
+            await asyncio.sleep(3600)  # back off 1h on unexpected error, retry
 
 # ══════════════════════════════════════════════════════════════
 # AUTH ENDPOINTS
