@@ -897,6 +897,7 @@ async def list_holidays(
         SELECT id, holiday_date, name, holiday_type, is_active
         FROM holiday_calendar
         WHERE EXTRACT(YEAR FROM holiday_date) = $1
+        AND is_active = TRUE
         ORDER BY holiday_date ASC
         """,
         year,
