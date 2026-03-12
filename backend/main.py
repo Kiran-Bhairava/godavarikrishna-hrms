@@ -848,10 +848,11 @@ async def punch_out(
         await db.execute(
             """UPDATE daily_summary
             SET last_punch_out  = $2,
-                total_minutes   = $3,
-                -- Preserve regularization-credited payroll_minutes.
-                -- If this day was already approved-regularized, the credited hours
-                -- (actual + gap) must not be overwritten by the raw punch duration.
+                -- Both total_minutes and payroll_minutes are protected on regularized days.
+                -- total_minutes is what the calendar view uses to show the gap indicator —
+                -- it must stay at the credited value (actual + approved gap), not the raw
+                -- punch duration, otherwise the calendar shows a false shortfall.
+                total_minutes   = CASE WHEN is_regularized THEN total_minutes   ELSE $3 END,
                 payroll_minutes = CASE WHEN is_regularized THEN payroll_minutes ELSE $3 END
             WHERE user_id=$1 AND work_date=(NOW() AT TIME ZONE $4)::date""",
             user["id"], log["punched_at"], total_min, settings.office_timezone,
@@ -1438,7 +1439,6 @@ async def onboard_employee(
         "full_name": user["full_name"],
         "role": user["role"],
         "temporary_password": raw_password,
-        "login_url": "https://your-domain.com/login",
         "message": "Employee onboarded successfully with credentials.",
         "created_at": datetime.now().isoformat(),
     }
@@ -1887,7 +1887,7 @@ async def list_managers(
 async def health():
     tz = pytz.timezone(settings.office_timezone)
     return {
-        "status": "healthy" if (db_pool and not db_pool._closed) else "degraded",
+        "status": "healthy" if db_pool else "degraded",
         "utc":    datetime.now(pytz.utc).isoformat(),
         "local":  datetime.now(tz).isoformat(),
     }

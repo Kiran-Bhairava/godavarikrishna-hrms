@@ -49,6 +49,28 @@ router = APIRouter(prefix="/api/sandwich", tags=["sandwich"])
 
 
 # ══════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════
+
+def _parse_weekly_off(weekly_off_str: Optional[str]) -> set[int]:
+    """
+    Parse employee's weekly_off string into weekday integers (Mon=0, Sun=6).
+    Defaults to {6} (Sunday only) — kept in sync with payroll and leave modules.
+    """
+    WEEKDAY_MAP = {
+        "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+        "friday": 4, "saturday": 5, "sunday": 6,
+    }
+    if not weekly_off_str:
+        return {6}
+    days: set[int] = set()
+    for token in weekly_off_str.lower().replace("&", " ").replace(",", " ").split():
+        if token in WEEKDAY_MAP:
+            days.add(WEEKDAY_MAP[token])
+    return days if days else {6}
+
+
+# ══════════════════════════════════════════════════════════════
 # DETECTION HELPERS
 # ══════════════════════════════════════════════════════════════
 
@@ -63,27 +85,23 @@ async def detect_sandwich_for_employee(
     Detect sandwich leave pattern for one employee in the given month.
     
     Sandwich Rule:
-    If employee has approved leave on days with ONLY Sundays/holidays between them,
+    If employee has approved leave on days with ONLY weekly-off days/holidays between them,
     those non-working days are also counted as leave (sandwich).
     
     CRITICAL: If gap contains ANY working day → NOT sandwich.
-    
-    Returns:
-        {
-            "sandwich_days": int,
-            "pattern": [
-                {
-                    "date": "2024-03-17",
-                    "reason": "Sunday (weekly off)",
-                    "between_leaves": ["2024-03-16", "2024-03-18"]
-                }
-            ]
-        }
+    Uses employee's actual weekly_off field — not a hardcoded Sunday assumption.
     """
     month_start = date(year, month, 1)
     cal_days = calendar.monthrange(year, month)[1]
     month_end = date(year, month, cal_days)
-    
+
+    # Fetch employee's weekly_off setting
+    weekly_off_str = await db.fetchval(
+        "SELECT weekly_off FROM employees WHERE id = $1",
+        employee_id,
+    )
+    off_days = _parse_weekly_off(weekly_off_str)
+
     # Fetch all approved leaves in this month (both paid and unpaid)
     leave_rows = await db.fetch(
         """
@@ -146,14 +164,14 @@ async def detect_sandwich_for_employee(
             gap_dates.append(d)
             d += timedelta(days=1)
         
-        # CRITICAL CHECK: ALL gap days must be ONLY Sundays or holidays
-        # If ANY day is a working day (not Sunday, not holiday) → NOT sandwich
+        # CRITICAL CHECK: ALL gap days must be ONLY weekly-off days or holidays
+        # If ANY day is a working day → NOT sandwich
         all_non_working = True
         for gd in gap_dates:
-            is_sunday = gd.weekday() == 6
+            is_weekly_off = gd.weekday() in off_days
             is_holiday = gd in holidays
             
-            if not (is_sunday or is_holiday):
+            if not (is_weekly_off or is_holiday):
                 # Found a working day in gap → breaks sandwich
                 all_non_working = False
                 break
@@ -161,11 +179,11 @@ async def detect_sandwich_for_employee(
         # Only if gap contains EXCLUSIVELY non-working days → sandwich
         if all_non_working and gap_dates:
             for gd in gap_dates:
-                is_sunday = gd.weekday() == 6
+                is_weekly_off = gd.weekday() in off_days
                 is_holiday = gd in holidays
                 
-                if is_sunday:
-                    reason = "Sunday (weekly off)"
+                if is_weekly_off:
+                    reason = "Sunday (weekly off)" if gd.weekday() == 6 else "Weekly off"
                 elif is_holiday:
                     reason = f"{holidays[gd]} (public holiday)"
                 else:

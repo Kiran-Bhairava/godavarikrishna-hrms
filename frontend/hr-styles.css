@@ -910,37 +910,6 @@
       .ob-status.not-started .ob-status-dot {
         background: var(--text-muted);
       }
-      .progress-wrap {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 120px;
-      }
-      .progress-bar {
-        flex: 1;
-        height: 6px;
-        background: var(--border);
-        border-radius: 3px;
-        overflow: hidden;
-      }
-      .progress-fill {
-        height: 100%;
-        border-radius: 3px;
-        background: var(--primary);
-        transition: width 0.4s;
-      }
-      .progress-fill.green {
-        background: var(--success);
-      }
-      .progress-fill.amber {
-        background: var(--warning);
-      }
-      .progress-pct {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--text-dim);
-        white-space: nowrap;
-      }
       .help-banner {
         margin-top: 20px;
         background: var(--primary-light);
@@ -1429,45 +1398,6 @@
       }
 
       /* PROGRESS BAR in add employee */
-      .ae-live-progress {
-        background: var(--surface2);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 14px 18px;
-        margin-bottom: 18px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-      }
-      .ae-live-progress-bar {
-        flex: 1;
-        height: 8px;
-        background: var(--border);
-        border-radius: 4px;
-        overflow: hidden;
-      }
-      .ae-live-progress-fill {
-        height: 100%;
-        border-radius: 4px;
-        background: var(--primary);
-        transition:
-          width 0.4s ease,
-          background 0.3s;
-      }
-      .ae-live-pct {
-        font-size: 13px;
-        font-weight: 700;
-        color: var(--primary);
-        white-space: nowrap;
-        min-width: 38px;
-        text-align: right;
-      }
-      .ae-live-label {
-        font-size: 13px;
-        color: var(--text-dim);
-        white-space: nowrap;
-      }
-
       @media (max-width: 768px) {
         :root {
           --sidebar-w: 0px;

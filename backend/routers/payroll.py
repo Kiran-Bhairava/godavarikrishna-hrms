@@ -47,7 +47,6 @@ from openpyxl.utils import get_column_letter
 
 from auth import require_hr
 from db import get_db
-from routers.sandwich import get_sandwich_days_for_payroll
 
 logger = logging.getLogger("payroll")
 router = APIRouter(prefix="/api/payroll", tags=["payroll"])
@@ -307,15 +306,18 @@ async def _fetch_employees(
     Present day logic:
       present_days = DB present (punched in / approved leave / regularization)
                    + weekly-off days in month (Sundays etc — auto present)
-                   + public holidays in month (auto present)
-      absent_days  = calendar_days - present_days  (genuine LOP only)
-      lop          = gross / calendar_days * absent_days
+                   + public holidays in month (auto present via daily_summary rows)
+      absent_days  = eligible_days - present_days  (genuine LOP only)
+      lop          = gross / eligible_days * absent_days
 
-    This matches the reference payslip: an employee who attends all working
-    days has present = calendar_days and LOP = 0, because Sundays and
-    holidays are automatically counted as present.
+    Sandwich adjustment (when HR applies):
+      Sandwich days are Sundays/holidays that sit between two leave periods.
+      They are normally auto-present. When HR applies sandwich they become LOP.
+      Fix: subtract sandwich days from working_days → lop_days increases → pay deducted.
 
     Pro-rata for new joiners: eligible period starts from date_of_joining.
+
+    Performance: all per-employee data fetched in 3 batch queries (not N per employee).
     """
     cal_days    = calendar.monthrange(year, month)[1]
     month_start = date(year, month, 1)
@@ -369,94 +371,124 @@ async def _fetch_employees(
         *params,
     )
 
-    result = []
+    if not rows:
+        return []
+
+    # ── Batch query 1: all daily_summary rows for all employees in month ──
+    all_user_ids    = [r["user_id"]    for r in rows]
+    all_employee_ids = [r["employee_id"] for r in rows]
+
+    ds_all = await db.fetch(
+        """
+        SELECT
+            ds.user_id,
+            ds.work_date,
+            ds.payroll_status,
+            ds.status,
+            lr.leave_type
+        FROM daily_summary ds
+        LEFT JOIN leave_requests lr ON lr.id = ds.leave_request_id
+        WHERE ds.user_id  = ANY($1::int[])
+          AND ds.work_date BETWEEN $2 AND $3
+        """,
+        all_user_ids, month_start, month_end,
+    )
+    # ds_by_user: user_id → {work_date → {payroll_status, status, leave_type}}
+    ds_by_user: dict[int, dict] = {}
+    for r in ds_all:
+        ds_by_user.setdefault(r["user_id"], {})[r["work_date"]] = {
+            "payroll_status": r["payroll_status"],
+            "status":         r["status"],
+            "leave_type":     r["leave_type"],
+        }
+
+    # ── Batch query 2: leave balances for all employees ────────
+    bal_all = await db.fetch(
+        """
+        SELECT employee_id, total_paid_days, used_paid_days, remaining_paid_days
+        FROM leave_balances
+        WHERE employee_id = ANY($1::int[]) AND year = $2
+        """,
+        all_employee_ids, year,
+    )
+    bal_by_emp = {r["employee_id"]: r for r in bal_all}
+
+    # ── Batch query 3: sandwich decisions for all employees ────
+    payroll_month_date = date(year, month, 1)
+    sandwich_all = await db.fetch(
+        """
+        SELECT employee_id, sandwich_days_detected, sandwich_applied
+        FROM payroll_sandwich_reviews
+        WHERE employee_id = ANY($1::int[]) AND payroll_month = $2
+        """,
+        all_employee_ids, payroll_month_date,
+    )
+    sandwich_by_emp = {
+        r["employee_id"]: r["sandwich_days_detected"]
+        for r in sandwich_all
+        if r["sandwich_applied"]
+    }
+
+    today     = date.today()
+    result    = []
+
     for r in rows:
         emp    = dict(r)
         annual = Decimal(str(emp["annual_ctc"]))
         sal    = compute_salary_components(annual)
 
-        today     = date.today()
-        count_end = min(month_end, today - timedelta(days=1))
-
-        doj = emp.get("date_of_joining")
+        count_end      = min(month_end, today - timedelta(days=1))
+        doj            = emp.get("date_of_joining")
         eligible_start = doj if doj and doj > month_start else month_start
 
-        # Fetch per-day payroll_status for this employee
-        ds_rows = await db.fetch(
-            """
-            SELECT
-                ds.work_date,
-                ds.payroll_status,
-                ds.status,
-                lr.leave_type
-            FROM daily_summary ds
-            LEFT JOIN leave_requests lr ON lr.id = ds.leave_request_id
-            WHERE ds.user_id  = $1
-              AND ds.work_date BETWEEN $2 AND $3
-            """,
-            emp["user_id"], month_start, month_end,
-        )
-        # ds_map: work_date → {payroll_status, status, leave_type}
-        ds_map = {
-            r["work_date"]: {
-                "payroll_status": r["payroll_status"],
-                "status":         r["status"],
-                "leave_type":     r["leave_type"],   # None if not a leave day
-            }
-            for r in ds_rows
-        }
-
-        weekly_off_days = _parse_weekly_off(emp.get("weekly_off"))
+        ds_map           = ds_by_user.get(emp["user_id"], {})
+        weekly_off_days  = _parse_weekly_off(emp.get("weekly_off"))
 
         working_days = 0
-        leaves_taken = 0   # approved paid leave days (payroll_status=present, status=leave)
+        leaves_taken = 0   # approved paid leave days for display
         d = eligible_start
         while d <= count_end:
             if d in ds_map:
-                # DB has a row — trust payroll_status unconditionally
                 if ds_map[d]["payroll_status"] == "present":
                     working_days += 1
-                    # Count approved paid leave days separately for the leaves_taken column
                     if ds_map[d]["status"] == "leave" and ds_map[d]["leave_type"] == "paid":
                         leaves_taken += 1
             else:
-                # No DB row — only auto-present for weekly offs (Sundays)
-                # Holidays already have DB rows inserted by the holiday calendar feature
+                # No DB row — auto-present for weekly offs only.
+                # Holidays already have DS rows from the holiday calendar feature.
                 if d.weekday() in weekly_off_days:
                     working_days += 1
             d += timedelta(days=1)
 
-        # eligible_days = days employee was actually on payroll this month.
-        # For new joiners DOJ > month_start, pre-joining days must NOT count
-        # as absences — only the eligible window matters for LOP.
         eligible_days = max(0, (count_end - eligible_start).days + 1) if count_end >= eligible_start else 0
         working_days  = min(working_days, eligible_days)
 
-        # LOP days = actual absent days (unpaid leave + no reg + rejected reg + pure absent)
-        # Paid leaves and weekly offs do NOT count as LOP
+        # ── Sandwich adjustment ────────────────────────────────
+        # Sandwich days are Sundays/holidays between two leave blocks.
+        # Normally auto-present (no DS row, counted via weekly_off branch above).
+        # When HR applies sandwich, each day is treated as:
+        #   - Paid leave   → if employee has remaining paid balance
+        #                    (working_days stays, balance consumed, leaves_taken++)
+        #   - Unpaid/LOP   → if balance is exhausted
+        #                    (working_days--, lop increases, salary deducted)
+        leave_bal    = bal_by_emp.get(emp["employee_id"])
+        paid_balance = int(leave_bal["remaining_paid_days"]) if leave_bal else 0
+
+        sandwich_days = sandwich_by_emp.get(emp["employee_id"], 0)
+        if sandwich_days > 0:
+            sandwich_days   = min(sandwich_days, working_days)  # clamp to actual present days
+            paid_sandwich   = min(sandwich_days, paid_balance)  # days covered by balance
+            unpaid_sandwich = sandwich_days - paid_sandwich     # remaining → LOP
+
+            leaves_taken  += paid_sandwich    # display: paid leave days used
+            paid_balance  -= paid_sandwich    # track balance after sandwich
+            working_days  -= unpaid_sandwich  # unpaid sandwich → absent → LOP
+
         lop_days = eligible_days - working_days
 
-        # Leave balance for this employee (current year)
-        leave_bal = await db.fetchrow(
-            """
-            SELECT total_paid_days, used_paid_days, remaining_paid_days
-            FROM leave_balances
-            WHERE employee_id = $1 AND year = $2
-            """,
-            emp["employee_id"], year,
-        )
-        available_leaves      = int(leave_bal["remaining_paid_days"]) if leave_bal else 0
-        carry_forward_leaves  = available_leaves  # at month end, remaining = carry forward
+        available_leaves     = paid_balance   # reflects sandwich consumption if any
+        carry_forward_leaves = available_leaves
 
-        # ── SANDWICH LEAVE ADJUSTMENT ─────────────────────────────
-        # Check if HR decided to apply sandwich for this employee/month
-        sandwich_days_applied = await get_sandwich_days_for_payroll(
-            db, emp["employee_id"], year, month
-        )
-        if sandwich_days_applied > 0:
-            leaves_taken += sandwich_days_applied
-
-        # Per day salary = Gross / Calendar days
         eff_cal = eligible_days if eligible_days < cal_days else cal_days
         per_day = _round2(sal["gross"] / eff_cal) if eff_cal > 0 else Decimal("0.00")
 
@@ -693,7 +725,8 @@ def _generate_payslip_pdf(emp: dict, year: int, month: int) -> bytes:
     # ══════════════════════════════════════════════════════════
     from reportlab.platypus import Image as RLImage
 
-    LOGO_PATH = "../frontend/icon-51.png"
+    from pathlib import Path as _Path
+    LOGO_PATH = str(_Path(__file__).resolve().parent.parent / "frontend" / "icon-51.png")
     try:
         logo = RLImage(LOGO_PATH, width=18*mm, height=18*mm)
     except Exception:

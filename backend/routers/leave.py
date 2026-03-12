@@ -66,6 +66,28 @@ async def _get_employee(user_id: int, db: asyncpg.Connection) -> dict:
     return dict(emp)
 
 
+def _parse_weekly_off(weekly_off_str: str | None) -> set[int]:
+    """
+    Parse employee's weekly_off string into weekday integers (Mon=0, Sun=6).
+    Handles: "Sunday", "Saturday & Sunday", "Saturday, Sunday", any day name.
+    Defaults to {6} (Sunday only) if blank or unparseable — matches payroll default.
+
+    Kept in sync with payroll._parse_weekly_off — both must use the same logic
+    so leave working-day counts match payroll present-day counts.
+    """
+    WEEKDAY_MAP = {
+        "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+        "friday": 4, "saturday": 5, "sunday": 6,
+    }
+    if not weekly_off_str:
+        return {6}
+    days: set[int] = set()
+    for token in weekly_off_str.lower().replace("&", " ").replace(",", " ").split():
+        if token in WEEKDAY_MAP:
+            days.add(WEEKDAY_MAP[token])
+    return days if days else {6}
+
+
 async def _get_working_days(
     db: asyncpg.Connection,
     employee_id: int,
@@ -74,7 +96,9 @@ async def _get_working_days(
 ) -> list[date]:
     """
     Return working days in range (inclusive), excluding holidays + weekly off.
-    Single query for holidays; weekday logic in Python.
+
+    Uses _parse_weekly_off (handles all 7 days) — same logic as payroll so
+    leave day counts always match what payroll counts as present days.
     """
     holidays_raw = await db.fetch(
         """
@@ -85,21 +109,11 @@ async def _get_working_days(
     )
     holidays = {r["holiday_date"] for r in holidays_raw}
 
-    # Fetch weekly_off for this employee
     weekly_off_str = await db.fetchval(
-        "SELECT COALESCE(weekly_off, 'Saturday & Sunday') FROM employees WHERE id = $1",
+        "SELECT weekly_off FROM employees WHERE id = $1",
         employee_id,
     )
-    weekly_off_str = (weekly_off_str or "Saturday & Sunday").lower()
-
-    # Map to Python weekday numbers (Mon=0 … Sun=6)
-    off_days: set[int] = set()
-    if "saturday" in weekly_off_str:
-        off_days.add(5)
-    if "sunday" in weekly_off_str:
-        off_days.add(6)
-    if "monday" in weekly_off_str:
-        off_days.add(0)
+    off_days = _parse_weekly_off(weekly_off_str)
 
     working = []
     cur = date_from
@@ -158,10 +172,16 @@ async def _sync_daily_summary(
     leave_request_id: int,
 ) -> None:
     """
-    Upsert daily_summary for each working day.
+    Upsert daily_summary for each working day in a leave request.
 
     approved  → status='leave', payroll_status='present'(paid)/'absent'(unpaid)
-    cancelled/rejected → revert rows only if they belong to THIS request
+
+    cancelled/rejected → revert ONLY rows owned by this leave request
+      (leave_request_id must match — prevents touching rows owned by other requests).
+      Revert logic restores the correct state based on what else is on the row:
+        - If day was regularized (is_regularized=TRUE) → restore to 'present' + keep reg fields
+        - Else if punches exist (total_minutes > 0)    → restore to 'present'
+        - Else                                          → restore to 'absent'
     """
     if not working_days:
         return
@@ -185,13 +205,29 @@ async def _sync_daily_summary(
                 user_id, d, p_status, p_notes, leave_request_id,
             )
     else:
-        # Revert only rows owned by this leave request
+        # Revert only rows owned by this leave request.
+        # Priority on revert: regularization > raw attendance > absent.
+        # If is_regularized is TRUE, the day was approved-regularized before
+        # leave was stamped — restore to regularized-present state.
+        # Otherwise fall back to punch-based status.
         await db.execute(
             """
             UPDATE daily_summary
-            SET status           = CASE WHEN total_minutes > 0 THEN 'present' ELSE 'absent' END,
-                payroll_status   = CASE WHEN total_minutes > 0 THEN 'present' ELSE 'absent' END,
-                payroll_notes    = NULL,
+            SET
+                status           = CASE
+                                     WHEN is_regularized THEN 'present'
+                                     WHEN total_minutes > 0 THEN 'present'
+                                     ELSE 'absent'
+                                   END,
+                payroll_status   = CASE
+                                     WHEN is_regularized THEN 'present'
+                                     WHEN total_minutes > 0 THEN 'present'
+                                     ELSE 'absent'
+                                   END,
+                payroll_notes    = CASE
+                                     WHEN is_regularized THEN 'Regularization approved — hours credited'
+                                     ELSE NULL
+                                   END,
                 leave_request_id = NULL
             WHERE user_id = $1
               AND work_date = ANY($2::date[])
@@ -466,10 +502,13 @@ async def cancel_leave(
                 leave_request_id=request_id,
             )
             if req["leave_type"] == "paid":
+                # Refund exactly what was deducted at approval time.
+                # num_days was updated to the live count at approval, so this is
+                # always the exact amount that was deducted — no leak possible.
                 await _adjust_balance(
                     db, employee_id=emp["id"],
                     year=req["date_from"].year,
-                    delta=-len(working_days),  # refund live count — matches what was deducted at approval
+                    delta=-req["num_days"],
                 )
 
     return {"request_id": request_id, "status": "cancelled"}
@@ -661,6 +700,14 @@ async def l2_approve(
     working_days = await _get_working_days(
         db, req["employee_id"], req["date_from"], req["date_to"]
     )
+    # live_days = working days recalculated right now (inside transaction).
+    # We use this SAME count for:
+    #   1. Stamping daily_summary rows (via _sync_daily_summary)
+    #   2. Deducting paid leave balance
+    # This guarantees deduct == refund always, even if a holiday was added
+    # between submission and approval (which would change the count).
+    # num_days stored on the request is for display only.
+    live_days = len(working_days)
 
     async with db.transaction():
         await db.execute(
@@ -668,10 +715,11 @@ async def l2_approve(
             UPDATE leave_requests
             SET l2_status = 'approved', l2_approved_at = NOW(),
                 l2_approved_by_user_id = $2, l2_comment = $3,
-                final_status = 'approved'
+                final_status = 'approved',
+                num_days = $4
             WHERE id = $1
             """,
-            request_id, user["id"], body.comment,
+            request_id, user["id"], body.comment, live_days,
         )
         await _sync_daily_summary(
             db,
@@ -685,19 +733,19 @@ async def l2_approve(
             await _adjust_balance(
                 db, employee_id=req["employee_id"],
                 year=req["date_from"].year,
-                delta=req["num_days"],  # use stored count — what was shown to employee at submission
+                delta=live_days,   # same value stamped on DS rows — always consistent
             )
 
     logger.info(
         "Leave %s fully approved by L2 user %s. days=%s type=%s",
-        request_id, user["id"], req["num_days"], req["leave_type"],
+        request_id, user["id"], live_days, req["leave_type"],
     )
 
     return LeaveApprovalResponse(
         request_id=request_id, status="approved", approved_by_role="l2",
         approved_at=datetime.now(), final_status="approved",
         message=(
-            f"Leave approved. {req['num_days']} day(s) marked as "
+            f"Leave approved. {live_days} day(s) marked as "
             f"{'paid leave' if req['leave_type'] == 'paid' else 'unpaid leave'}."
         ),
     )

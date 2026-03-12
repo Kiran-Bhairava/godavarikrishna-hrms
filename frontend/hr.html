@@ -615,13 +615,12 @@
                   <th>Branch</th>
                   <th>Onboarding Status</th>
                   <th>Start Date</th>
-                  <th>Completion</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody id="obTable">
                 <tr>
-                  <td colspan="7" class="empty-state">Loading…</td>
+                  <td colspan="6" class="empty-state">Loading…</td>
                 </tr>
               </tbody>
             </table>
@@ -694,19 +693,6 @@
               Submit Enrollment
             </button>
           </div>
-        </div>
-
-        <!-- Live progress bar -->
-        <div class="ae-live-progress">
-          <span class="ae-live-label">Form completion</span>
-          <div class="ae-live-progress-bar">
-            <div
-              class="ae-live-progress-fill"
-              id="liveProgressFill"
-              style="width: 0%"
-            ></div>
-          </div>
-          <span class="ae-live-pct" id="liveProgressPct">0%</span>
         </div>
 
         <div class="ae-layout">
@@ -1323,7 +1309,7 @@
                   <div class="form-field">
                     <label class="form-label">Weekly Off Days</label
                     ><select class="form-select" id="f_weekly_off">
-                      <option>Saturday &amp; Sunday</option>
+                      <!-- <option>Saturday &amp; Sunday</option> -->
                       <option>Sunday only</option>
                       <option>Rotational</option>
                     </select>

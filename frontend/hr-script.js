@@ -442,7 +442,7 @@ const API = "/api";
         const tbody = document.getElementById("obTable");
         const rows = obAllRows;
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No employees match the filter.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No employees match the filter.</td></tr>`;
           return;
         }
 
@@ -454,7 +454,6 @@ const API = "/api";
           awaiting:
             '<span class="ob-status awaiting"><span class="ob-status-dot"></span>Awaiting Login</span>',
         };
-        const barCls = (p) => (p >= 100 ? "green" : p >= 50 ? "" : "amber");
 
         tbody.innerHTML = rows
           .map((r) => {
@@ -474,9 +473,6 @@ const API = "/api";
                   year: "numeric",
                 })
               : "—";
-            // Completion % — completed=100, in-progress=50, awaiting=10, else 0
-            const pctMap = { completed: 100, "in-progress": 50, awaiting: 10 };
-            const pct = pctMap[r.onboarding_status] || 0;
             let statusHtml;
             if (isDeactivated) {
               statusHtml = `
@@ -504,10 +500,6 @@ const API = "/api";
         <td style="font-size:13px;color:var(--text-dim)">${branch}</td>
         <td>${statusHtml}</td>
         <td style="font-size:13px;color:var(--text-dim)">${doj}</td>
-        <td><div class="progress-wrap">
-          <div class="progress-bar"><div class="progress-fill ${barCls(pct)}" style="width:${pct}%"></div></div>
-          <span class="progress-pct">${pct}%</span>
-        </div></td>
         <td style="white-space:nowrap">
           ${
             isDeactivated
@@ -1060,43 +1052,6 @@ const API = "/api";
         }
       }
 
-      // ── Live Progress Bar ─────────────────────────────────────────
-      // All tracked field IDs across all 5 steps
-      const PROGRESS_FIELDS = [
-        // Step 1 — required
-        "f_full_name",
-        "f_work_email",
-        "f_phone",
-        // Step 1 — optional but tracked
-        "f_personal_email",
-        "f_dob",
-        "f_gender",
-        "f_blood",
-        "f_nationality",
-        "f_address",
-        "f_emg_name",
-        "f_emg_phone",
-        // Step 2
-        "f_job_title",
-        "f_department",
-        "f_doj",
-        "f_branch",
-        "f_designation",
-        "f_grade",
-        // Step 3
-        "f_emp_type",
-        "f_notice",
-        // Step 4
-        "f_shift_start",
-        "f_shift_end",
-        "f_work_mode",
-        // Step 5
-        "f_ctc",
-        "f_bank_name",
-        "f_account_no",
-        "f_ifsc",
-      ];
-
       function openCredModal(data) {
         document.getElementById("cred_email").value = data.email || "";
         document.getElementById("cred_password").value =
@@ -1119,53 +1074,11 @@ const API = "/api";
         toast("Credentials copied!", "success");
       }
 
-      function updateLiveProgress() {
-        const filled = PROGRESS_FIELDS.filter((id) => {
-          const el = document.getElementById(id);
-          return el && el.value && el.value.trim() !== "";
-        }).length;
-        const pct = Math.round((filled / PROGRESS_FIELDS.length) * 100);
-        const fill = document.getElementById("liveProgressFill");
-        const pctEl = document.getElementById("liveProgressPct");
-        if (fill) {
-          fill.style.width = pct + "%";
-          fill.style.background =
-            pct >= 80
-              ? "var(--success)"
-              : pct >= 40
-                ? "var(--primary)"
-                : "var(--warning)";
-        }
-        if (pctEl) pctEl.textContent = pct + "%";
-      }
-
-      function attachProgressListeners() {
-        PROGRESS_FIELDS.forEach((id) => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.addEventListener("input", updateLiveProgress);
-            el.addEventListener("change", updateLiveProgress);
-          }
-        });
-        updateLiveProgress();
-      }
-
-      // Patch goToStep to update progress on every step change
-      const _origGoToStep = goToStep;
-      goToStep = function (step) {
-        _origGoToStep(step);
-        updateLiveProgress();
-      };
-
       document.addEventListener("DOMContentLoaded", initHR);
 
-      // Attach progress listeners after addEmployee view loads
       const _origSwitchView = switchView;
       switchView = function (name) {
         _origSwitchView(name);
-        if (name === "addEmployee") {
-          setTimeout(attachProgressListeners, 50);
-        }
       };
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

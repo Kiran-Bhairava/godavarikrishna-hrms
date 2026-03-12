@@ -84,7 +84,7 @@ async def _write_audit_log(
     request_id: int,
     action_by_user_id: int,
     action_role: str,          # 'l1' | 'l2' | 'system'
-    action_type: str,          # 'submitted' | 'l1_approved' | 'l1_rejected' | 'l2_approved' | 'l2_rejected'
+    action_type: str,          # 'submitted' | 'resubmitted_after_rejection' | 'l1_approved' | 'l1_rejected' | 'l2_approved' | 'l2_rejected'
     note: Optional[str],
     minutes_before: int,       # daily_summary.total_minutes BEFORE this action
     minutes_after: int,        # daily_summary.total_minutes AFTER this action
@@ -196,13 +196,12 @@ async def _sync_daily_summary(
         minutes_after = credited
 
     else:  # rejected
-        # Revert to actual worked only — no bonus minutes
+        # Revert to actual worked only — no bonus minutes.
+        # CRITICAL: If the day has an approved leave stamped on it (leave_request_id IS NOT NULL),
+        # we must NOT overwrite it. Leave always wins over regularization.
+        # This handles the edge case where leave was approved AFTER regularization was submitted.
         payroll_after = "present" if actual > 0 else "absent"
-
-        # UPSERT — same safety net as approved branch above.
-        # status mirrors payroll_after: employee was 'present' if they had
-        # any actual punches, 'absent' if they had none at all.
-        status_after = "present" if actual > 0 else "absent"
+        status_after  = "present" if actual > 0 else "absent"
 
         await db.execute(
             """
@@ -216,12 +215,20 @@ async def _sync_daily_summary(
             SET
                 total_minutes         = EXCLUDED.total_minutes,
                 payroll_minutes       = EXCLUDED.payroll_minutes,
-                status                = $5,
-                payroll_status        = $4,
+                -- Only revert status/payroll_status if leave hasn't taken ownership.
+                -- If leave_request_id is set, leave owns this day — don't touch it.
+                status                = CASE WHEN daily_summary.leave_request_id IS NOT NULL
+                                             THEN daily_summary.status
+                                             ELSE $5 END,
+                payroll_status        = CASE WHEN daily_summary.leave_request_id IS NOT NULL
+                                             THEN daily_summary.payroll_status
+                                             ELSE $4 END,
                 regularization_status = 'rejected',
                 regularization_minutes= 0,
                 is_regularized        = FALSE,
-                payroll_notes         = 'Regularization rejected — original hours retained'
+                payroll_notes         = CASE WHEN daily_summary.leave_request_id IS NOT NULL
+                                             THEN daily_summary.payroll_notes
+                                             ELSE 'Regularization rejected — original hours retained' END
             """,
             user_id, work_date, actual, payroll_after, status_after,
         )
@@ -279,17 +286,20 @@ async def get_approved_minutes_for_month(
     return result or 0
 
 
-def determine_approval_requirement(approved_count: int) -> dict:
+def needs_l2_approval(approved_count: int) -> bool:
     """
-    Determine if request needs L2 approval.
-    Rules:
-    - First 3 approved requests: L1 only
-    - 4th approved request onwards: L1 + L2
+    Return True if this request requires L2 approval.
+
+    Rule: first 3 approved requests in a month → L1 only.
+          4th approved request onwards           → L1 + L2.
+
+    approved_count = number of ALREADY-approved requests BEFORE this one.
+    So count >= 3 means this will be the 4th (or later) → needs L2.
+
+    Called ONLY inside the L1-approval transaction (with a row lock held),
+    so the count is always authoritative — no race condition possible.
     """
-    if approved_count < 3:
-        return {"requires_l2": False, "escalated": False}
-    else:
-        return {"requires_l2": True, "escalated": True}
+    return approved_count >= 3
 
 
 async def validate_manager_active(manager_id: int, db: asyncpg.Connection) -> bool:
@@ -369,6 +379,28 @@ async def create_regularization_request(
         if existing["final_status"] in ("pending", "approved"):
             raise HTTPException(400, f"Already have a {existing['final_status']} request for {req.work_date}")
         # Allow resubmission if previously rejected
+
+    # Block regularization on days with approved leave.
+    # Leave always wins — a day marked as leave cannot be regularized.
+    # (The employee shouldn't have been at work that day at all.)
+    leave_conflict = await db.fetchval(
+        """
+        SELECT EXISTS (
+            SELECT 1 FROM daily_summary
+            WHERE user_id  = $1
+              AND work_date = $2
+              AND status    = 'leave'
+              AND leave_request_id IS NOT NULL
+        )
+        """,
+        user["id"], req.work_date,
+    )
+    if leave_conflict:
+        raise HTTPException(
+            400,
+            f"Cannot raise a regularization request for {req.work_date} — "
+            "that day has an approved leave. Cancel the leave first if needed."
+        )
     
     # ✅ RELAXED VALIDATION: Allow negative actual_worked_minutes for forgot cases
     if req.actual_worked_minutes < 0:
@@ -394,41 +426,22 @@ async def create_regularization_request(
     # Check L1 manager assigned
     if not emp["l1_manager_id"]:
         raise HTTPException(403, "No L1 manager assigned to you. Contact HR.")
-    
+
     # Validate L1 manager is active
     if not await validate_manager_active(emp["l1_manager_id"], db):
         raise HTTPException(403, "Your L1 manager is inactive. Contact HR.")
-    
-    # Get approved request count and determine approval tier
-    # Use the work_date's month for tier calculation — not today's month.
-    # Submitting on Mar 5 for Feb 28 must count Feb's approvals, not March's.
-    approved_count = await get_approved_request_count_for_month(
-        employee_id, req.work_date.year, req.work_date.month, db
-    )
-    approval_info = determine_approval_requirement(approved_count)
-    
-    # Always get L2 manager from profile (may be None)
+
+    # Always store l2_manager_id from profile (may be None — that's fine).
+    # Whether L2 approval is actually NEEDED is decided at L1-approval time,
+    # inside a locked transaction, so the count is always authoritative.
+    # We do NOT decide the tier here — avoids the race where other requests
+    # get approved between submission and L1 action, causing a tier mismatch.
     l2_manager_id = emp["l2_manager_id"]
-    
-    # If L2 approval required but no L2 manager assigned
-    if approval_info["requires_l2"] and not l2_manager_id:
-        raise HTTPException(
-            403,
-            f"This is your {approved_count + 1}th request. L2 manager approval required but not assigned. Contact HR."
-        )
-    
-    # Validate L2 manager is active (if required)
-    if approval_info["requires_l2"] and l2_manager_id:
-        if not await validate_manager_active(l2_manager_id, db):
-            raise HTTPException(403, "Your L2 manager is inactive. Contact HR.")
-    
+
     # ── Single transaction: ensure daily_summary exists, create request, link it ──
-    # All three steps must succeed or fail together. Split transactions
-    # could leave an orphaned daily_summary with no request linked.
     async with db.transaction():
 
-        # Ensure daily_summary row exists — creates a placeholder for fully-absent
-        # days so the UPDATE below always finds a row to link against.
+        # Ensure daily_summary row exists for fully-absent days (no punch record).
         await db.execute(
             """
             INSERT INTO daily_summary (user_id, work_date, total_minutes, status)
@@ -438,10 +451,40 @@ async def create_regularization_request(
             user["id"], req.work_date,
         )
 
-        # If resubmission (existing rejected row), UPDATE it in place.
-        # This keeps the row count at 1 per (employee, work_date) so audit
-        # queries, count queries, and daily_summary FK stay clean.
+        # Resubmission of a previously-rejected request: UPDATE the row in place.
+        # Keeps 1 row per (employee, work_date); daily_summary FK stays clean.
         if existing and existing["final_status"] == "rejected":
+            # Read the actual current daily_summary state BEFORE rewriting anything.
+            # The day may have punch data (total_minutes > 0) even though the
+            # request was rejected — hardcoding 0 would produce a false audit snapshot.
+            ds_snap = await db.fetchrow(
+                """
+                SELECT COALESCE(total_minutes, 0) AS total_minutes,
+                       COALESCE(payroll_status, 'absent') AS payroll_status
+                FROM daily_summary
+                WHERE user_id = $1 AND work_date = $2
+                """,
+                user["id"], req.work_date,
+            )
+            snap_minutes = ds_snap["total_minutes"] if ds_snap else 0
+            snap_status  = ds_snap["payroll_status"] if ds_snap else "absent"
+
+            # Write audit entry BEFORE the UPDATE so the previous rejection state
+            # is still readable when this log entry is created.
+            await _write_audit_log(
+                db,
+                request_id            = existing["id"],
+                action_by_user_id     = user["id"],
+                action_role           = "employee",
+                action_type           = "resubmitted_after_rejection",
+                note                  = f"Resubmitted after rejection. "
+                                        f"New minutes: actual={req.actual_worked_minutes}, "
+                                        f"requested={req.requested_minutes}",
+                minutes_before        = snap_minutes,
+                minutes_after         = snap_minutes,   # resubmission itself changes nothing yet
+                payroll_status_before = snap_status,
+                payroll_status_after  = snap_status,    # status unchanged until manager acts
+            )
             request_id = await db.fetchval(
                 """
                 UPDATE regularization_requests
@@ -455,11 +498,11 @@ async def create_regularization_request(
                     l1_approved_by_user_id = NULL,
                     l1_comment             = NULL,
                     l2_manager_id          = $8,
-                    l2_status              = $9,
+                    l2_status              = NULL,
                     l2_approved_at         = NULL,
                     l2_approved_by_user_id = NULL,
                     l2_comment             = NULL,
-                    escalation_required    = $10,
+                    escalation_required    = FALSE,
                     final_status           = 'pending',
                     submitted_at           = NOW(),
                     updated_at             = NOW()
@@ -474,17 +517,16 @@ async def create_regularization_request(
                 user["id"],
                 emp["l1_manager_id"],
                 l2_manager_id,
-                "pending" if approval_info["requires_l2"] else None,
-                approval_info["escalated"],
             )
         else:
+            # Fresh request — l2_status starts NULL (tier decided at L1 approval).
             request_id = await db.fetchval(
                 """
                 INSERT INTO regularization_requests (
                     employee_id, work_date, actual_worked_minutes, requested_minutes, reason,
                     submitted_by_user_id, l1_manager_id, l1_status,
                     l2_manager_id, l2_status, escalation_required, final_status
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10, 'pending')
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, NULL, FALSE, 'pending')
                 RETURNING id
                 """,
                 employee_id,
@@ -495,12 +537,9 @@ async def create_regularization_request(
                 user["id"],
                 emp["l1_manager_id"],
                 l2_manager_id,
-                "pending" if approval_info["requires_l2"] else None,
-                approval_info["escalated"],
             )
 
-        # Link request to daily_summary — row is guaranteed to exist from the
-        # INSERT above, so this UPDATE will never silently match zero rows.
+        # Link request to daily_summary.
         await db.execute(
             """
             UPDATE daily_summary
@@ -513,10 +552,9 @@ async def create_regularization_request(
         logger.info(
             f"Regularization request created: id={request_id}, emp_id={employee_id}, "
             f"date={req.work_date}, actual={req.actual_worked_minutes}, "
-            f"requested={req.requested_minutes}, approved_count={approved_count}, "
-            f"requires_l2={approval_info['requires_l2']}"
+            f"requested={req.requested_minutes}"
         )
-    
+
     return {
         "request_id": request_id,
         "employee_id": employee_id,
@@ -527,10 +565,10 @@ async def create_regularization_request(
         "submitted_at": datetime.now().isoformat(),
         "l1_manager_id": emp["l1_manager_id"],
         "l1_status": "pending",
-        "l2_status": "pending" if approval_info["requires_l2"] else None,
-        "requires_l2": approval_info["requires_l2"],
+        "l2_status": None,          # tier not known yet — set at L1 approval
+        "requires_l2": None,        # unknown until L1 approves
         "final_status": "pending",
-        "message": "Request submitted to " + ("L1 and L2 managers" if approval_info["requires_l2"] else "L1 manager") + " for approval",
+        "message": "Request submitted to L1 manager for approval.",
     }
 
 @router.get("/requests")
@@ -713,7 +751,7 @@ async def get_regularization_detail(
         l2_status=req["l2_status"],
         l2_comment=req["l2_comment"],
         l2_approved_at=req["l2_approved_at"],
-        requires_l2_approval=req["l2_status"] is not None,
+        requires_l2_approval=req["escalation_required"] or False,
         final_status=req["final_status"],
         is_regularized=req["final_status"] == "approved",
         payroll_status=req["ds_payroll_status"] or "absent",
@@ -773,7 +811,10 @@ async def get_pending_approvals(
     pending_list = []
     for row in rows:
         approved_count = row["approved_count_before"]  # ✅ Already calculated
-        requires_l2 = row["l2_status"] is not None
+        # requires_l2 is unknown at submission time; l2_status is NULL until L1 approves.
+        # For L1-pending rows: show a preview based on count (informational only).
+        # For L2-pending rows: escalation_required is already set TRUE on the row.
+        requires_l2 = row["l2_status"] == "pending" or approved_count >= 3
         
         pending_list.append(
             PendingApprovalRow(
@@ -809,12 +850,11 @@ async def approve_regularization(
     """
     L1 or L2 manager approves a regularization request.
 
-    Flow:
-      - Determine if current user is L1 or L2 for this request
-      - Update the correct status field
-      - If L1 approves and L2 exists → still pending (awaiting L2)
-      - If L1 approves and no L2 → final_status = approved
-      - If L2 approves → final_status = approved
+    Tier decision flow (single authoritative point):
+      - L1 approves → locked count read here determines tier:
+          count < 3  → final_status = 'approved'  (L1-only path)
+          count >= 3 → final_status = 'pending', l2_status = 'pending'  (escalated to L2)
+      - L2 approves (only after l2_status = 'pending') → final_status = 'approved'
       - On final approval: sync daily_summary + write audit log
     """
     comment = (body.comment or "").strip() or None
@@ -857,9 +897,10 @@ async def approve_regularization(
     async with db.transaction():
 
         if is_l1 and req["l1_status"] == "pending":
-            # Lock all this employee's regularization rows for the month before counting.
-            # Prevents two concurrent L1 approvals from both reading count=2 and both
-            # skipping L2 escalation when together they'd push past the threshold.
+            # ── Authoritative tier decision ────────────────────
+            # Lock ALL regularization rows for this employee+month BEFORE
+            # reading the count. This prevents two concurrent L1 approvals
+            # from both seeing count=2 and both skipping L2 escalation.
             await db.execute(
                 """
                 SELECT id FROM regularization_requests
@@ -870,27 +911,44 @@ async def approve_regularization(
                 """,
                 req["employee_id"], req["work_date"].year, req["work_date"].month,
             )
+
+            # Count already-approved requests for this employee in this month.
+            # This is the ONLY place where tier is decided — never at submission.
             approved_count = await get_approved_request_count_for_month(
                 req["employee_id"], req["work_date"].year, req["work_date"].month, db
             )
-            needs_l2    = approved_count >= 3 and req["l2_manager_id"] is not None
-            new_final   = "pending" if needs_l2 else "approved"
+
+            # Rule: first 3 approved → L1 only.  4th onwards → L1 + L2.
+            # approved_count >= 3 means this will become the 4th (or later) approved.
+            l2_needed = needs_l2_approval(approved_count)
+
+            # L2 required but employee has no L2 manager assigned → block here.
+            # We couldn't check this at submission because tier wasn't known then.
+            if l2_needed and not req["l2_manager_id"]:
+                raise HTTPException(
+                    400,
+                    f"This is request #{approved_count + 1} for the month — L2 approval is required "
+                    f"but no L2 manager is assigned to this employee. Contact HR to assign one before approving."
+                )
+
+            new_final   = "pending" if l2_needed else "approved"
             action_type = "l1_approved"
 
             await db.execute(
                 """
                 UPDATE regularization_requests
-                SET l1_status             = 'approved',
-                    l1_approved_at        = NOW(),
-                    l1_approved_by_user_id= $2,
-                    l1_comment            = $3,
-                    final_status          = $4,
-                    -- If escalation needed, set l2 to pending so L2 sees it
-                    l2_status             = CASE WHEN $5 THEN 'pending' ELSE l2_status END,
-                    updated_at            = NOW()
+                SET l1_status              = 'approved',
+                    l1_approved_at         = NOW(),
+                    l1_approved_by_user_id = $2,
+                    l1_comment             = $3,
+                    final_status           = $4,
+                    escalation_required    = $5,
+                    -- Activate L2 only when escalation is needed
+                    l2_status              = CASE WHEN $5 THEN 'pending' ELSE NULL END,
+                    updated_at             = NOW()
                 WHERE id = $1
                 """,
-                request_id, current_user_id, comment, new_final, needs_l2,
+                request_id, current_user_id, comment, new_final, l2_needed,
             )
 
         elif is_l2 and req["l2_status"] == "pending":
