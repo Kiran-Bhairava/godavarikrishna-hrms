@@ -484,30 +484,7 @@ Index("idx_holiday_date",   HolidayCalendar.holiday_date)
 Index("idx_holiday_active", HolidayCalendar.is_active)
 
 
-# ── leave_policies ────────────────────────────────────────────
-class LeavePolicy(Base):
-    """
-    Paid leave entitlement per year.
-    employee_id = NULL  → company-wide default
-    employee_id = <id>  → employee-specific override (takes priority)
-    """
-    __tablename__ = "leave_policies"
-
-    id                 = Column(Integer, primary_key=True)
-    employee_id        = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"))  # NULL = default
-    paid_days_per_year = Column(Integer, nullable=False, server_default="12")
-    effective_from     = Column(Date, nullable=False, server_default="2024-01-01")
-    created_at         = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
-    updated_at         = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
-
-    employee = relationship("Employee")
-
-    __table_args__ = (
-        UniqueConstraint("employee_id", name="uq_leave_policies_employee_id"),
-    )
-
-
-Index("idx_leave_policy_emp", LeavePolicy.employee_id)
+# leave_policies table dropped — paid leave replaced by CL/SL (see migration 0002)
 
 
 # ── leave_balances ────────────────────────────────────────────
@@ -516,24 +493,45 @@ class LeaveBalance(Base):
     Yearly leave balance per employee.
     Lazy-created on first access via _get_or_init_balance() in the router.
     Deducted on L2 approval; refunded on cancellation.
+
+    Leave types: casual | sick (unpaid has no balance tracking).
+
+    CL/SL policy:
+    - Eligible only after 6 months from date_of_joining
+    - Joining year: 6 CL + 6 SL (post-probation months only)
+    - Year 2+:     12 CL + 12 SL
+    - Year-end:    CL expires Dec 31, SL carries forward (capped at 24)
     """
     __tablename__ = "leave_balances"
 
-    id                   = Column(Integer, primary_key=True)
-    employee_id          = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
-    year                 = Column(Integer, nullable=False)
-    total_paid_days      = Column(Integer, nullable=False, server_default="12")
-    used_paid_days       = Column(Integer, nullable=False, server_default="0")
-    remaining_paid_days  = Column(Integer, nullable=False, server_default="12")
-    created_at           = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
-    updated_at           = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
+    id          = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    year        = Column(Integer, nullable=False)
+
+    # Casual leave (resets every Jan 1, unused expires)
+    cl_total    = Column(Integer, nullable=False, server_default="0")
+    cl_used     = Column(Integer, nullable=False, server_default="0")
+    cl_remaining= Column(Integer, nullable=False, server_default="0")
+
+    # Sick leave (carries forward year-end, capped at 24)
+    sl_total    = Column(Integer, nullable=False, server_default="0")
+    sl_used     = Column(Integer, nullable=False, server_default="0")
+    sl_remaining= Column(Integer, nullable=False, server_default="0")
+
+    # False until 6 months from DOJ — gates CL/SL access
+    cl_sl_eligible = Column(Boolean, nullable=False, server_default="false")
+
+    created_at  = Column(TIMESTAMP(timezone=True), server_default=sa.func.now())
+    updated_at  = Column(TIMESTAMP(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now())
 
     employee = relationship("Employee")
 
     __table_args__ = (
         UniqueConstraint("employee_id", "year", name="uq_leave_balances_employee_year"),
-        CheckConstraint("used_paid_days >= 0",      name="used_days_non_negative"),
-        CheckConstraint("remaining_paid_days >= 0", name="remaining_days_non_negative"),
+        CheckConstraint("cl_used >= 0",      name="cl_used_non_negative"),
+        CheckConstraint("cl_remaining >= 0", name="cl_remaining_non_negative"),
+        CheckConstraint("sl_used >= 0",      name="sl_used_non_negative"),
+        CheckConstraint("sl_remaining >= 0", name="sl_remaining_non_negative"),
     )
 
 
@@ -569,7 +567,7 @@ class LeaveRequest(Base):
     num_days  = Column(Integer, nullable=False)   # working days only, pre-calculated
 
     # ── Leave details ──────────────────────────────────────────
-    leave_type = Column(String(10), nullable=False)   # paid | unpaid
+    leave_type = Column(String(10), nullable=False)   # unpaid | casual | sick
     reason     = Column(Text, nullable=False)
 
     # ── Submission ─────────────────────────────────────────────
@@ -607,7 +605,7 @@ class LeaveRequest(Base):
     daily_summaries      = relationship("DailySummary", back_populates="leave_request")
 
     __table_args__ = (
-        CheckConstraint("leave_type IN ('paid', 'unpaid')",                              name="leave_type_values"),
+        CheckConstraint("leave_type IN ('unpaid', 'casual', 'sick')",              name="leave_type_values"),
         CheckConstraint("date_from <= date_to",                                          name="leave_dates_order"),
         CheckConstraint("num_days > 0",                                                  name="leave_num_days_positive"),
         CheckConstraint("l1_status IN ('pending', 'approved', 'rejected')",              name="l1_leave_status_values"),

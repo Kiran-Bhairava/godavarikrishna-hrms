@@ -1388,9 +1388,16 @@ const API = "/api";
       }
 
       function leaveTypeBadge(t) {
-        return t === 'paid'
-          ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:#dbeafe;color:#1e40af;">Paid</span>`
-          : `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;background:#f3f4f6;color:#374151;">Unpaid</span>`;
+        const map = {
+          unpaid: 'background:#f3f4f6;color:#374151;',
+          casual: 'background:#ede9fe;color:#6d28d9;',
+          sick:   'background:#fce7f3;color:#be185d;',
+          // legacy — paid requests before the policy change
+          paid:   'background:#dbeafe;color:#1e40af;',
+        };
+        const style = map[t] || 'background:#f3f4f6;color:#374151;';
+        const label = t ? (t.charAt(0).toUpperCase() + t.slice(1)) : '—';
+        return `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;${style}">${label}</span>`;
       }
 
       function leaveEmpColor(name) {

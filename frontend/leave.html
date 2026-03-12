@@ -399,6 +399,14 @@
         background: var(--warning-light);
         color: var(--warning);
       }
+      .type-badge.casual {
+        background: #ede9fe;
+        color: #6d28d9;
+      }
+      .type-badge.sick {
+        background: #fce7f3;
+        color: #be185d;
+      }
       .status-badge {
         padding: 3px 10px;
         border-radius: 20px;
@@ -501,6 +509,20 @@
         border-color: var(--warning);
         background: var(--warning-light);
         color: var(--warning);
+      }
+      .type-btn.active.casual {
+        border-color: #6d28d9;
+        background: #ede9fe;
+        color: #6d28d9;
+      }
+      .type-btn.active.sick {
+        border-color: #be185d;
+        background: #fce7f3;
+        color: #be185d;
+      }
+      .type-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
       }
 
       /* ─── APPLY CALENDAR ─────────────────────── */
@@ -1385,37 +1407,139 @@
         </div>
       </div>
 
-      <!-- BALANCE CARD -->
-      <div class="balance-card">
-        <div class="bal-left">
-          <div class="bal-icon"></div>
-          <div>
-            <div class="bal-label">
-              Paid Leave Balance &nbsp;<span
-                id="balYear"
-                style="opacity: 0.6"
-              ></span>
-            </div>
-            <div
+      <!-- BALANCE SECTION -->
+      <!-- CL/SL panels shown after probation; probation notice shown during first 6 months -->
+      <div
+        id="leaveBalanceSection"
+        style="display: none; gap: 10px; margin-bottom: 4px"
+      >
+        <!-- Casual Leave -->
+        <div
+          style="
+            flex: 1;
+            background: #ede9fe;
+            border-radius: 14px;
+            padding: 12px 14px;
+          "
+        >
+          <div
+            style="
+              font-size: 11px;
+              font-weight: 600;
+              color: #6d28d9;
+              margin-bottom: 6px;
+              text-transform: uppercase;
+              letter-spacing: 0.4px;
+            "
+          >
+            Casual Leave
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: baseline;
+              gap: 4px;
+              margin-bottom: 6px;
+            "
+          >
+            <span
+              id="clRemaining"
               style="
-                display: flex;
-                align-items: baseline;
-                gap: 5px;
-                margin-top: 2px;
+                font-size: 26px;
+                font-weight: 700;
+                color: #6d28d9;
+                line-height: 1;
               "
+              >—</span
             >
-              <div class="bal-big" id="balRemaining">—</div>
-              <div class="bal-unit">Leaves left</div>
+            <span style="font-size: 12px; color: #7c3aed">days left</span>
+          </div>
+          <div style="display: flex; gap: 10px">
+            <div style="font-size: 11px; color: #6d28d9">
+              Total <strong id="clTotal">—</strong>
+            </div>
+            <div style="font-size: 11px; color: #6d28d9">
+              Used <strong id="clUsed">—</strong>
             </div>
           </div>
         </div>
-        <div class="bal-pills">
-          <div class="bal-pill">
-            <span>Total</span><strong id="balTotal">—</strong>
+        <!-- Sick Leave -->
+        <div
+          style="
+            flex: 1;
+            background: #fce7f3;
+            border-radius: 14px;
+            padding: 12px 14px;
+          "
+        >
+          <div
+            style="
+              font-size: 11px;
+              font-weight: 600;
+              color: #be185d;
+              margin-bottom: 6px;
+              text-transform: uppercase;
+              letter-spacing: 0.4px;
+            "
+          >
+            Sick Leave
           </div>
-          <div class="bal-pill">
-            <span>Used</span><strong id="balUsed">—</strong>
+          <div
+            style="
+              display: flex;
+              align-items: baseline;
+              gap: 4px;
+              margin-bottom: 6px;
+            "
+          >
+            <span
+              id="slRemaining"
+              style="
+                font-size: 26px;
+                font-weight: 700;
+                color: #be185d;
+                line-height: 1;
+              "
+              >—</span
+            >
+            <span style="font-size: 12px; color: #be185d">days left</span>
           </div>
+          <div style="display: flex; gap: 10px">
+            <div style="font-size: 11px; color: #be185d">
+              Total <strong id="slTotal">—</strong>
+            </div>
+            <div style="font-size: 11px; color: #be185d">
+              Used <strong id="slUsed">—</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Probation notice — shown during first 6 months -->
+      <div
+        id="probationNotice"
+        style="
+          background: #f1f5f9;
+          border-radius: 14px;
+          padding: 16px;
+          margin-bottom: 4px;
+          text-align: center;
+        "
+      >
+        <div style="font-size: 22px; margin-bottom: 6px">🔒</div>
+        <div
+          style="
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 4px;
+          "
+        >
+          Leaves unlock after probation
+        </div>
+        <div style="font-size: 12px; color: #64748b">
+          Casual &amp; Sick leave will be available after 6 months from your
+          date of joining
         </div>
       </div>
 
@@ -1525,18 +1649,27 @@
       <div class="view" id="applyView">
         <div class="type-toggle">
           <button
-            class="type-btn active paid"
-            id="btnPaid"
-            onclick="selectType('paid')"
-          >
-            <span class="ticon"></span>Paid Leave
-          </button>
-          <button
-            class="type-btn unpaid"
+            class="type-btn active unpaid"
             id="btnUnpaid"
             onclick="selectType('unpaid')"
           >
             <span class="ticon"></span>Unpaid Leave
+          </button>
+          <button
+            class="type-btn casual"
+            id="btnCasual"
+            onclick="selectType('casual')"
+            disabled
+          >
+            <span class="ticon"></span>Casual Leave
+          </button>
+          <button
+            class="type-btn sick"
+            id="btnSick"
+            onclick="selectType('sick')"
+            disabled
+          >
+            <span class="ticon"></span>Sick Leave
           </button>
         </div>
 
@@ -1961,7 +2094,7 @@
         selEnd = null,
         pickStep = 0;
       let holidays = new Set();
-      let selectedType = "paid";
+      let selectedType = "unpaid";
 
       // Activity calendar
       let actYear = new Date().getFullYear();
@@ -2089,11 +2222,30 @@
       async function loadBalance() {
         try {
           const b = await apiFetch(`/leave/balance?year=${currentYear}`);
-          document.getElementById("balRemaining").textContent =
-            b.remaining_paid_days;
-          document.getElementById("balTotal").textContent = b.total_paid_days;
-          document.getElementById("balUsed").textContent = b.used_paid_days;
-          document.getElementById("balYear").textContent = currentYear;
+          if (b.cl_sl_eligible) {
+            document.getElementById("leaveBalanceSection").style.display =
+              "flex";
+            document.getElementById("probationNotice").style.display = "none";
+            document.getElementById("clRemaining").textContent = b.cl_remaining;
+            document.getElementById("clTotal").textContent = b.cl_total;
+            document.getElementById("clUsed").textContent = b.cl_used;
+            document.getElementById("slRemaining").textContent = b.sl_remaining;
+            document.getElementById("slTotal").textContent = b.sl_total;
+            document.getElementById("slUsed").textContent = b.sl_used;
+            document.getElementById("btnCasual").disabled = false;
+            document.getElementById("btnSick").disabled = false;
+            document.getElementById("btnUnpaid").disabled = false;
+          } else {
+            document.getElementById("leaveBalanceSection").style.display =
+              "none";
+            document.getElementById("probationNotice").style.display = "block";
+            document.getElementById("btnCasual").disabled = true;
+            document.getElementById("btnSick").disabled = true;
+            document.getElementById("btnUnpaid").disabled = true;
+            if (["casual", "sick", "unpaid"].includes(selectedType)) {
+              selectedType = "unpaid"; // no valid selection during probation
+            }
+          }
         } catch {}
       }
 
@@ -2370,12 +2522,18 @@
 
       function selectType(type) {
         selectedType = type;
-        ["paid", "unpaid"].forEach((t) => {
-          const b = document.getElementById(
-            t === "paid" ? "btnPaid" : "btnUnpaid",
-          );
-          b.classList.toggle("active", t === type);
-          b.classList.toggle(t, t === type);
+        const btnMap = {
+          unpaid: "btnUnpaid",
+          casual: "btnCasual",
+          sick: "btnSick",
+        };
+        Object.entries(btnMap).forEach(([t, id]) => {
+          const b = document.getElementById(id);
+          if (!b) return;
+          b.classList.remove("active", "unpaid", "casual", "sick");
+          if (t === type) {
+            b.classList.add("active", t);
+          }
         });
         updateApplyBar();
       }

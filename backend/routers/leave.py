@@ -7,12 +7,18 @@ Handles:
   - HR/Admin (L2): final approve / reject
   - HR: manage holiday calendar, adjust leave balances
 
-Leave types: paid | unpaid
+Leave types: unpaid | casual | sick
 Approval: EVERY request goes L1 → L2 (unconditional, unlike regularization)
 
 On final L2 approval → daily_summary rows updated:
   status        = 'leave'
-  payroll_status = 'present'  (paid)  |  'absent'  (unpaid)
+  payroll_status = 'present'  (casual/sick)  |  'absent'  (unpaid)
+
+CL/SL policy:
+  - Eligible only after 6 months from date_of_joining
+  - Joining year: 6 CL + 6 SL (post-probation months only)
+  - Year 2+:     12 CL + 12 SL
+  - Year-end:    CL expires Dec 31, SL carries forward (capped at 24)
 
 Holiday calendar blocks leave on those dates.
 Paid balance deducted only on final L2 approval.
@@ -124,41 +130,93 @@ async def _get_working_days(
     return working
 
 
+# ══════════════════════════════════════════════════════════════
+# CL / SL ELIGIBILITY HELPERS
+# ══════════════════════════════════════════════════════════════
+
+def _is_cl_sl_eligible(date_of_joining) -> bool:
+    """True if employee has completed 6 calendar months from DOJ."""
+    if not date_of_joining:
+        return False
+    today = date.today()
+    months_elapsed = (
+        (today.year - date_of_joining.year) * 12
+        + (today.month - date_of_joining.month)
+    )
+    if months_elapsed > 6:
+        return True
+    if months_elapsed == 6 and today.day >= date_of_joining.day:
+        return True
+    return False
+
+
+def _cl_sl_allocation(date_of_joining, year: int) -> int:
+    """
+    CL or SL allocation for a given year.
+    Joining year → 6 (only the 6 post-probation months).
+    All subsequent years → 12 (1 per month).
+    """
+    if not date_of_joining:
+        return 0
+    return 6 if date_of_joining.year == year else 12
+
+
 async def _get_or_init_balance(
     db: asyncpg.Connection, employee_id: int, year: int
 ) -> dict:
     """
-    Fetch leave_balances row; lazy-creates from policy if missing.
-    Uses employee-specific policy first, then company default.
+    Fetch leave_balances row; lazy-creates if missing.
+    Only CL/SL are tracked — no paid leave balance.
+
+    Eligibility is re-evaluated on every fetch:
+    If the employee has crossed the 6-month threshold since the row was
+    first created, cl_sl_eligible and the CL/SL totals are upgraded in place.
+    This handles the case where the row was seeded before probation ended.
     """
+    doj      = await db.fetchval(
+        "SELECT date_of_joining FROM employees WHERE id = $1", employee_id
+    )
+    eligible = _is_cl_sl_eligible(doj)
+    cl_sl    = _cl_sl_allocation(doj, year) if eligible else 0
+
     row = await db.fetchrow(
         "SELECT * FROM leave_balances WHERE employee_id = $1 AND year = $2",
         employee_id, year,
     )
-    if row:
-        return dict(row)
 
-    # Pull from policy (employee-specific beats company default)
-    paid_days = await db.fetchval(
-        """
-        SELECT paid_days_per_year FROM leave_policies
-        WHERE (employee_id = $1 OR employee_id IS NULL)
-        ORDER BY employee_id NULLS LAST LIMIT 1
-        """,
-        employee_id,
-    ) or 12
+    if not row:
+        # First time — create the row
+        row = await db.fetchrow(
+            """
+            INSERT INTO leave_balances
+                (employee_id, year,
+                 cl_total, cl_used, cl_remaining,
+                 sl_total, sl_used, sl_remaining,
+                 cl_sl_eligible)
+            VALUES ($1, $2, $3, 0, $3, $3, 0, $3, $4)
+            ON CONFLICT (employee_id, year) DO UPDATE
+                SET updated_at = NOW()
+            RETURNING *
+            """,
+            employee_id, year, cl_sl, eligible,
+        )
+    elif eligible and not row["cl_sl_eligible"]:
+        # Probation just crossed — upgrade the existing row
+        row = await db.fetchrow(
+            """
+            UPDATE leave_balances
+            SET cl_sl_eligible = TRUE,
+                cl_total       = $3,
+                cl_remaining   = $3 - cl_used,
+                sl_total       = $3,
+                sl_remaining   = $3 - sl_used,
+                updated_at     = NOW()
+            WHERE employee_id = $1 AND year = $2
+            RETURNING *
+            """,
+            employee_id, year, cl_sl,
+        )
 
-    row = await db.fetchrow(
-        """
-        INSERT INTO leave_balances
-            (employee_id, year, total_paid_days, used_paid_days, remaining_paid_days)
-        VALUES ($1, $2, $3, 0, $3)
-        ON CONFLICT (employee_id, year) DO UPDATE
-            SET updated_at = NOW()
-        RETURNING *
-        """,
-        employee_id, year, paid_days,
-    )
     return dict(row)
 
 
@@ -187,8 +245,11 @@ async def _sync_daily_summary(
         return
 
     if final_status == "approved":
-        p_status = "present" if leave_type == "paid" else "absent"
-        p_notes  = f"{'Paid' if leave_type == 'paid' else 'Unpaid'} leave approved"
+        p_status = "present" if leave_type in ("casual", "sick") else "absent"
+        p_notes  = {
+            "casual": "Casual leave approved",
+            "sick":   "Sick leave approved",
+        }.get(leave_type, "Unpaid leave approved")
         for d in working_days:
             await db.execute(
                 """
@@ -238,19 +299,37 @@ async def _sync_daily_summary(
 
 
 async def _adjust_balance(
-    db: asyncpg.Connection, *, employee_id: int, year: int, delta: int
+    db: asyncpg.Connection, *, employee_id: int, year: int,
+    delta: int, leave_type: str,
 ) -> None:
-    """delta > 0 = deduct, delta < 0 = refund. Only for paid leave."""
-    await db.execute(
-        """
-        UPDATE leave_balances
-        SET used_paid_days      = used_paid_days + $3,
-            remaining_paid_days = remaining_paid_days - $3,
-            updated_at          = NOW()
-        WHERE employee_id = $1 AND year = $2
-        """,
-        employee_id, year, delta,
-    )
+    """
+    delta > 0 = deduct, delta < 0 = refund.
+    casual → cl_* columns, sick → sl_* columns.
+    unpaid: no balance tracking.
+    """
+    if leave_type == "casual":
+        await db.execute(
+            """
+            UPDATE leave_balances
+            SET cl_used      = cl_used + $3,
+                cl_remaining = cl_remaining - $3,
+                updated_at   = NOW()
+            WHERE employee_id = $1 AND year = $2
+            """,
+            employee_id, year, delta,
+        )
+    elif leave_type == "sick":
+        await db.execute(
+            """
+            UPDATE leave_balances
+            SET sl_used      = sl_used + $3,
+                sl_remaining = sl_remaining - $3,
+                updated_at   = NOW()
+            WHERE employee_id = $1 AND year = $2
+            """,
+            employee_id, year, delta,
+        )
+    # unpaid: no balance to track
 
 
 # ══════════════════════════════════════════════════════════════
@@ -307,14 +386,25 @@ async def apply_leave(
     if overlap:
         raise HTTPException(409, "Overlapping pending/approved leave exists for these dates.")
 
-    # Balance check for paid leave
-    if req.leave_type == "paid":
-        bal = await _get_or_init_balance(db, emp["id"], req.date_from.year)
-        if bal["remaining_paid_days"] < num_days:
+    # Balance check — casual and sick only (unpaid has no balance gate)
+    if req.leave_type in ("casual", "sick"):
+        doj = await db.fetchval(
+            "SELECT date_of_joining FROM employees WHERE id = $1", emp["id"]
+        )
+        if not _is_cl_sl_eligible(doj):
             raise HTTPException(
                 400,
-                f"Insufficient paid leave. Available: {bal['remaining_paid_days']}d, "
-                f"Requested: {num_days}d.",
+                "Casual/Sick leave not yet available. "
+                "Eligible after completing 6 months from date of joining.",
+            )
+        bal   = await _get_or_init_balance(db, emp["id"], req.date_from.year)
+        col   = "cl_remaining" if req.leave_type == "casual" else "sl_remaining"
+        label = "Casual" if req.leave_type == "casual" else "Sick"
+        if bal[col] < num_days:
+            raise HTTPException(
+                400,
+                f"Insufficient {label} Leave. "
+                f"Available: {bal[col]}d, Requested: {num_days}d.",
             )
 
     async with db.transaction():
@@ -400,9 +490,13 @@ async def list_my_leave_requests(
         rejected=sum(1 for r in rows if r["final_status"] == "rejected"),
         pending=sum(1 for r in rows if r["final_status"] == "pending"),
         cancelled=sum(1 for r in rows if r["final_status"] == "cancelled"),
-        paid_balance_total=bal["total_paid_days"],
-        paid_balance_used=bal["used_paid_days"],
-        paid_balance_remaining=bal["remaining_paid_days"],
+        cl_total=bal["cl_total"],
+        cl_used=bal["cl_used"],
+        cl_remaining=bal["cl_remaining"],
+        sl_total=bal["sl_total"],
+        sl_used=bal["sl_used"],
+        sl_remaining=bal["sl_remaining"],
+        cl_sl_eligible=bal["cl_sl_eligible"],
         requests=[
             LeaveRequestRow(
                 request_id=r["id"],
@@ -425,7 +519,7 @@ async def list_my_leave_requests(
                 payroll_impact=(
                     "pending" if r["final_status"] == "pending"
                     else "absent" if r["final_status"] in ("rejected", "cancelled")
-                    else "present" if r["leave_type"] == "paid"
+                    else "present" if r["leave_type"] in ("casual", "sick")
                     else "absent"
                 ),
             )
@@ -447,9 +541,13 @@ async def get_my_leave_balance(
     return LeaveBalanceResponse(
         employee_id=emp["id"],
         year=year,
-        total_paid_days=bal["total_paid_days"],
-        used_paid_days=bal["used_paid_days"],
-        remaining_paid_days=bal["remaining_paid_days"],
+        cl_total=bal["cl_total"],
+        cl_used=bal["cl_used"],
+        cl_remaining=bal["cl_remaining"],
+        sl_total=bal["sl_total"],
+        sl_used=bal["sl_used"],
+        sl_remaining=bal["sl_remaining"],
+        cl_sl_eligible=bal["cl_sl_eligible"],
     )
 
 
@@ -501,7 +599,7 @@ async def cancel_leave(
                 final_status="cancelled",
                 leave_request_id=request_id,
             )
-            if req["leave_type"] == "paid":
+            if req["leave_type"] in ("paid", "casual", "sick"):
                 # Refund exactly what was deducted at approval time.
                 # num_days was updated to the live count at approval, so this is
                 # always the exact amount that was deducted — no leak possible.
@@ -509,6 +607,7 @@ async def cancel_leave(
                     db, employee_id=emp["id"],
                     year=req["date_from"].year,
                     delta=-req["num_days"],
+                    leave_type=req["leave_type"],
                 )
 
     return {"request_id": request_id, "status": "cancelled"}
@@ -729,11 +828,12 @@ async def l2_approve(
             final_status="approved",
             leave_request_id=request_id,
         )
-        if req["leave_type"] == "paid":
+        if req["leave_type"] in ("paid", "casual", "sick"):
             await _adjust_balance(
                 db, employee_id=req["employee_id"],
                 year=req["date_from"].year,
-                delta=live_days,   # same value stamped on DS rows — always consistent
+                delta=live_days,
+                leave_type=req["leave_type"],
             )
 
     logger.info(
@@ -1069,9 +1169,13 @@ async def hr_get_balance(
     bal = await _get_or_init_balance(db, employee_id, year)
     return LeaveBalanceResponse(
         employee_id=employee_id, year=year,
-        total_paid_days=bal["total_paid_days"],
-        used_paid_days=bal["used_paid_days"],
-        remaining_paid_days=bal["remaining_paid_days"],
+        cl_total=bal["cl_total"],
+        cl_used=bal["cl_used"],
+        cl_remaining=bal["cl_remaining"],
+        sl_total=bal["sl_total"],
+        sl_used=bal["sl_used"],
+        sl_remaining=bal["sl_remaining"],
+        cl_sl_eligible=bal["cl_sl_eligible"],
     )
 
 
@@ -1082,33 +1186,50 @@ async def hr_adjust_balance(
     hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ) -> LeaveBalanceResponse:
-    """HR sets total_paid_days for an employee (carry-forward, corrections)."""
+    """HR manually adjusts CL or SL total for an employee (corrections, carry-forward)."""
     year = body.year or date.today().year
-    bal = await _get_or_init_balance(db, employee_id, year)  # ensure row exists
+    bal  = await _get_or_init_balance(db, employee_id, year)
 
-    # Guard: can't set total below already-used days — would make remaining negative
-    if body.total_paid_days < bal["used_paid_days"]:
-        raise HTTPException(
-            400,
-            f"Cannot set total to {body.total_paid_days} — employee has already used {bal['used_paid_days']} day(s).",
+    if body.leave_type == "casual":
+        if body.total_days < bal["cl_used"]:
+            raise HTTPException(400, f"Cannot set CL total to {body.total_days} — already used {bal['cl_used']}d.")
+        row = await db.fetchrow(
+            """
+            UPDATE leave_balances
+            SET cl_total     = $3,
+                cl_remaining = $3 - cl_used,
+                updated_at   = NOW()
+            WHERE employee_id = $1 AND year = $2
+            RETURNING *
+            """,
+            employee_id, year, body.total_days,
         )
+    elif body.leave_type == "sick":
+        if body.total_days < bal["sl_used"]:
+            raise HTTPException(400, f"Cannot set SL total to {body.total_days} — already used {bal['sl_used']}d.")
+        row = await db.fetchrow(
+            """
+            UPDATE leave_balances
+            SET sl_total     = $3,
+                sl_remaining = $3 - sl_used,
+                updated_at   = NOW()
+            WHERE employee_id = $1 AND year = $2
+            RETURNING *
+            """,
+            employee_id, year, body.total_days,
+        )
+    else:
+        raise HTTPException(400, "leave_type must be 'casual' or 'sick'")
 
-    row = await db.fetchrow(
-        """
-        UPDATE leave_balances
-        SET total_paid_days     = $3,
-            remaining_paid_days = $3 - used_paid_days,
-            updated_at          = NOW()
-        WHERE employee_id = $1 AND year = $2
-        RETURNING *
-        """,
-        employee_id, year, body.total_paid_days,
-    )
     return LeaveBalanceResponse(
         employee_id=employee_id, year=year,
-        total_paid_days=row["total_paid_days"],
-        used_paid_days=row["used_paid_days"],
-        remaining_paid_days=row["remaining_paid_days"],
+        cl_total=row["cl_total"],
+        cl_used=row["cl_used"],
+        cl_remaining=row["cl_remaining"],
+        sl_total=row["sl_total"],
+        sl_used=row["sl_used"],
+        sl_remaining=row["sl_remaining"],
+        cl_sl_eligible=row["cl_sl_eligible"],
     )
 
 

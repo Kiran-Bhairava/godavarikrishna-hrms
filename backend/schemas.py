@@ -429,14 +429,14 @@ class AttendanceCalendarResponse(BaseModel):
 class LeaveRequestCreate(BaseModel):
     date_from:  date
     date_to:    date
-    leave_type: str   # 'paid' | 'unpaid'
+    leave_type: str   # 'unpaid' | 'casual' | 'sick'
     reason:     str
 
     @field_validator("leave_type")
     @classmethod
     def valid_type(cls, v: str) -> str:
-        if v not in ("paid", "unpaid"):
-            raise ValueError("leave_type must be 'paid' or 'unpaid'")
+        if v not in ("unpaid", "casual", "sick"):
+            raise ValueError("leave_type must be 'unpaid', 'casual', or 'sick'")
         return v
 
     @field_validator("reason")
@@ -497,16 +497,20 @@ class LeaveRequestRow(BaseModel):
 
 
 class LeaveRequestsListResponse(BaseModel):
-    year:                   int
-    total:                  int
-    approved:               int
-    rejected:               int
-    pending:                int
-    cancelled:              int
-    paid_balance_total:     int
-    paid_balance_used:      int
-    paid_balance_remaining: int
-    requests:               list[LeaveRequestRow]
+    year:           int
+    total:          int
+    approved:       int
+    rejected:       int
+    pending:        int
+    cancelled:      int
+    cl_total:       int = 0
+    cl_used:        int = 0
+    cl_remaining:   int = 0
+    sl_total:       int = 0
+    sl_used:        int = 0
+    sl_remaining:   int = 0
+    cl_sl_eligible: bool = False
+    requests:       list[LeaveRequestRow]
 
 
 class LeavePendingApprovalRow(BaseModel):
@@ -539,11 +543,18 @@ class LeaveApprovalResponse(BaseModel):
 
 
 class LeaveBalanceResponse(BaseModel):
-    employee_id:         int
-    year:                int
-    total_paid_days:     int
-    used_paid_days:      int
-    remaining_paid_days: int
+    employee_id:    int
+    year:           int
+    # Casual leave (resets Jan 1, unused expires)
+    cl_total:       int = 0
+    cl_used:        int = 0
+    cl_remaining:   int = 0
+    # Sick leave (carries forward year-end, capped at 24)
+    sl_total:       int = 0
+    sl_used:        int = 0
+    sl_remaining:   int = 0
+    # False until 6 months from DOJ
+    cl_sl_eligible: bool = False
 
 
 class HolidayRow(BaseModel):
@@ -576,14 +587,22 @@ class HolidayCreate(BaseModel):
 
 
 class LeaveBalanceAdjust(BaseModel):
-    total_paid_days: int
-    year:            Optional[int] = None
+    leave_type: str        # 'casual' | 'sick'
+    total_days: int
+    year:       Optional[int] = None
 
-    @field_validator("total_paid_days")
+    @field_validator("leave_type")
+    @classmethod
+    def valid_type(cls, v: str) -> str:
+        if v not in ("casual", "sick"):
+            raise ValueError("leave_type must be 'casual' or 'sick'")
+        return v
+
+    @field_validator("total_days")
     @classmethod
     def valid_days(cls, v: int) -> int:
         if v < 0 or v > 365:
-            raise ValueError("total_paid_days must be between 0 and 365")
+            raise ValueError("total_days must be between 0 and 365")
         return v
 
 
