@@ -570,15 +570,19 @@ async def _run_auto_punchout():
                             UPDATE daily_summary
                             SET last_punch_out  = $2,
                                 total_minutes   = CASE WHEN is_regularized
-                                                       THEN total_minutes
-                                                       ELSE $3 END,
+                                                    THEN total_minutes
+                                                    ELSE $3 END,
                                 payroll_minutes = CASE WHEN is_regularized
-                                                       THEN payroll_minutes
-                                                       ELSE $3 END,
+                                                    THEN payroll_minutes
+                                                    ELSE $3 END,
+                                status          = 'present',
+                                payroll_status  = CASE WHEN is_regularized
+                                                    THEN payroll_status
+                                                    ELSE 'present' END,
                                 payroll_notes   = CASE WHEN is_regularized
-                                                       THEN payroll_notes
-                                                       ELSE 'Auto punch-out at 20:00 — verify if needed'
-                                                  END
+                                                    THEN payroll_notes
+                                                    ELSE 'Auto punch-out at 20:00 — verify if needed'
+                                                END
                             WHERE user_id = $1 AND work_date = $4
                             """,
                             user_id, auto_out_utc, total_min, today,
