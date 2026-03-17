@@ -2636,11 +2636,15 @@
               lr.final_status === "approved" ||
               lr.final_status === "pending"
             ) {
-              const cur = isoToDate(lr.date_from),
-                end = isoToDate(lr.date_to);
-              const c2 = new Date(cur);
+              const c2 = new Date(lr.date_from + "T00:00:00"); // local time, not UTC
+              const end = new Date(lr.date_to + "T00:00:00");
               while (c2 <= end) {
-                const iso = c2.toISOString().split("T")[0];
+                const iso =
+                  c2.getFullYear() +
+                  "-" +
+                  String(c2.getMonth() + 1).padStart(2, "0") +
+                  "-" +
+                  String(c2.getDate()).padStart(2, "0");
                 leaveMap[iso] = {
                   type: lr.leave_type,
                   status: lr.final_status,
@@ -2698,7 +2702,7 @@
               cHoliday++;
             } else if (isWeekOff) {
               status = "weekly-off";
-            } else if (leaveInfo) {
+            } else if (leaveInfo && leaveInfo.status === "approved") {
               status = "leave";
               cLeave++;
               extra = leaveInfo;
