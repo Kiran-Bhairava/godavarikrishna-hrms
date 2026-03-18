@@ -405,7 +405,7 @@ async def _fetch_employees(
     # ── Batch query 2: leave balances for all employees ────────
     bal_all = await db.fetch(
         """
-        SELECT employee_id, total_paid_days, used_paid_days, remaining_paid_days
+        SELECT employee_id, cl_remaining, sl_remaining
         FROM leave_balances
         WHERE employee_id = ANY($1::int[]) AND year = $2
         """,
@@ -472,7 +472,7 @@ async def _fetch_employees(
         #   - Unpaid/LOP   → if balance is exhausted
         #                    (working_days--, lop increases, salary deducted)
         leave_bal    = bal_by_emp.get(emp["employee_id"])
-        paid_balance = int(leave_bal["remaining_paid_days"]) if leave_bal else 0
+        paid_balance = int((leave_bal["cl_remaining"] or 0) + (leave_bal["sl_remaining"] or 0)) if leave_bal else 0
 
         sandwich_days = sandwich_by_emp.get(emp["employee_id"], 0)
         if sandwich_days > 0:
