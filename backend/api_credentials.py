@@ -20,6 +20,8 @@ from fastapi import HTTPException
 from passlib.context import CryptContext
 from typing import Optional
 
+from email_utils import send_welcome_credentials
+
 logger = logging.getLogger("hrms.credentials")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -51,6 +53,7 @@ async def generate_credentials_for_employee(
     
     Sets temporary password that must be reset on next login.
     Response includes the temporary password ONE TIME ONLY.
+    Also sends the credentials to the employee's email.
     
     Args:
         emp_id: Employee ID
@@ -98,6 +101,9 @@ async def generate_credentials_for_employee(
         "Credentials generated: emp_id=%s user_id=%s by hr_id=%s",
         emp_id, user_id, hr_id,
     )
+
+    # Send credentials to employee email (non-blocking — failure won't break the response)
+    email_sent = send_welcome_credentials(emp["email"], emp["full_name"], temp_password)
     
     return {
         "employee_id": emp_id,
@@ -105,6 +111,7 @@ async def generate_credentials_for_employee(
         "full_name": emp["full_name"],
         "temporary_password": temp_password,
         "must_reset_on_login": True,
+        "email_sent": email_sent,
         "generated_at": datetime.now().isoformat(),
         "expires_in_days": 7,
         "message": "Temporary password generated. Employee must reset on first login.",

@@ -227,6 +227,7 @@
       /* MAIN */
       .main {
         margin-left: var(--sidebar-w);
+        padding-top: 60px;
         flex: 1;
         min-width: 0;
         display: flex;
@@ -242,8 +243,10 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        position: sticky;
+        position: fixed;
         top: 0;
+        left: var(--sidebar-w);
+        right: 0;
         z-index: 100;
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
         flex-shrink: 0;
@@ -1417,6 +1420,7 @@
         /* Topbar adjustments */
         .topbar {
           padding: 0 16px;
+          left: 0;
         }
 
         .topbar-breadcrumb span:first-child {
@@ -1916,4 +1920,48 @@
         color: #9ca3af;
         font-size: 16px;
         align-self: center;
+      }
+
+      /* ── Client-side Pagination ───────────────────────────── */
+      .pg-bar {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .pg-btn {
+        min-width: 32px;
+        height: 32px;
+        padding: 0 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-dim);
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .pg-btn:hover:not(:disabled) {
+        background: var(--surface2);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      .pg-btn.pg-active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+        font-weight: 700;
+      }
+      .pg-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .pg-ellipsis {
+        font-size: 13px;
+        color: var(--text-muted);
+        padding: 0 2px;
       }

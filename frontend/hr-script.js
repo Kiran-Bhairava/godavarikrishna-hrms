@@ -6,6 +6,12 @@ const API = "/api";
       let obAllRows = []; // onboarding employee rows (from API)
       let obFilter = "all";
       let currentStep = 1;
+      const PG = 10;           // rows per page
+      let attendPage = 1;
+      let attendSearchQuery = "";   // module-level so paginate closure can reference it
+      let obPage     = 1;
+      let leavePage  = 1;
+      let leaveAllRows = [];
       let branchList = [];
       let managerList = []; // all active employees eligible as L1/L2
 
@@ -242,6 +248,7 @@ const API = "/api";
 
       function setFilter(f, el) {
         currentFilter = f;
+        attendPage = 1;
         document
           .querySelectorAll(".filter-tab")
           .forEach((t) => t.classList.remove("active"));
@@ -249,7 +256,11 @@ const API = "/api";
         renderTable();
       }
 
-      function renderTable(sq = "") {
+      function renderTable(sq) {
+        // Persist search query in module-level var so the paginate closure
+        // (which gets stringified into onclick) has no free variables.
+        if (sq !== undefined) attendSearchQuery = sq;
+        const q = attendSearchQuery;
         const tbody = document.getElementById("reportTable");
         let rows = allRows;
         if (currentFilter !== "all")
@@ -262,19 +273,25 @@ const API = "/api";
                 : "absent";
             return s === currentFilter;
           });
-        if (sq)
+        if (q)
           rows = rows.filter(
             (e) =>
-              e.full_name.toLowerCase().includes(sq) ||
-              (e.email || "").toLowerCase().includes(sq) ||
-              (e.branch_name || "").toLowerCase().includes(sq),
+              e.full_name.toLowerCase().includes(q) ||
+              (e.email || "").toLowerCase().includes(q) ||
+              (e.branch_name || "").toLowerCase().includes(q),
           );
-        document.getElementById("showingCount").textContent = rows.length;
         document.getElementById("totalCount").textContent = allRows.length;
         if (!rows.length) {
           tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No entries match the current filters.</td></tr>`;
+          document.getElementById("showingCount").textContent = 0;
+          document.getElementById("attendPagination").innerHTML = "";
           return;
         }
+        const _at = rows.length;
+        const _as = (attendPage-1)*PG;
+        rows = rows.slice(_as, _as+PG);
+        document.getElementById("showingCount").textContent = `${_as+1}–${_as+rows.length}`;
+        paginate("attendPagination", _at, attendPage, function(p){attendPage=p;renderTable();});
         const d = formatDate(
           document.getElementById("reportDate").value + "T12:00:00",
         );
@@ -316,6 +333,14 @@ const API = "/api";
           .join("");
       }
 
+      function shiftDate(days) {
+        const el = document.getElementById("reportDate");
+        const d = new Date(el.value + "T12:00:00");
+        d.setDate(d.getDate() + days);
+        el.value = d.toISOString().split("T")[0];
+        loadReport();
+      }
+
       async function loadReport() {
         const date = document.getElementById("reportDate").value;
         const branchId = document.getElementById("branchFilter").value;
@@ -349,6 +374,7 @@ const API = "/api";
           document.getElementById("staffFraction").textContent =
             `${present} / ${total}`;
           allRows = data.employees || [];
+          attendPage = 1;
           document.getElementById("totalCount").textContent = allRows.length;
           renderTable();
         } catch (e) {
@@ -416,6 +442,7 @@ const API = "/api";
           if (search) url += `search=${encodeURIComponent(search)}&`;
           const data = await apiFetch(url);
           obAllRows = data.employees || [];
+          obPage = 1;
           document.getElementById("obShowing").textContent = obAllRows.length;
           document.getElementById("obTotalCount").textContent =
             data.total || obAllRows.length;
@@ -440,11 +467,19 @@ const API = "/api";
 
       function renderOnboardingTable() {
         const tbody = document.getElementById("obTable");
-        const rows = obAllRows;
-        if (!rows.length) {
+        const all = obAllRows;
+        if (!all.length) {
           tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No employees match the filter.</td></tr>`;
+          document.getElementById("obShowing").textContent = 0;
+          document.getElementById("obPagination").innerHTML = "";
           return;
         }
+        const _ot = all.length;
+        const _os = (obPage-1)*PG;
+        const rows = all.slice(_os, _os+PG);
+        document.getElementById("obShowing").textContent = `${_os+1}–${_os+rows.length}`;
+        document.getElementById("obTotalCount").textContent = _ot;
+        paginate("obPagination", _ot, obPage, function(p){obPage=p;renderOnboardingTable();});
 
         const sMap = {
           "in-progress":
@@ -519,6 +554,12 @@ const API = "/api";
                     <option value="completed"   ${r.onboarding_status === "completed" ? "selected" : ""}>Completed</option>
                   </select>
 
+                  <button class="action-btn" title="View employee" onclick="openEmpProfile(${r.id})">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
                   <button class="action-btn" title="Edit employee" onclick="openEditModal(${r.id})">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -1053,7 +1094,7 @@ const API = "/api";
       }
 
       function openCredModal(data) {
-        document.getElementById("cred_email").value = data.email || "";
+        document.getElementById("cred_email").value = data.personal_email || data.email || "";
         document.getElementById("cred_password").value =
           data.temporary_password || "";
         document.getElementById("cred_login_url").value = data.login_url || "";
@@ -1074,6 +1115,171 @@ const API = "/api";
         toast("Credentials copied!", "success");
       }
 
+
+      // ── Employee Profile Drawer ───────────────────────────────────
+      function getColor(name) {
+        const colors = ["#4f46e5","#0891b2","#059669","#d97706","#dc2626","#7c3aed","#db2777","#0284c7"];
+        let h = 0;
+        for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+        return colors[Math.abs(h) % colors.length];
+      }
+
+      function fmtDate(s) {
+        if (!s) return "—";
+        return new Date(s).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" });
+      }
+
+      function fmtCTC(v) {
+        if (!v) return "—";
+        const n = parseFloat(v);
+        if (n >= 100000) return "₹" + (n / 100000).toFixed(2) + " L";
+        return "₹" + n.toLocaleString("en-IN");
+      }
+
+      function set$(id, val) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val || "—";
+      }
+
+      function managerCard(name, title, role, level) {
+        if (!name) return `<p style="color:#9ca3af;font-size:13px">No ${level} manager assigned</p>`;
+        const ini = name.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+        const bg  = getColor(name);
+        return `
+          <div class="epd-manager-card">
+            <div class="epd-manager-avatar" style="background:${bg}">${ini}</div>
+            <div>
+              <div class="epd-manager-name">${name}</div>
+              <div class="epd-manager-meta">${title || role || "—"}</div>
+            </div>
+            <span class="epd-badge">${level}</span>
+          </div>`;
+      }
+
+      function switchEpdTab(tab, btn) {
+        document.querySelectorAll(".epd-tab").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".epd-panel").forEach(p => p.classList.remove("active"));
+        if (btn) btn.classList.add("active");
+        const panel = document.getElementById("epdTab-" + tab);
+        if (panel) panel.classList.add("active");
+      }
+
+      function closeEmpProfile(e) {
+        if (e && e.target !== document.getElementById("empProfileOverlay")) return;
+        document.getElementById("empProfileOverlay").classList.remove("open");
+      }
+
+      async function openEmpProfile(empId) {
+        // Reset to first tab
+        switchEpdTab("personal", document.querySelector(".epd-tab"));
+
+        // Open drawer immediately with loading state
+        const overlay = document.getElementById("empProfileOverlay");
+        overlay.classList.add("open");
+        document.getElementById("epdName").textContent = "Loading…";
+        document.getElementById("epdMeta").textContent = "";
+
+        try {
+          const emp = await apiFetch("/hr/employees/" + empId);
+
+          // Header
+          const name = emp.full_name || "";
+          const ini  = name.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+          const bg   = getColor(name);
+          document.getElementById("epdAvatar").style.background = bg;
+          document.getElementById("epdAvatar").textContent = ini;
+          document.getElementById("epdName").textContent = name;
+          document.getElementById("epdMeta").textContent =
+            [emp.emp_id, emp.job_title, emp.department].filter(Boolean).join(" · ");
+
+          // Personal tab
+          set$("epd-emp_id",        emp.emp_id);
+          set$("epd-full_name",     emp.full_name);
+          set$("epd-email",         emp.email);
+          set$("epd-personal_email",emp.personal_email);
+          set$("epd-phone",         emp.phone);
+          set$("epd-dob",           fmtDate(emp.dob));
+          set$("epd-gender",        emp.gender);
+          set$("epd-blood_group",   emp.blood_group);
+          set$("epd-nationality",   emp.nationality);
+          set$("epd-home_address",  emp.home_address);
+          set$("epd-emg_name",      emp.emg_name);
+          set$("epd-emg_rel",       emp.emg_rel);
+          set$("epd-emg_phone",     emp.emg_phone);
+
+          // Job tab
+          set$("epd-job_title",       emp.job_title);
+          set$("epd-designation",     emp.designation);
+          set$("epd-department",      emp.department);
+          set$("epd-sub_department",  emp.sub_department);
+          set$("epd-grade",           emp.grade);
+          set$("epd-cost_centre",     emp.cost_centre);
+          set$("epd-branch_name",     emp.branch_name ? emp.branch_name + (emp.branch_city ? ", " + emp.branch_city : "") : null);
+          set$("epd-date_of_joining", fmtDate(emp.date_of_joining));
+          set$("epd-employment_type", emp.employment_type);
+          set$("epd-notice_period",   emp.notice_period);
+          set$("epd-probation_end",   fmtDate(emp.probation_end));
+          set$("epd-contract_end",    fmtDate(emp.contract_end));
+
+          // Managers tab
+          document.getElementById("epd-l1-card").innerHTML =
+            managerCard(emp.l1_name, emp.l1_title, emp.l1_role, "L1");
+          document.getElementById("epd-l2-card").innerHTML =
+            managerCard(emp.l2_name, emp.l2_title, emp.l2_role, "L2");
+
+          // Compensation tab
+          set$("epd-annual_ctc",  fmtCTC(emp.annual_ctc));
+          set$("epd-pay_frequency_label", (emp.pay_frequency || "Monthly") + " · Annual CTC");
+          set$("epd-pf_enrolled",    emp.pf_enrolled  ? "Yes" : "No");
+          set$("epd-esic_applicable",emp.esic_applicable ? "Yes" : "No");
+          set$("epd-pan_number",     emp.pan_number);
+          set$("epd-bank_name",      emp.bank_name);
+          set$("epd-bank_account",   emp.bank_account);
+          set$("epd-bank_ifsc",      emp.bank_ifsc);
+
+          // Work tab
+          set$("epd-shift_start",   emp.shift_start);
+          set$("epd-shift_end",     emp.shift_end);
+          set$("epd-weekly_off",    emp.weekly_off);
+          set$("epd-work_mode",     emp.work_mode);
+          set$("epd-work_location", emp.work_location);
+          set$("epd-asset_id",      emp.asset_id);
+
+        } catch (e) {
+          document.getElementById("epdName").textContent = "Failed to load";
+          toast("Could not load employee details: " + e.message, "error");
+        }
+      }
+
+
+      // ── Reusable client-side paginator ────────────────────────────
+      function paginate(containerId, total, cur, onChange) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        const pages = Math.ceil(total / PG);
+        if (pages <= 1) { el.innerHTML = ""; return; }
+
+        let html = `<button class="pg-btn" ${cur===1?"disabled":""} onclick="(${onChange})(${cur-1})">‹</button>`;
+
+        let nums = [];
+        if (pages <= 7) {
+          nums = Array.from({length: pages}, (_, i) => i+1);
+        } else {
+          nums = [1];
+          if (cur > 3) nums.push("…");
+          for (let i = Math.max(2,cur-1); i <= Math.min(pages-1,cur+1); i++) nums.push(i);
+          if (cur < pages-2) nums.push("…");
+          nums.push(pages);
+        }
+        nums.forEach(p => {
+          if (p === "…") html += `<span class="pg-ellipsis">…</span>`;
+          else html += `<button class="pg-btn${p===cur?" pg-active":""}" onclick="(${onChange})(${p})">${p}</button>`;
+        });
+
+        html += `<button class="pg-btn" ${cur===pages?"disabled":""} onclick="(${onChange})(${cur+1})">›</button>`;
+        el.innerHTML = html;
+      }
+
       document.addEventListener("DOMContentLoaded", initHR);
 
       const _origSwitchView = switchView;
@@ -1092,7 +1298,7 @@ const API = "/api";
 
       let auditCurrentPage = 1;
       let auditTotalPages = 1;
-      const AUDIT_PAGE_SIZE = 50;
+      const AUDIT_PAGE_SIZE = 10;
 
       function clearAuditFilters() {
         document.getElementById("auditFromDate").value = "";
@@ -1119,7 +1325,7 @@ const API = "/api";
         const loading = document.getElementById("auditLoading");
         const table = document.getElementById("auditTable");
         const empty = document.getElementById("auditEmpty");
-        const paging = document.getElementById("auditPagination");
+        const paging = document.getElementById("auditPgBar");
 
         loading.style.display = "flex";
         table.style.display = "none";
@@ -1129,21 +1335,14 @@ const API = "/api";
         try {
           const data = await apiFetch(`/hr/regularization-audit?${params}`);
 
-          // Stats
+          // Stats — use server-side totals (not page-slice counts)
           const reqs = data.requests || [];
-          let approved = 0,
-            rejected = 0,
-            pending = 0;
-          reqs.forEach((r) => {
-            if (r.final_status === "approved") approved++;
-            else if (r.final_status === "rejected") rejected++;
-            else pending++;
-          });
+          const stats = data.stats || {};
           document.getElementById("auditTotalCount").textContent =
             data.total ?? reqs.length;
-          document.getElementById("auditApprovedCount").textContent = approved;
-          document.getElementById("auditRejectedCount").textContent = rejected;
-          document.getElementById("auditPendingCount").textContent = pending;
+          document.getElementById("auditApprovedCount").textContent = stats.approved ?? 0;
+          document.getElementById("auditRejectedCount").textContent = stats.rejected ?? 0;
+          document.getElementById("auditPendingCount").textContent = stats.pending  ?? 0;
 
           loading.style.display = "none";
 
@@ -1247,17 +1446,14 @@ const API = "/api";
 
           table.style.display = "table";
 
-          // Pagination
+          // Pagination — use shared paginate() helper (numbered buttons)
           const total = data.total || reqs.length;
-          auditTotalPages = Math.ceil(total / AUDIT_PAGE_SIZE);
           const start = (page - 1) * AUDIT_PAGE_SIZE + 1;
           const end = Math.min(page * AUDIT_PAGE_SIZE, total);
           document.getElementById("auditPageInfo").textContent =
             `${start}–${end} of ${total}`;
-          document.getElementById("auditPrevBtn").disabled = page <= 1;
-          document.getElementById("auditNextBtn").disabled =
-            page >= auditTotalPages;
           paging.style.display = total > AUDIT_PAGE_SIZE ? "flex" : "none";
+          paginate("auditPagination", total, page, function(p) { loadRegAudit(p); });
         } catch (e) {
           loading.style.display = "none";
           empty.style.display = "block";
@@ -1360,6 +1556,49 @@ const API = "/api";
       // LEAVE ACTIVITY LOG (HR read-only view)
       // ══════════════════════════════════════════════════════════════
 
+      function renderLeaveTable() {
+        const tbody = document.getElementById('leaveTbody');
+        const table = document.getElementById('leaveTable');
+        const bar   = document.getElementById('leavePgBar');
+        const total = leaveAllRows.length;
+        if (!total) return;
+        const start = (leavePage-1)*PG;
+        const rows  = leaveAllRows.slice(start, start+PG);
+        table.style.display = 'table';
+        bar.style.display   = total > PG ? 'flex' : 'none';
+        document.getElementById('leaveShowing').textContent = `${start+1}–${start+rows.length}`;
+        document.getElementById('leaveTotal').textContent   = total;
+        paginate('leavePagination', total, leavePage, function(p){leavePage=p;renderLeaveTable();});
+        tbody.innerHTML = rows.map(r => {
+          const name   = r.employee_name || '?';
+          const letter = name[0].toUpperCase();
+          const color  = leaveEmpColor(name);
+          return `<tr>
+            <td>
+              <div class="emp-cell">
+                <div class="emp-avatar" style="background:${color};flex-shrink:0;">${letter}</div>
+                <div>
+                  <div class="emp-name">${name}</div>
+                  <div class="emp-role" style="font-size:11px;color:#9ca3af;">${r.employee_id || ''}</div>
+                </div>
+              </div>
+            </td>
+            <td style="white-space:nowrap;font-size:13px;">
+              ${leaveFmtDate(r.date_from)}<br>
+              <span style="color:#9ca3af;font-size:11px;">to ${leaveFmtDate(r.date_to)}</span>
+            </td>
+            <td style="font-weight:600;text-align:center;">${r.num_days}</td>
+            <td>${leaveTypeBadge(r.leave_type)}</td>
+            <td style="max-width:160px;font-size:12px;color:#374151;">${r.reason || '—'}</td>
+            <td style="font-size:12px;color:#374151;">${r.l1_manager_name || '—'}</td>
+            <td>${leaveStatusBadge(r.l1_status)}</td>
+            <td style="font-size:12px;color:#374151;">${r.l2_manager_name || '—'}</td>
+            <td>${leaveStatusBadge(r.l2_status)}</td>
+            <td>${leaveStatusBadge(r.final_status)}</td>
+          </tr>`;
+        }).join('');
+      }
+
       function initLeaveApprovals() {
         // Default to current month
         const now = new Date();
@@ -1444,35 +1683,9 @@ const API = "/api";
             return;
           }
 
-          table.style.display = 'table';
-          document.getElementById('leaveTbody').innerHTML = rows.map(r => {
-            const name   = r.employee_name || '?';
-            const letter = name[0].toUpperCase();
-            const color  = leaveEmpColor(name);
-            return `<tr>
-              <td>
-                <div class="emp-cell">
-                  <div class="emp-avatar" style="background:${color};flex-shrink:0;">${letter}</div>
-                  <div>
-                    <div class="emp-name">${name}</div>
-                    <div class="emp-role" style="font-size:11px;color:#9ca3af;">${r.employee_id || ''}</div>
-                  </div>
-                </div>
-              </td>
-              <td style="white-space:nowrap;font-size:13px;">
-                ${leaveFmtDate(r.date_from)}<br>
-                <span style="color:#9ca3af;font-size:11px;">to ${leaveFmtDate(r.date_to)}</span>
-              </td>
-              <td style="font-weight:600;text-align:center;">${r.num_days}</td>
-              <td>${leaveTypeBadge(r.leave_type)}</td>
-              <td style="max-width:160px;font-size:12px;color:#374151;">${r.reason || '—'}</td>
-              <td style="font-size:12px;color:#374151;">${r.l1_manager_name || '—'}</td>
-              <td>${leaveStatusBadge(r.l1_status)}</td>
-              <td style="font-size:12px;color:#374151;">${r.l2_manager_name || '—'}</td>
-              <td>${leaveStatusBadge(r.l2_status)}</td>
-              <td>${leaveStatusBadge(r.final_status)}</td>
-            </tr>`;
-          }).join('');
+          leaveAllRows = rows;
+          leavePage = 1;
+          renderLeaveTable();
 
         } catch(e) {
           loading.style.display = 'none';

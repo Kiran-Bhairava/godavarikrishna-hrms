@@ -38,6 +38,7 @@ from db import get_db, init_db, close_db
 from auth import get_current_user, require_hr, require_admin, security
 from schemas import LoginResponse
 from api_credentials import generate_temp_password
+from email_utils import send_welcome_credentials
 
 # ── mandate Include routers ──────────────────────────────────
 from routers import regularization_router, leave_router, payroll_router,sandwich_router
@@ -717,15 +718,30 @@ async def login(
     """
     Login endpoint for all users (admin, HR, employees)
     """
-    # 1. Fetch user with all needed fields
+    # 1. Look up user via personal_email (employees table) — primary login identifier
     user = await db.fetchrow(
         """
-        SELECT id, email, password_hash, full_name, role, is_active, must_reset_password
-        FROM users
-        WHERE LOWER(email) = LOWER($1)
+        SELECT u.id, u.email, u.password_hash, u.full_name, u.role,
+               u.is_active, u.must_reset_password
+        FROM employees e
+        JOIN users u ON u.id = e.user_id
+        WHERE LOWER(e.personal_email) = LOWER($1)
+          AND e.is_active = TRUE
         """,
         payload.email,
     )
+
+    # HR/admin may not have an employee row — fall back to work email
+    if not user:
+        user = await db.fetchrow(
+            """
+            SELECT id, email, password_hash, full_name, role, is_active, must_reset_password
+            FROM users
+            WHERE LOWER(email) = LOWER($1)
+              AND role IN ('hr', 'admin')
+            """,
+            payload.email,
+        )
 
     if not user:
         raise HTTPException(401, "Invalid email or password")
@@ -815,29 +831,39 @@ async def logout():
     return {"message": "Logged out"}
 
 
+class ChangePasswordRequest(BaseModel):
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def min_length(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
 @app.post("/api/auth/change-password")
 async def change_password(
-    payload: LoginRequest,
+    payload: ChangePasswordRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: asyncpg.Connection = Depends(get_db),
 ):
     """
     Change password — works even when must_reset_password=True.
     Does NOT go through get_current_user (which blocks must_reset tokens).
-    Payload: {email, password: <new_password>}
-    Token must be valid; user identified from JWT sub.
+    User is identified from the JWT token — no old password needed on first reset.
+    Returns a fresh token (without must_reset) so the frontend can continue without re-login.
     """
     token = credentials.credentials
     try:
         token_payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         user_id = int(token_payload.get("sub"))
+        email   = token_payload.get("email")
+        role    = token_payload.get("role")
     except (JWTError, ValueError):
         raise HTTPException(401, "Invalid token")
 
-    if len(payload.password) < 8:
-        raise HTTPException(400, "Password must be at least 8 characters")
-
-    new_hash = pwd_context.hash(payload.password)
+    new_hash = pwd_context.hash(payload.new_password)
     async with db.transaction():
         result = await db.execute(
             "UPDATE users SET password_hash=$1, must_reset_password=FALSE WHERE id=$2",
@@ -851,8 +877,15 @@ async def change_password(
             user_id,
         )
 
+    # Issue a clean token (must_reset removed) so frontend can navigate without re-login
+    fresh_token = create_token(user_id, email, role)
+
     logger.info("Password changed: user_id=%s", user_id)
-    return {"message": "Password changed successfully. Please log in again."}
+    return {
+        "message": "Password changed successfully.",
+        "access_token": fresh_token,
+        "role": role,
+    }
 
 
 @app.get("/api/auth/me")
@@ -1111,7 +1144,7 @@ async def regularization_audit(
     to_date     : Optional[str]  = Query(None, description="YYYY-MM-DD"),
     final_status: Optional[str]  = Query(None, description="approved|rejected|pending"),
     page        : int            = Query(1, ge=1),
-    page_size   : int            = Query(50, ge=1, le=200),
+    page_size   : int            = Query(10, ge=1, le=200),
     _hr         : dict           = Depends(require_hr),
     db          : asyncpg.Connection = Depends(get_db),
 ):
@@ -1212,7 +1245,7 @@ async def regularization_audit(
     )
 
     if not rows:
-        return {"total": 0, "page": page, "page_size": page_size, "requests": []}
+        return {"total": 0, "stats": {"approved": 0, "rejected": 0, "pending": 0}, "page": page, "page_size": page_size, "requests": []}
 
     # ── Fetch audit log entries for all returned requests ─────
     # One query for all request_ids — no N+1
@@ -1256,13 +1289,19 @@ async def regularization_audit(
             "created_at"           : a["created_at"].isoformat(),
         })
 
-    # ── Count total for pagination ────────────────────────────
+    # ── Count total + status breakdown for pagination KPIs ─────
     # params[:-2] strips page_size and offset added for LIMIT/OFFSET
     count_params = params[:-2]
     total_row = await db.fetchrow(
         f"SELECT COUNT(*) AS total FROM regularization_requests r WHERE {where}",
         *count_params,
     )
+    # One extra query for KPI counts — reuses same WHERE, no N+1
+    stats_rows = await db.fetch(
+        f"SELECT final_status, COUNT(*) AS cnt FROM regularization_requests r WHERE {where} GROUP BY final_status",
+        *count_params,
+    )
+    stats = {r["final_status"]: r["cnt"] for r in stats_rows}
 
     # ── Build response ────────────────────────────────────────
     def fmt_min(m: int) -> str:
@@ -1309,6 +1348,11 @@ async def regularization_audit(
 
     return {
         "total"    : total_row["total"],
+        "stats"    : {
+            "approved": stats.get("approved", 0),
+            "rejected": stats.get("rejected", 0),
+            "pending" : stats.get("pending",  0),
+        },
         "page"     : page,
         "page_size": page_size,
         "requests" : result,
@@ -1480,15 +1524,40 @@ async def onboard_employee(
     if payload.role not in ("employee", "hr"):
         raise HTTPException(400, "Only 'employee' or 'hr' roles can be onboarded here")
 
-    # 2. Check duplicate email
+    # 2. Require personal_email — it is the login identifier
+    if not payload.personal_email:
+        raise HTTPException(400, "Personal email is required (used for login and credential delivery)")
+
+    # Check duplicate work email in users
     existing = await db.fetchrow(
         "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
         payload.work_email,
     )
     if existing:
-        raise HTTPException(409, "User with this email already exists")
+        raise HTTPException(409, "User with this work email already exists")
 
-    # 3. Generate final password
+    # Check duplicate personal_email in employees — must be unique for login
+    dup_personal = await db.fetchrow(
+        "SELECT id FROM employees WHERE LOWER(personal_email) = LOWER($1)",
+        payload.personal_email,
+    )
+    if dup_personal:
+        raise HTTPException(409, "An employee with this personal email already exists")
+
+    # 3. Generate SDPL emp_id — find highest existing number and increment
+    last = await db.fetchrow(
+        """SELECT emp_id FROM employees
+           WHERE emp_id ~ '^SDPL[0-9]+$'
+           ORDER BY CAST(SUBSTRING(emp_id FROM 5) AS INTEGER) DESC
+           LIMIT 1"""
+    )
+    if last and last["emp_id"]:
+        next_num = int(last["emp_id"][4:]) + 1
+    else:
+        next_num = 1
+    new_emp_id = f"SDPL{next_num:03d}"
+
+    # 4. Generate final password
     raw_password = payload.password or generate_temp_password()
     hashed_password = pwd_context.hash(raw_password)
 
@@ -1496,8 +1565,8 @@ async def onboard_employee(
         # 4. Create user
         user = await db.fetchrow(
             """
-            INSERT INTO users (email, password_hash, full_name, role, is_active)
-            VALUES ($1, $2, $3, $4, TRUE)
+            INSERT INTO users (email, password_hash, full_name, role, is_active, must_reset_password)
+            VALUES ($1, $2, $3, $4, TRUE, TRUE)
             RETURNING id, email, full_name, role
             """,
             payload.work_email,
@@ -1511,7 +1580,7 @@ async def onboard_employee(
         emp = await db.fetchrow(
             """
             INSERT INTO employees (
-                user_id,
+                user_id, emp_id,
                 phone, personal_email, dob, gender, blood_group, nationality,
                 home_address,
                 branch_id, job_title, designation, department, sub_department,
@@ -1525,21 +1594,22 @@ async def onboard_employee(
                 onboarding_status
             )
             VALUES (
-                $1,$2,$3,$4,$5,$6,$7,
-                $8,
-                $9,$10,$11,$12,$13,
-                $14,$15,$16,
-                $17,$18,
-                $19,$20,$21,$22,
-                $23,$24,$25,$26,$27,$28,
-                $29,$30,$31,$32,
-                $33,$34,$35,$36,
-                $37,$38,$39,
+                $1,$2,
+                $3,$4,$5,$6,$7,$8,
+                $9,
+                $10,$11,$12,$13,$14,
+                $15,$16,$17,
+                $18,$19,
+                $20,$21,$22,$23,
+                $24,$25,$26,$27,$28,$29,
+                $30,$31,$32,$33,
+                $34,$35,$36,$37,
+                $38,$39,$40,
                 'completed'
             )
             RETURNING id
             """,
-            user_id,
+            user_id, new_emp_id,
             payload.phone, payload.personal_email, parse_date(payload.dob), payload.gender,
             payload.blood_group, payload.nationality,
             payload.home_address,
@@ -1575,12 +1645,18 @@ async def onboard_employee(
         employee_id, user_id, hr["id"]
     )
 
+    # Send credentials to personal email (login identifier — not work email)
+    email_sent = send_welcome_credentials(payload.personal_email, user["full_name"], raw_password)
+
     return {
         "employee_id": employee_id,
-        "email": user["email"],
+        "emp_id": new_emp_id,
+        "email": user["email"],               # work email
+        "personal_email": payload.personal_email,  # login email — shown in credentials modal
         "full_name": user["full_name"],
         "role": user["role"],
         "temporary_password": raw_password,
+        "email_sent": email_sent,
         "message": "Employee onboarded successfully with credentials.",
         "created_at": datetime.now().isoformat(),
     }
@@ -1719,7 +1795,8 @@ async def regenerate_employee_credentials(
     # 1. Fetch employee + user info
     emp = await db.fetchrow(
         """
-        SELECT e.id, e.user_id, u.email, u.full_name, u.is_active
+        SELECT e.id, e.user_id, u.email, u.full_name, u.is_active,
+               e.personal_email
         FROM employees e
         JOIN users u ON u.id = e.user_id
         WHERE e.id = $1
@@ -1744,7 +1821,7 @@ async def regenerate_employee_credentials(
         await db.execute(
             """
             UPDATE users
-            SET password_hash=$1, last_login=NULL
+            SET password_hash=$1, must_reset_password=TRUE, last_login=NULL
             WHERE id=$2
             """,
             hashed,
@@ -1763,11 +1840,16 @@ async def regenerate_employee_credentials(
             f"Final credentials regenerated by HR ({hr['email']})",
         )
 
+    # Send new credentials to personal email (login identifier)
+    send_to = emp["personal_email"] or emp["email"]  # fallback to work email if personal not set
+    email_sent = send_welcome_credentials(send_to, emp["full_name"], new_password)
+
     return {
         "employee_id": emp_id,
         "email": emp["email"],
         "full_name": emp["full_name"],
         "new_password": new_password,  # return only once
+        "email_sent": email_sent,
         "message": "New credentials generated successfully.",
         "generated_at": datetime.now().isoformat(),
     }

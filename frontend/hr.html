@@ -27,7 +27,136 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="hr-styles.css" />
-  </head>
+    <style>
+    /* ── Employee Profile Drawer ─────────────────────────── */
+    .emp-profile-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 1100;
+    }
+    .emp-profile-overlay.open { display: block; }
+    .emp-profile-drawer {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: min(600px, 100vw);
+      background: #fff;
+      box-shadow: -8px 0 40px rgba(0,0,0,0.14);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+      z-index: 1101;
+    }
+    .emp-profile-overlay.open .emp-profile-drawer {
+      transform: translateX(0);
+    }
+    .epd-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .epd-avatar {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .epd-name { font-size: 17px; font-weight: 700; color: #111827; }
+    .epd-meta { font-size: 13px; color: #6b7280; margin-top: 2px; }
+    .epd-close {
+      margin-left: auto;
+      background: none; border: none;
+      font-size: 22px; cursor: pointer; color: #6b7280;
+      line-height: 1;
+    }
+    .epd-tabs {
+      display: flex;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0 24px;
+      gap: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .epd-tabs::-webkit-scrollbar { display: none; }
+    .epd-tab {
+      padding: 12px 16px;
+      font-size: 13px; font-weight: 500;
+      color: #6b7280;
+      border: none; background: none; cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .epd-tab.active {
+      color: var(--primary, #0089d0);
+      border-bottom-color: var(--primary, #0089d0);
+    }
+    .epd-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .epd-panel { display: none; }
+    .epd-panel.active { display: block; }
+    .epd-section { margin-bottom: 24px; }
+    .epd-section-title {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: #9ca3af; margin-bottom: 12px;
+    }
+    .epd-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 20px;
+    }
+    .epd-field label {
+      font-size: 11px; font-weight: 500;
+      color: #9ca3af; display: block; margin-bottom: 3px;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .epd-field span {
+      font-size: 13.5px; color: #111827; font-weight: 500;
+    }
+    .epd-manager-card {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .epd-manager-avatar {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .epd-manager-name { font-size: 13.5px; font-weight: 600; color: #111827; }
+    .epd-manager-meta { font-size: 12px; color: #6b7280; }
+    .epd-badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+      background: #eff6ff; color: #1d4ed8;
+    }
+    .epd-salary {
+      font-size: 26px; font-weight: 700;
+      color: #111827; margin-bottom: 4px;
+    }
+    .epd-salary-sub { font-size: 13px; color: #6b7280; }
+    @media (max-width: 480px) {
+      .epd-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
   <body>
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -347,28 +476,20 @@
           </div>
         </div>
         <div class="filters-bar">
-          <div class="filter-group">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              style="color: var(--text-dim)"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
+          <div class="filter-group" style="gap:4px;">
+            <button onclick="shiftDate(-1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-dim);flex-shrink:0;" title="Previous day">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
             <input
               class="filter-input"
               type="date"
               id="reportDate"
               onchange="loadReport()"
-              style="cursor: pointer"
+              style="cursor:pointer;"
             />
+            <button onclick="shiftDate(1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-dim);flex-shrink:0;" title="Next day">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
           </div>
           <div class="filter-group">
             <label>Branch:</label>
@@ -456,7 +577,7 @@
               Showing <strong id="showingCount">—</strong> of
               <strong id="totalCount">—</strong> entries
             </div>
-            <div id="pagination"></div>
+            <div id="attendPagination" class="pg-bar"></div>
           </div>
         </div>
       </div>
@@ -630,6 +751,7 @@
               Showing <strong id="obShowing">—</strong> of
               <strong id="obTotalCount">—</strong> results
             </div>
+            <div id="obPagination" class="pg-bar"></div>
           </div>
         </div>
 
@@ -1611,27 +1733,9 @@
           </div>
 
           <!-- Pagination -->
-          <div class="table-footer" id="auditPagination" style="display: none">
-            <span
-              id="auditPageInfo"
-              style="font-size: 13px; color: #6b7280"
-            ></span>
-            <div style="display: flex; gap: 8px">
-              <button
-                class="btn btn-secondary"
-                id="auditPrevBtn"
-                onclick="loadRegAudit(auditCurrentPage - 1)"
-              >
-                ← Prev
-              </button>
-              <button
-                class="btn btn-secondary"
-                id="auditNextBtn"
-                onclick="loadRegAudit(auditCurrentPage + 1)"
-              >
-                Next →
-              </button>
-            </div>
+          <div class="table-footer" id="auditPgBar" style="display: none">
+            <div class="table-count">Showing <strong id="auditPageInfo">—</strong></div>
+            <div id="auditPagination" class="pg-bar"></div>
           </div>
         </div>
       </div>
@@ -1700,6 +1804,80 @@
     </div>
 
     </div>
+
+    <!-- ═══ LEAVE ACTIVITY VIEW ═══ -->
+    <div class="view page" id="leaveApprovalsView">
+      <div class="container">
+
+        <!-- Filters -->
+        <div style="display:flex;gap:8px;margin-top:30px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);align-items:center;flex-wrap:wrap;">
+          <select id="leaveFilterStatus" class="form-select" style="width:150px;" onchange="loadLeaveLog()">
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <input type="month" id="leaveFilterMonth" class="form-input" style="width:155px;" onchange="loadLeaveLog()"/>
+          <div style="margin-left:auto;">
+            <button class="btn btn-secondary" onclick="loadLeaveLog()" style="padding:6px 14px;font-size:13px;">&#8635; Refresh</button>
+          </div>
+        </div>
+
+        <!-- KPI chips -->
+        <div style="overflow-x:auto;margin-bottom:20px;">
+          <div class="stat-chips" style="margin-bottom:0;min-width:420px;">
+            <div class="stat-chip" style="border-top:3px solid var(--warning)">
+              <div class="chip-label">Pending</div>
+              <div class="chip-value amber" id="leaveKpiPending">&#8212;</div>
+            </div>
+            <div class="stat-chip" style="border-top:3px solid var(--success)">
+              <div class="chip-label">Approved</div>
+              <div class="chip-value green" id="leaveKpiApproved">&#8212;</div>
+            </div>
+            <div class="stat-chip" style="border-top:3px solid var(--danger)">
+              <div class="chip-label">Rejected</div>
+              <div class="chip-value red" id="leaveKpiRejected">&#8212;</div>
+            </div>
+            <div class="stat-chip" style="border-top:3px solid var(--primary)">
+              <div class="chip-label">Total</div>
+              <div class="chip-value blue" id="leaveKpiTotal">&#8212;</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-card" style="overflow-x:auto;">
+          <div class="loading-state" id="leaveLoading"><div class="spinner"></div></div>
+          <table class="data-table" id="leaveTable" style="display:none;">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Leave Period</th>
+                <th>Days</th>
+                <th>Type</th>
+                <th>Reason</th>
+                <th>L1 Manager</th>
+                <th>L1 Status</th>
+                <th>L2 Manager</th>
+                <th>L2 Status</th>
+                <th>Final Status</th>
+              </tr>
+            </thead>
+            <tbody id="leaveTbody"></tbody>
+          </table>
+          <div id="leaveEmpty" style="display:none;text-align:center;padding:48px;color:#6b7280;font-size:14px;">
+            No leave requests found.
+          </div>
+          <div class="table-footer" id="leavePgBar" style="display:none">
+            <div class="table-count">Showing <strong id="leaveShowing">&#8212;</strong> of <strong id="leaveTotal">&#8212;</strong></div>
+            <div id="leavePagination" class="pg-bar"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <!-- /leaveApprovalsView -->
 
     </div>
     <!-- /main -->
@@ -2081,278 +2259,6 @@
     </div>
     <!-- end editModal -->
 
-    <!-- REGULARIZATION AUDIT VIEW -->
-    <div class="view page" id="regAuditView">
-      <div class="container">
-
-        <!-- Filters bar -->
-        <div
-          style="
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            align-items: flex-end;
-            margin-bottom: 20px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            padding: 16px 20px;
-            box-shadow: var(--shadow);
-          "
-        >
-          <div style="display: flex; flex-direction: column; gap: 4px">
-            <label class="form-label">From Date</label>
-            <input
-              type="date"
-              id="auditFromDate"
-              class="form-input"
-              style="width: 155px"
-            />
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 4px">
-            <label class="form-label">To Date</label>
-            <input
-              type="date"
-              id="auditToDate"
-              class="form-input"
-              style="width: 155px"
-            />
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 4px">
-            <label class="form-label">Status</label>
-            <select id="auditStatus" class="form-select" style="width: 155px">
-              <option value="">All Statuses</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="pending">Pending</option>
-            </select>
-          </div>
-          <div style="display: flex; gap: 8px; padding-top: 20px">
-            <button class="btn btn-primary" onclick="loadRegAudit(1)">
-              Apply
-            </button>
-            <button class="btn btn-secondary" onclick="clearAuditFilters()">
-              Clear
-            </button>
-          </div>
-        </div>
-
-        <!-- KPI cards —— overflow-x:auto protects against narrow viewports / drawer open -->
-        <div style="overflow-x:auto; margin-bottom: 20px;">
-        <div class="stat-chips" style="margin-bottom: 0; min-width: 480px;">
-          <div class="stat-chip">
-            <div class="chip-label">Total Requests</div>
-            <div class="chip-value blue" id="auditTotalCount">—</div>
-          </div>
-          <div class="stat-chip" style="border-top: 3px solid var(--success)">
-            <div class="chip-label">Approved</div>
-            <div class="chip-value green" id="auditApprovedCount">—</div>
-          </div>
-          <div class="stat-chip" style="border-top: 3px solid var(--danger)">
-            <div class="chip-label">Rejected</div>
-            <div class="chip-value red" id="auditRejectedCount">—</div>
-          </div>
-          <div class="stat-chip" style="border-top: 3px solid var(--warning)">
-            <div class="chip-label">Pending</div>
-            <div class="chip-value amber" id="auditPendingCount">—</div>
-          </div>
-        </div>
-        </div><!-- /stat-chips overflow wrapper -->
-        <!-- Table -->
-        <div class="table-card" style="overflow-x: auto">
-          <div id="auditTableWrap">
-            <div class="loading-state" id="auditLoading">
-              <div class="spinner"></div>
-            </div>
-            <table class="data-table" id="auditTable" style="display: none">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Date</th>
-                  <th>Actual</th>
-                  <th>Requested</th>
-                  <th>L1</th>
-                  <th>L2</th>
-                  <th>Status</th>
-                  <th>Hours After</th>
-                  <th>Trail</th>
-                </tr>
-              </thead>
-              <tbody id="auditTbody"></tbody>
-            </table>
-            <div
-              id="auditEmpty"
-              style="
-                display: none;
-                text-align: center;
-                padding: 48px;
-                color: #6b7280;
-                font-size: 14px;
-              "
-            >
-              No regularization records found.
-            </div>
-          </div>
-
-          <!-- Pagination -->
-          <div class="table-footer" id="auditPagination" style="display: none">
-            <span
-              id="auditPageInfo"
-              style="font-size: 13px; color: #6b7280"
-            ></span>
-            <div style="display: flex; gap: 8px">
-              <button
-                class="btn btn-secondary"
-                id="auditPrevBtn"
-                onclick="loadRegAudit(auditCurrentPage - 1)"
-              >
-                ← Prev
-              </button>
-              <button
-                class="btn btn-secondary"
-                id="auditNextBtn"
-                onclick="loadRegAudit(auditCurrentPage + 1)"
-              >
-                Next →
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- close container -->
-
-      <!-- Audit Trail Drawer -->
-      <div
-        id="auditDrawerOverlay"
-        style="
-          display: none;
-          position: fixed;
-          top: 60px;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.4);
-          z-index: 200;
-        "
-        onclick="closeAuditDrawer()"
-      ></div>
-      <div
-        id="auditDrawer"
-        style="
-          display: none;
-          position: fixed;
-          right: 0;
-          top: 60px;
-          bottom: 0;
-          width: min(440px, 100vw);
-          background: #fff;
-          z-index: 201;
-          overflow-y: auto;
-          box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
-        "
-      >
-        <div
-          style="
-            padding: 20px 24px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          "
-        >
-          <h3
-            style="font-size: 16px; font-weight: 700; margin: 0"
-            id="drawerTitle"
-          >
-            Audit Trail
-          </h3>
-          <button
-            onclick="closeAuditDrawer()"
-            style="
-              background: none;
-              border: none;
-              font-size: 20px;
-              cursor: pointer;
-              color: #6b7280;
-            "
-          >
-            ×
-          </button>
-        </div>
-        <div id="drawerContent" style="padding: 20px 24px"></div>
-      </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════════════════ -->
-    <!-- LEAVE APPROVALS VIEW                                       -->
-    <!-- ══════════════════════════════════════════════════════════ -->
-    <div class="view page" id="leaveApprovalsView">
-      <div class="container">
-
-        <!-- Filters -->
-        <div style="display:flex;gap:8px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;box-shadow:var(--shadow);align-items:center;flex-wrap:wrap;">
-          <select id="leaveFilterStatus" class="form-select" style="width:150px;" onchange="loadLeaveLog()">
-            <option value="all">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-          <input type="month" id="leaveFilterMonth" class="form-input" style="width:155px;" onchange="loadLeaveLog()"/>
-          <div style="margin-left:auto;">
-            <button class="btn btn-secondary" onclick="loadLeaveLog()" style="padding:6px 14px;font-size:13px;">↻ Refresh</button>
-          </div>
-        </div>
-
-        <!-- KPI chips -->
-        <div style="overflow-x:auto;margin-bottom:20px;">
-          <div class="stat-chips" style="margin-bottom:0;min-width:420px;">
-            <div class="stat-chip">
-              <div class="chip-label">Pending</div>
-              <div class="chip-value amber" id="leaveKpiPending">—</div>
-            </div>
-            <div class="stat-chip" style="border-top:3px solid var(--success)">
-              <div class="chip-label">Approved</div>
-              <div class="chip-value green" id="leaveKpiApproved">—</div>
-            </div>
-            <div class="stat-chip" style="border-top:3px solid var(--danger)">
-              <div class="chip-label">Rejected</div>
-              <div class="chip-value red" id="leaveKpiRejected">—</div>
-            </div>
-            <div class="stat-chip" style="border-top:3px solid var(--primary)">
-              <div class="chip-label">Total</div>
-              <div class="chip-value blue" id="leaveKpiTotal">—</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Table -->
-        <div class="table-card" style="overflow-x:auto;">
-          <div class="loading-state" id="leaveLoading"><div class="spinner"></div></div>
-          <table class="data-table" id="leaveTable" style="display:none;">
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Leave Period</th>
-                <th>Days</th>
-                <th>Type</th>
-                <th>Reason</th>
-                <th>L1 Manager</th>
-                <th>L1 Status</th>
-                <th>L2 Manager</th>
-                <th>L2 Status</th>
-                <th>Final Status</th>
-              </tr>
-            </thead>
-            <tbody id="leaveTbody"></tbody>
-          </table>
-          <div id="leaveEmpty" style="display:none;text-align:center;padding:48px;color:#6b7280;font-size:14px;">
-            No leave requests found.
-          </div>
-        </div>
-      </div>
-    </div>
-
     </div>
     <!-- end .main -->
 
@@ -2371,7 +2277,7 @@
           </p>
 
           <div class="form-field">
-            <label class="form-label">Work Email</label>
+            <label class="form-label">Personal Email</label>
             <input class="form-input" id="cred_email" readonly />
           </div>
 
@@ -2394,6 +2300,143 @@
         </div>
       </div>
     </div>
+
+
+    <!-- EMPLOYEE PROFILE DRAWER -->
+    <div class="emp-profile-overlay" id="empProfileOverlay" onclick="closeEmpProfile(event)">
+      <div class="emp-profile-drawer" onclick="event.stopPropagation()">
+
+        <div class="epd-header">
+          <div class="epd-avatar" id="epdAvatar"></div>
+          <div>
+            <div class="epd-name" id="epdName"></div>
+            <div class="epd-meta" id="epdMeta"></div>
+          </div>
+          <button class="epd-close" onclick="closeEmpProfile()">×</button>
+        </div>
+
+        <div class="epd-tabs">
+          <button class="epd-tab active" onclick="switchEpdTab('personal', this)">Personal</button>
+          <button class="epd-tab"        onclick="switchEpdTab('job', this)">Job</button>
+          <button class="epd-tab"        onclick="switchEpdTab('managers', this)">Managers</button>
+          <button class="epd-tab"        onclick="switchEpdTab('compensation', this)">Compensation</button>
+          <button class="epd-tab"        onclick="switchEpdTab('work', this)">Work</button>
+        </div>
+
+        <div class="epd-body">
+
+          <!-- Personal -->
+          <div class="epd-panel active" id="epdTab-personal">
+            <div class="epd-section">
+              <div class="epd-section-title">Identity</div>
+              <div class="epd-grid">
+                <div class="epd-field"><label>Employee ID</label><span id="epd-emp_id">—</span></div>
+                <div class="epd-field"><label>Full Name</label><span id="epd-full_name">—</span></div>
+                <div class="epd-field"><label>Work Email</label><span id="epd-email">—</span></div>
+                <div class="epd-field"><label>Personal Email</label><span id="epd-personal_email">—</span></div>
+                <div class="epd-field"><label>Phone</label><span id="epd-phone">—</span></div>
+                <div class="epd-field"><label>Date of Birth</label><span id="epd-dob">—</span></div>
+                <div class="epd-field"><label>Gender</label><span id="epd-gender">—</span></div>
+                <div class="epd-field"><label>Blood Group</label><span id="epd-blood_group">—</span></div>
+                <div class="epd-field"><label>Nationality</label><span id="epd-nationality">—</span></div>
+              </div>
+            </div>
+            <div class="epd-section">
+              <div class="epd-section-title">Address</div>
+              <div class="epd-field"><label>Home Address</label><span id="epd-home_address">—</span></div>
+            </div>
+            <div class="epd-section">
+              <div class="epd-section-title">Emergency Contact</div>
+              <div class="epd-grid">
+                <div class="epd-field"><label>Name</label><span id="epd-emg_name">—</span></div>
+                <div class="epd-field"><label>Relation</label><span id="epd-emg_rel">—</span></div>
+                <div class="epd-field"><label>Phone</label><span id="epd-emg_phone">—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Job -->
+          <div class="epd-panel" id="epdTab-job">
+            <div class="epd-section">
+              <div class="epd-section-title">Role</div>
+              <div class="epd-grid">
+                <div class="epd-field"><label>Job Title</label><span id="epd-job_title">—</span></div>
+                <div class="epd-field"><label>Designation</label><span id="epd-designation">—</span></div>
+                <div class="epd-field"><label>Department</label><span id="epd-department">—</span></div>
+                <div class="epd-field"><label>Sub Department</label><span id="epd-sub_department">—</span></div>
+                <div class="epd-field"><label>Grade</label><span id="epd-grade">—</span></div>
+                <div class="epd-field"><label>Cost Centre</label><span id="epd-cost_centre">—</span></div>
+                <div class="epd-field"><label>Branch</label><span id="epd-branch_name">—</span></div>
+                <div class="epd-field"><label>Date of Joining</label><span id="epd-date_of_joining">—</span></div>
+              </div>
+            </div>
+            <div class="epd-section">
+              <div class="epd-section-title">Employment</div>
+              <div class="epd-grid">
+                <div class="epd-field"><label>Type</label><span id="epd-employment_type">—</span></div>
+                <div class="epd-field"><label>Notice Period</label><span id="epd-notice_period">—</span></div>
+                <div class="epd-field"><label>Probation End</label><span id="epd-probation_end">—</span></div>
+                <div class="epd-field"><label>Contract End</label><span id="epd-contract_end">—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Managers -->
+          <div class="epd-panel" id="epdTab-managers">
+            <div class="epd-section">
+              <div class="epd-section-title">L1 Manager (Direct)</div>
+              <div id="epd-l1-card"><p style="color:#9ca3af;font-size:13px">No L1 manager assigned</p></div>
+            </div>
+            <div class="epd-section">
+              <div class="epd-section-title">L2 Manager (Skip-level)</div>
+              <div id="epd-l2-card"><p style="color:#9ca3af;font-size:13px">No L2 manager assigned</p></div>
+            </div>
+          </div>
+
+          <!-- Compensation -->
+          <div class="epd-panel" id="epdTab-compensation">
+            <div class="epd-section">
+              <div class="epd-section-title">Salary</div>
+              <div class="epd-salary" id="epd-annual_ctc">—</div>
+              <div class="epd-salary-sub" id="epd-pay_frequency_label">Annual CTC</div>
+            </div>
+            <div class="epd-section">
+              <div class="epd-section-title">Statutory</div>
+              <div class="epd-grid">
+                <div class="epd-field"><label>PF Enrolled</label><span id="epd-pf_enrolled">—</span></div>
+                <div class="epd-field"><label>ESIC Applicable</label><span id="epd-esic_applicable">—</span></div>
+                <div class="epd-field"><label>PAN Number</label><span id="epd-pan_number">—</span></div>
+              </div>
+            </div>
+            <div class="epd-section">
+              <div class="epd-section-title">Bank Details</div>
+              <div class="epd-grid">
+                <div class="epd-field"><label>Bank Name</label><span id="epd-bank_name">—</span></div>
+                <div class="epd-field"><label>Account Number</label><span id="epd-bank_account">—</span></div>
+                <div class="epd-field"><label>IFSC Code</label><span id="epd-bank_ifsc">—</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Work -->
+          <div class="epd-panel" id="epdTab-work">
+            <div class="epd-section">
+              <div class="epd-section-title">Schedule</div>
+              <div class="epd-grid">
+                <div class="epd-field"><label>Shift Start</label><span id="epd-shift_start">—</span></div>
+                <div class="epd-field"><label>Shift End</label><span id="epd-shift_end">—</span></div>
+                <div class="epd-field"><label>Weekly Off</label><span id="epd-weekly_off">—</span></div>
+                <div class="epd-field"><label>Work Mode</label><span id="epd-work_mode">—</span></div>
+                <div class="epd-field"><label>Work Location</label><span id="epd-work_location">—</span></div>
+                <div class="epd-field"><label>Asset ID</label><span id="epd-asset_id">—</span></div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /epd-body -->
+      </div>
+    </div>
+    <!-- /EMPLOYEE PROFILE DRAWER -->
 
     <script src="hr-script.js"></script>
   </body>
