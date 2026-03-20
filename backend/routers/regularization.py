@@ -239,7 +239,7 @@ async def _sync_daily_summary(
 async def get_employee_from_user(user_id: int, db: asyncpg.Connection) -> dict:
     """Get employee record from user_id."""
     emp = await db.fetchrow(
-        "SELECT id, user_id, l1_manager_id, l2_manager_id, shift_start, shift_end FROM employees WHERE user_id=$1",
+        "SELECT id, user_id, l1_manager_id, l2_manager_id, shift_start, shift_end, date_of_joining FROM employees WHERE user_id=$1",
         user_id
     )
     if not emp:
@@ -840,6 +840,96 @@ async def get_pending_approvals(
     )
 
 
+@router.get("/team-history")
+async def get_team_regularization_history(
+    month: Optional[str] = Query(None),
+    user: dict = Depends(get_current_user),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """
+    GET /api/attendance/regularization/team-history?month=2026-03
+
+    Returns regularization requests this manager has already actioned
+    (final_status = approved or rejected). Works for both L1 and L2 roles.
+    """
+    emp = await get_employee_from_user(user["id"], db)
+    manager_id = emp["id"]
+
+    if not month:
+        now = datetime.now()
+        month = f"{now.year}-{now.month:02d}"
+    year, month_num = int(month.split("-")[0]), int(month.split("-")[1])
+
+    rows = await db.fetch(
+        """
+        SELECT
+            r.id                    AS request_id,
+            r.employee_id,
+            r.work_date,
+            r.actual_worked_minutes,
+            r.requested_minutes,
+            r.reason,
+            r.submitted_at,
+            r.final_status,
+            r.l1_status,
+            r.l1_comment,
+            r.l1_approved_at,
+            r.l2_status,
+            r.l2_comment,
+            r.l2_approved_at,
+            r.escalation_required,
+            u.full_name             AS employee_name,
+            CASE
+                WHEN r.l1_manager_id = $1 AND r.l2_manager_id = $1 THEN 'both'
+                WHEN r.l1_manager_id = $1 THEN 'l1'
+                ELSE 'l2'
+            END                     AS my_role,
+            CASE
+                WHEN r.l1_manager_id = $1 THEN r.l1_status
+                ELSE r.l2_status
+            END                     AS my_action
+        FROM regularization_requests r
+        JOIN employees e ON e.id = r.employee_id
+        JOIN users u     ON u.id = e.user_id
+        WHERE r.final_status IN ('approved', 'rejected')
+          AND (r.l1_manager_id = $1 OR r.l2_manager_id = $1)
+          AND EXTRACT(YEAR  FROM r.work_date) = $2
+          AND EXTRACT(MONTH FROM r.work_date) = $3
+        ORDER BY r.work_date DESC
+        """,
+        manager_id, year, month_num,
+    )
+
+    return {
+        "month": month,
+        "total": len(rows),
+        "requests": [
+            {
+                "request_id":           r["request_id"],
+                "employee_name":        r["employee_name"],
+                "work_date":            r["work_date"].isoformat(),
+                "actual_worked_minutes": r["actual_worked_minutes"],
+                "actual_worked_display": minutes_to_display(r["actual_worked_minutes"]),
+                "requested_minutes":    r["requested_minutes"],
+                "requested_display":    minutes_to_display(r["requested_minutes"]),
+                "reason":               r["reason"],
+                "submitted_at":         r["submitted_at"].isoformat() if r["submitted_at"] else None,
+                "final_status":         r["final_status"],
+                "my_role":              r["my_role"],
+                "my_action":            r["my_action"],
+                "l1_status":            r["l1_status"],
+                "l1_comment":           r["l1_comment"],
+                "l1_approved_at":       r["l1_approved_at"].isoformat() if r["l1_approved_at"] else None,
+                "l2_status":            r["l2_status"],
+                "l2_comment":           r["l2_comment"],
+                "l2_approved_at":       r["l2_approved_at"].isoformat() if r["l2_approved_at"] else None,
+                "escalation_required":  r["escalation_required"],
+            }
+            for r in rows
+        ],
+    }
+
+
 @router.post("/requests/{request_id}/approve")
 async def approve_regularization(
     request_id: int,
@@ -1240,4 +1330,8 @@ async def get_attendance_calendar(
             )
         )
 
-    return AttendanceCalendarResponse(month=month, days=days)
+    return AttendanceCalendarResponse(
+        month=month,
+        days=days,
+        joining_date=emp["date_of_joining"],  # May be None if not set — frontend handles gracefully
+    )

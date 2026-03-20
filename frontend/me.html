@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="theme-color" content="#0089d0" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="SDPL HRMS" />
+    <link rel="apple-touch-icon" href="/appletouchicon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/icon192.png" sizes="192x192" />
+    <link rel="icon" type="image/png" href="/icon512.png" sizes="512x512" />
+    <title>My Profile | SDPL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
+
+      :root {
+        --primary: #0089d0;
+        --primary-dark: #006faa;
+        --primary-light: #e8f5fd;
+        --primary-glow: rgba(0, 137, 208, 0.18);
+        --accent: #10b981;
+        --success: #059669;
+        --success-light: #ecfdf5;
+        --danger: #ef4444;
+        --bg: #f0f4f8;
+        --surface: #ffffff;
+        --surface-2: #f8fafc;
+        --border: #e2e8f0;
+        --border-light: #f1f5f9;
+        --text: #0f172a;
+        --text-2: #475569;
+        --text-3: #94a3b8;
+        --shadow-sm:
+          0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+        --ease: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        --nav-h: 62px;
+      }
+
+      body {
+        font-family:
+          "DM Sans",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        height: 100dvh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        z-index: 200;
+        pointer-events: none;
+      }
+
+      .page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding-top: max(18px, env(safe-area-inset-top));
+      }
+
+      /* ── HEADER ── */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px 14px;
+        flex-shrink: 0;
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .brand-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        background: linear-gradient(135deg, #e6f4fb, #cce9f7);
+        border: 1px solid rgba(0, 137, 208, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .page-title {
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.2px;
+      }
+      .logout-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-2);
+        cursor: pointer;
+        transition: all var(--ease);
+        box-shadow: var(--shadow-sm);
+      }
+      .logout-btn:active {
+        transform: scale(0.92);
+      }
+
+      /* ── HERO ── */
+      .hero {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 16px 16px;
+        flex-shrink: 0;
+      }
+      .hero-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        background: linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary-dark)
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 700;
+        color: #fff;
+        flex-shrink: 0;
+        box-shadow: 0 3px 10px var(--primary-glow);
+      }
+      .hero-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .hero-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.3;
+      }
+      .hero-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 4px;
+        flex-wrap: wrap;
+      }
+      .hero-chip {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 20px;
+        white-space: nowrap;
+      }
+      .hero-chip.role {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .hero-chip.id {
+        font-family: "DM Mono", monospace;
+        font-size: 10px;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        color: var(--text-2);
+      }
+
+      /* ── TABS ── */
+      .tabs-wrap {
+        flex-shrink: 0;
+        padding: 0 16px;
+        margin-bottom: 12px;
+      }
+      .tabs {
+        display: flex;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 4px;
+        gap: 3px;
+        box-shadow: var(--shadow-sm);
+      }
+      .tab-btn {
+        flex: 1;
+        padding: 8px 4px;
+        border: none;
+        border-radius: 10px;
+        font-family: "DM Sans", sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-3);
+        background: transparent;
+        cursor: pointer;
+        transition: all var(--ease);
+        white-space: nowrap;
+      }
+      .tab-btn:active {
+        transform: scale(0.95);
+      }
+      .tab-btn.active {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 137, 208, 0.3);
+      }
+
+      /* ── CONTENT ── */
+      .tab-content {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 0 16px;
+        padding-bottom: calc(
+          var(--nav-h) + max(0px, env(safe-area-inset-bottom)) + 12px
+        );
+      }
+      .tab-content::-webkit-scrollbar {
+        display: none;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      /* ── INFO CARD ── */
+      .info-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+      }
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 12px 16px;
+        gap: 16px;
+        border-bottom: 1px solid var(--border-light);
+      }
+      .info-row:last-child {
+        border-bottom: none;
+      }
+      .info-label {
+        font-size: 12px;
+        color: var(--text-3);
+        font-weight: 500;
+        flex-shrink: 0;
+        min-width: 110px;
+        padding-top: 1px;
+      }
+      .info-value {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        text-align: right;
+        word-break: break-word;
+      }
+
+      /* ── MANAGER CARD ── */
+      .manager-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 10px;
+      }
+      .manager-card:last-child {
+        margin-bottom: 0;
+      }
+      .manager-inner {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+      }
+      .manager-avatar {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .manager-avatar.l1 {
+        background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+        border: 1px solid rgba(0, 137, 208, 0.2);
+        color: var(--primary);
+      }
+      .manager-avatar.l2 {
+        background: linear-gradient(135deg, #f0fdf4, #bbf7d0);
+        border: 1px solid rgba(5, 150, 105, 0.2);
+        color: var(--success);
+      }
+      .manager-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .manager-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .manager-meta {
+        font-size: 11px;
+        color: var(--text-3);
+        margin-top: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .manager-badge {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 20px;
+        flex-shrink: 0;
+      }
+      .manager-badge.l1 {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .manager-badge.l2 {
+        background: var(--success-light);
+        color: var(--success);
+      }
+
+      /* ── TEAM LIST ── */
+      .team-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+      }
+      .team-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border-light);
+        background: var(--surface-2);
+      }
+      .team-card-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .team-count-badge {
+        font-size: 11px;
+        font-weight: 700;
+        background: var(--primary-light);
+        color: var(--primary);
+        padding: 2px 9px;
+        border-radius: 20px;
+      }
+      .team-member {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--border-light);
+        transition: background var(--ease);
+      }
+      .team-member:last-child {
+        border-bottom: none;
+      }
+      .member-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--border-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text-2);
+        flex-shrink: 0;
+      }
+      .member-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .member-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .member-sub {
+        font-size: 11px;
+        color: var(--text-3);
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ── STATES ── */
+      .empty-state {
+        padding: 32px 16px;
+        text-align: center;
+        font-size: 13px;
+        color: var(--text-3);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: var(--shadow-sm);
+      }
+      .skeleton {
+        background: linear-gradient(
+          90deg,
+          #f1f5f9 25%,
+          #f8fafc 50%,
+          #f1f5f9 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.4s infinite;
+        border-radius: 6px;
+        display: inline-block;
+      }
+      @keyframes shimmer {
+        0% {
+          background-position: 200% 0;
+        }
+        100% {
+          background-position: -200% 0;
+        }
+      }
+      .error-box {
+        padding: 24px;
+        text-align: center;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 16px;
+      }
+      .error-box p {
+        font-size: 13px;
+        color: var(--danger);
+        font-weight: 500;
+        margin-bottom: 12px;
+      }
+      .retry-btn {
+        background: var(--danger);
+        color: #fff;
+        border: none;
+        padding: 8px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: "DM Sans", sans-serif;
+      }
+
+      /* ── BOTTOM NAV ── */
+      .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: calc(var(--nav-h) + max(0px, env(safe-area-inset-bottom)));
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        padding: 0 8px;
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
+        display: flex;
+        align-items: stretch;
+        z-index: 100;
+        box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+      }
+      .nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 10px 6px;
+        background: transparent;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        position: relative;
+        color: var(--text-3);
+        margin: 6px 2px;
+      }
+      .nav-btn:active {
+        transform: scale(0.93);
+      }
+      .nav-btn.active {
+        background: var(--primary-light);
+        color: var(--primary);
+      }
+      .nav-btn.active::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 25%;
+        right: 25%;
+        height: 2px;
+        background: var(--primary);
+        border-radius: 0 0 2px 2px;
+      }
+      .nav-icon {
+        width: 22px;
+        height: 22px;
+      }
+      .nav-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <!-- HEADER -->
+      <div class="header">
+        <div class="header-left">
+          <div class="brand-icon">
+            <img
+              src="icon-51.png"
+              alt="SDPL"
+              style="width: 100%; height: 100%; object-fit: contain"
+            />
+          </div>
+          <div class="page-title">My Profile</div>
+        </div>
+        <button class="logout-btn" onclick="logout()" aria-label="Logout">
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- HERO -->
+      <div class="hero" id="hero">
+        <div
+          class="skeleton"
+          style="width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0"
+        ></div>
+        <div style="flex: 1">
+          <div
+            class="skeleton"
+            style="width: 150px; height: 16px; margin-bottom: 8px"
+          ></div>
+          <div class="skeleton" style="width: 110px; height: 12px"></div>
+        </div>
+      </div>
+
+      <!-- TABS (built by JS after data loads) -->
+      <div class="tabs-wrap" id="tabsWrap" style="display: none">
+        <div class="tabs" id="tabs"></div>
+      </div>
+
+      <!-- PANELS -->
+      <div class="tab-content" id="tabContent">
+        <!-- skeleton while loading -->
+        <div id="loadingSkeleton">
+          <div class="info-card">
+            <div class="info-row">
+              <span class="skeleton" style="width: 90px; height: 12px"></span
+              ><span class="skeleton" style="width: 130px; height: 13px"></span>
+            </div>
+            <div class="info-row">
+              <span class="skeleton" style="width: 80px; height: 12px"></span
+              ><span class="skeleton" style="width: 150px; height: 13px"></span>
+            </div>
+            <div class="info-row">
+              <span class="skeleton" style="width: 60px; height: 12px"></span
+              ><span class="skeleton" style="width: 100px; height: 13px"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottom-nav">
+      <a href="/employee" class="nav-btn">
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+        <span class="nav-label">Clock</span>
+      </a>
+      <a href="/regularization" class="nav-btn">
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span class="nav-label">Regularization</span>
+      </a>
+      <a href="/leave" class="nav-btn">
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        <span class="nav-label">Attendance</span>
+      </a>
+      <button class="nav-btn active">
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+        </svg>
+        <span class="nav-label">Me</span>
+      </button>
+    </div>
+
+    <script>
+      const API_BASE = "/api";
+      const token = localStorage.getItem("token");
+      if (!token) window.location.href = "/login";
+
+      async function apiFetch(path) {
+        const res = await fetch(API_BASE + path, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          throw new Error("Unauthorized");
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Error ${res.status}`);
+        }
+        return res.json();
+      }
+
+      function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
+
+      function initials(name) {
+        return (name || "?")
+          .split(" ")
+          .map((w) => w[0])
+          .slice(0, 2)
+          .join("")
+          .toUpperCase();
+      }
+
+      // ── Tab switching ──
+      function switchTab(tab) {
+        document
+          .querySelectorAll(".tab-btn")
+          .forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+        document
+          .querySelectorAll(".tab-panel")
+          .forEach((p) =>
+            p.classList.toggle("active", p.id === `panel-${tab}`),
+          );
+      }
+
+      // ── Helpers ──
+      function row(label, value) {
+        if (!value) return "";
+        return `<div class="info-row">
+          <span class="info-label">${label}</span>
+          <span class="info-value">${value}</span>
+        </div>`;
+      }
+
+      function infoCard(rows) {
+        const html = rows.filter(Boolean).join("");
+        if (!html) return `<div class="empty-state">No details available</div>`;
+        return `<div class="info-card">${html}</div>`;
+      }
+
+      // ── Build tabs + panels dynamically ──
+      function buildPage(d) {
+        const p = d.personal,
+          j = d.job,
+          s = d.schedule,
+          m = d.managers;
+        const isManager = d.my_team && d.my_team.length > 0;
+
+        // Hero
+        document.getElementById("hero").innerHTML = `
+          <div class="hero-avatar">${initials(p.full_name)}</div>
+          <div class="hero-info">
+            <div class="hero-name">${p.full_name || "—"}</div>
+            <div class="hero-meta">
+              ${j.job_title ? `<span class="hero-chip role">${j.job_title}</span>` : ""}
+              ${p.emp_id ? `<span class="hero-chip id">${p.emp_id}</span>` : ""}
+            </div>
+          </div>`;
+
+        // Define tabs — My Team only appears if they manage someone
+        const tabs = [
+          { id: "personal", label: "Personal" },
+          { id: "job", label: "Job" },
+          { id: "schedule", label: "Schedule" },
+          { id: "managers", label: "Managers" },
+          ...(isManager ? [{ id: "team", label: "My Team" }] : []),
+        ];
+
+        // Render tab buttons
+        document.getElementById("tabs").innerHTML = tabs
+          .map(
+            (t, i) =>
+              `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}" onclick="switchTab('${t.id}')">${t.label}</button>`,
+          )
+          .join("");
+
+        // Render panels
+        const panelsHtml = `
+          <div class="tab-panel active" id="panel-personal">
+            ${infoCard([
+              row("Work Email", p.work_email),
+              row("Personal Email", p.personal_email),
+              row("Phone", p.phone),
+              row("Date of Birth", p.dob),
+              row("Gender", p.gender),
+              row("Blood Group", p.blood_group),
+              row("Nationality", p.nationality),
+            ])}
+          </div>
+
+          <div class="tab-panel" id="panel-job">
+            ${infoCard([
+              row("Designation", j.designation),
+              row("Department", j.department),
+              row("Sub-Department", j.sub_department),
+              row("Grade", j.grade),
+              row("Employment Type", j.employment_type),
+              row("Date of Joining", j.date_of_joining),
+              row("Branch", j.branch),
+              row("Notice Period", j.notice_period),
+              row("Probation End", j.probation_end),
+              row("Contract End", j.contract_end),
+            ])}
+          </div>
+
+          <div class="tab-panel" id="panel-schedule">
+            ${infoCard([
+              row(
+                "Shift",
+                s.shift_start && s.shift_end
+                  ? `${s.shift_start} – ${s.shift_end}`
+                  : null,
+              ),
+              row("Work Mode", s.work_mode),
+              row("Weekly Off", s.weekly_off),
+              row("Work Location", s.work_location),
+            ])}
+          </div>
+
+          <div class="tab-panel" id="panel-managers">
+            ${renderManagers(m)}
+          </div>
+
+          ${
+            isManager
+              ? `
+          <div class="tab-panel" id="panel-team">
+            ${renderMyTeam(d.my_team)}
+          </div>`
+              : ""
+          }
+        `;
+
+        // Swap skeleton for real content
+        document.getElementById("loadingSkeleton").remove();
+        document
+          .getElementById("tabContent")
+          .insertAdjacentHTML("afterbegin", panelsHtml);
+
+        // Show tabs
+        document.getElementById("tabsWrap").style.display = "";
+      }
+
+      function renderManagers(m) {
+        if (!m.l1 && !m.l2)
+          return `<div class="empty-state">No managers assigned</div>`;
+
+        const mgr = (data, lvl) => {
+          if (!data) return "";
+          const cls = lvl.toLowerCase();
+          const meta =
+            [data.designation || data.job_title, data.department]
+              .filter(Boolean)
+              .join(" · ") ||
+            data.emp_id ||
+            "";
+          return `
+            <div class="manager-card">
+              <div class="manager-inner">
+                <div class="manager-avatar ${cls}">${initials(data.name)}</div>
+                <div class="manager-info">
+                  <div class="manager-name">${data.name || "—"}</div>
+                  <div class="manager-meta">${meta}</div>
+                </div>
+                <span class="manager-badge ${cls}">${lvl}</span>
+              </div>
+            </div>`;
+        };
+
+        return mgr(m.l1, "L1") + mgr(m.l2, "L2");
+      }
+
+      function renderMyTeam(team) {
+        const members = team
+          .map(
+            (t) => `
+          <div class="team-member">
+            <div class="member-avatar">${initials(t.name)}</div>
+            <div class="member-info">
+              <div class="member-name">${t.name}</div>
+              <div class="member-sub">${[t.designation, t.department].filter(Boolean).join(" · ") || "—"}</div>
+            </div>
+          </div>`,
+          )
+          .join("");
+
+        return `
+          <div class="team-card">
+            <div class="team-card-header">
+              <span class="team-card-title">Direct Reports</span>
+              <span class="team-count-badge">${team.length}</span>
+            </div>
+            ${members}
+          </div>`;
+      }
+
+      async function loadProfile() {
+        try {
+          const data = await apiFetch("/employee/me/profile");
+          buildPage(data);
+        } catch (e) {
+          document.getElementById("hero").innerHTML = "";
+          document.getElementById("loadingSkeleton").innerHTML = `
+            <div class="error-box">
+              <p>${e.message || "Failed to load profile"}</p>
+              <button class="retry-btn" onclick="loadProfile()">Retry</button>
+            </div>`;
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", loadProfile);
+    </script>
+  </body>
+</html>

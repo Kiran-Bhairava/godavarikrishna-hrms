@@ -895,6 +895,182 @@ async def get_me(
 ):
     """Get current user profile."""
     return user
+
+
+@app.get("/api/employee/me/profile")
+async def get_my_profile(
+    user: dict = Depends(get_current_user),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """
+    Full employee profile for the 'Me' tab.
+    Returns personal info, job details, managers (L1/L2), shift, and employment terms.
+    """
+    row = await db.fetchrow(
+        """
+        SELECT
+            -- Identity
+            u.full_name,
+            u.email           AS work_email,
+            u.role,
+            e.emp_id,
+            e.phone,
+            e.personal_email,
+            e.dob,
+            e.gender,
+            e.blood_group,
+            e.nationality,
+
+            -- Job
+            e.job_title,
+            e.designation,
+            e.department,
+            e.sub_department,
+            e.grade,
+            e.date_of_joining,
+            e.employment_type,
+            e.probation_end,
+            e.contract_end,
+            e.notice_period,
+            e.cost_centre,
+
+            -- Branch
+            b.name  AS branch_name,
+            b.city  AS branch_city,
+
+            -- Schedule
+            e.shift_start,
+            e.shift_end,
+            e.work_mode,
+            e.weekly_off,
+            e.work_location,
+
+            -- L1 manager
+            e.l1_manager_id,
+            l1u.full_name   AS l1_name,
+            l1e.emp_id      AS l1_emp_id,
+            l1e.job_title   AS l1_job_title,
+            l1e.designation AS l1_designation,
+            l1e.department  AS l1_department,
+
+            -- L2 manager
+            e.l2_manager_id,
+            l2u.full_name   AS l2_name,
+            l2e.emp_id      AS l2_emp_id,
+            l2e.job_title   AS l2_job_title,
+            l2e.designation AS l2_designation,
+            l2e.department  AS l2_department
+
+        FROM users u
+        JOIN employees e ON e.user_id = u.id
+        LEFT JOIN branches b ON b.id = e.branch_id
+        LEFT JOIN employees l1e ON l1e.id = e.l1_manager_id
+        LEFT JOIN users     l1u ON l1u.id = l1e.user_id
+        LEFT JOIN employees l2e ON l2e.id = e.l2_manager_id
+        LEFT JOIN users     l2u ON l2u.id = l2e.user_id
+        WHERE u.id = $1
+        """,
+        user["id"],
+    )
+
+    if not row:
+        raise HTTPException(404, "Employee profile not found")
+
+    def fmt_date(d):
+        return d.strftime("%d %b %Y") if d else None
+
+    def fmt_time(t):
+        return t.strftime("%I:%M %p") if t else None
+
+    # If this employee is a manager (L1 or L2 for others), fetch their direct reports
+    emp_id_row = await db.fetchrow(
+        "SELECT id FROM employees WHERE user_id = $1", user["id"]
+    )
+    my_emp_id = emp_id_row["id"] if emp_id_row else None
+
+    my_team = []
+    if my_emp_id:
+        team_rows = await db.fetch(
+            """
+            SELECT
+                u.full_name,
+                e.emp_id,
+                e.job_title,
+                e.designation,
+                e.department
+            FROM employees e
+            JOIN users u ON u.id = e.user_id
+            WHERE e.is_active = TRUE
+              AND (e.l1_manager_id = $1 OR e.l2_manager_id = $1)
+            ORDER BY u.full_name
+            """,
+            my_emp_id,
+        )
+        my_team = [
+            {
+                "name":        t["full_name"],
+                "emp_id":      t["emp_id"],
+                "designation": t["designation"] or t["job_title"],
+                "department":  t["department"],
+            }
+            for t in team_rows
+        ]
+
+    return {
+        "personal": {
+            "full_name":      row["full_name"],
+            "emp_id":         row["emp_id"],
+            "work_email":     row["work_email"],
+            "personal_email": row["personal_email"],
+            "phone":          row["phone"],
+            "dob":            fmt_date(row["dob"]),
+            "gender":         row["gender"],
+            "blood_group":    row["blood_group"],
+            "nationality":    row["nationality"],
+        },
+        "job": {
+            "job_title":       row["job_title"],
+            "designation":     row["designation"],
+            "department":      row["department"],
+            "sub_department":  row["sub_department"],
+            "grade":           row["grade"],
+            "employment_type": row["employment_type"],
+            "date_of_joining": fmt_date(row["date_of_joining"]),
+            "probation_end":   fmt_date(row["probation_end"]),
+            "contract_end":    fmt_date(row["contract_end"]),
+            "notice_period":   row["notice_period"],
+            "cost_centre":     row["cost_centre"],
+            "branch":          f"{row['branch_name']}, {row['branch_city']}" if row["branch_name"] else None,
+        },
+        "schedule": {
+            "shift_start":    fmt_time(row["shift_start"]),
+            "shift_end":      fmt_time(row["shift_end"]),
+            "work_mode":      row["work_mode"],
+            "weekly_off":     row["weekly_off"],
+            "work_location":  row["work_location"],
+        },
+        "managers": {
+            "l1": {
+                "id":          row["l1_manager_id"],
+                "name":        row["l1_name"],
+                "emp_id":      row["l1_emp_id"],
+                "job_title":   row["l1_job_title"],
+                "designation": row["l1_designation"],
+                "department":  row["l1_department"],
+            } if row["l1_manager_id"] else None,
+            "l2": {
+                "id":          row["l2_manager_id"],
+                "name":        row["l2_name"],
+                "emp_id":      row["l2_emp_id"],
+                "job_title":   row["l2_job_title"],
+                "designation": row["l2_designation"],
+                "department":  row["l2_department"],
+            } if row["l2_manager_id"] else None,
+        },
+        "my_team": my_team,
+    }
+
+
 # ══════════════════════════════════════════════════════════════
 # ATTENDANCE
 # ══════════════════════════════════════════════════════════════
@@ -2142,6 +2318,10 @@ async def regularization_page():
 @app.get("/leave")
 async def leave_page():
     return FileResponse(FRONTEND_DIR / "leave.html")
+
+@app.get("/me")
+async def me_page():
+    return FileResponse(FRONTEND_DIR / "me.html")
 
 @app.get("/holidays")
 async def holidays_page():

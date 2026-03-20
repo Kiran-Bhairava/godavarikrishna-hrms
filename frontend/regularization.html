@@ -943,6 +943,38 @@
         color: var(--text-2);
       }
 
+      /* ── TEAM SUB-TOGGLE ── */
+      .sub-toggle {
+        display: flex;
+        gap: 6px;
+        margin: 4px 0 12px;
+      }
+      .sub-btn {
+        flex: 1;
+        padding: 9px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-2);
+        color: var(--text-2);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--ease);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .sub-btn.active {
+        background: var(--primary-light);
+        color: var(--primary);
+        border-color: rgba(0, 137, 208, 0.25);
+      }
+      .sub-btn:active {
+        transform: scale(0.97);
+      }
+
       /* ── BOTTOM NAV ── */
       .bottom-nav {
         position: fixed;
@@ -1159,10 +1191,28 @@
 
       <!-- TEAM APPROVALS VIEW -->
       <div id="teamView" class="content-view">
-        <div class="section-label" style="margin-top: 4px">
-          Pending Approvals
+        <!-- Sub-toggle: Pending / History -->
+        <div class="sub-toggle">
+          <button
+            class="sub-btn active"
+            id="subPendingBtn"
+            onclick="switchTeamView('pending')"
+          >
+            Pending
+          </button>
+          <button
+            class="sub-btn"
+            id="subHistoryBtn"
+            onclick="switchTeamView('history')"
+          >
+            History
+          </button>
         </div>
+
         <div id="approvalsList" class="approval-list">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <div id="historyList" class="approval-list" style="display: none">
           <div class="loading"><div class="spinner"></div></div>
         </div>
       </div>
@@ -1413,6 +1463,21 @@
         </svg>
         <span class="nav-label">Attendance</span>
       </a>
+      <a href="/me" class="nav-btn">
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+        </svg>
+        <span class="nav-label">Me</span>
+      </a>
     </div>
 
     <!-- TOAST -->
@@ -1424,6 +1489,7 @@
 
       let currentMonth = new Date();
       let calendarData = [];
+      let joiningDate = null; // set from API — days before this show "Before Joining"
       let pendingApprovals = [];
       let selectedDay = null;
       let selectedRequest = null;
@@ -1509,7 +1575,30 @@
         document
           .getElementById("teamView")
           .classList.toggle("active", tab === "team");
-        if (tab === "team") loadPendingApprovals();
+        if (tab === "team") {
+          if (teamSubView === "pending") loadPendingApprovals();
+          else loadTeamHistory();
+        }
+      }
+
+      // ── TEAM SUB-TOGGLE ──
+      let teamSubView = "pending";
+      let teamHistory = [];
+
+      function switchTeamView(view) {
+        teamSubView = view;
+        document
+          .getElementById("subPendingBtn")
+          .classList.toggle("active", view === "pending");
+        document
+          .getElementById("subHistoryBtn")
+          .classList.toggle("active", view === "history");
+        document.getElementById("approvalsList").style.display =
+          view === "pending" ? "" : "none";
+        document.getElementById("historyList").style.display =
+          view === "history" ? "" : "none";
+        if (view === "pending") loadPendingApprovals();
+        else loadTeamHistory();
       }
 
       // ── MONTH NAV ──
@@ -1531,7 +1620,10 @@
           1,
         );
         updateMonthDisplay();
+        teamHistory = []; // reset so history reloads for new month
         loadCalendar();
+        if (currentTab === "team" && teamSubView === "history")
+          loadTeamHistory();
       }
 
       // ── DATA ──
@@ -1542,6 +1634,7 @@
             `/attendance/regularization/calendar?month=${monthStr}`,
           );
           calendarData = data.days || [];
+          joiningDate = data.joining_date || null; // "YYYY-MM-DD" or null
           renderDays();
           updateStats(data);
         } catch (e) {
@@ -1565,14 +1658,112 @@
       async function checkManagerStatus() {
         try {
           const data = await apiFetch("/attendance/regularization/pending");
+          // Always show the tab for managers — even if no pending, they can see history
           if (data.pending_count > 0) {
             document.getElementById("teamTab").style.display = "flex";
             document.getElementById("teamBadge").textContent =
               data.pending_count;
+          } else {
+            // Check if they have any history this month (i.e. are a manager)
+            const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
+            const hist = await apiFetch(
+              `/attendance/regularization/team-history?month=${monthStr}`,
+            );
+            if (hist.total > 0) {
+              document.getElementById("teamTab").style.display = "flex";
+              document.getElementById("teamBadge").textContent = "0";
+            }
           }
         } catch (e) {
           /* not a manager */
         }
+      }
+
+      async function loadTeamHistory() {
+        const el = document.getElementById("historyList");
+        el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+        const monthStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, "0")}`;
+        try {
+          const data = await apiFetch(
+            `/attendance/regularization/team-history?month=${monthStr}`,
+          );
+          teamHistory = data.requests || [];
+          renderTeamHistory();
+        } catch (e) {
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-text">${e.message}</div></div>`;
+        }
+      }
+
+      function renderTeamHistory() {
+        const el = document.getElementById("historyList");
+        if (!teamHistory.length) {
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No history yet</div><div class="empty-text">No actioned requests this month</div></div>`;
+          return;
+        }
+
+        el.innerHTML = teamHistory
+          .map((r) => {
+            const approved = r.final_status === "approved";
+            const statusColor = approved ? "var(--success)" : "var(--danger)";
+            const statusBg = approved
+              ? "var(--success-light)"
+              : "var(--danger-light)";
+            const myComment = r.my_role === "l1" ? r.l1_comment : r.l2_comment;
+            const roleLabel = r.my_role === "l2" ? "L2" : "L1";
+
+            // Approval chain — show both stages if escalation happened
+            let chain = `<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">`;
+            const l1Color =
+              r.l1_status === "approved"
+                ? "var(--success)"
+                : r.l1_status === "rejected"
+                  ? "var(--danger)"
+                  : "var(--text-3)";
+            chain += `<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)">L1: <strong style="color:${l1Color}">${r.l1_status}</strong></span>`;
+            if (r.escalation_required) {
+              const l2Status = r.l2_status || "pending";
+              const l2Color =
+                l2Status === "approved"
+                  ? "var(--success)"
+                  : l2Status === "rejected"
+                    ? "var(--danger)"
+                    : "var(--text-3)";
+              chain += `<span style="font-size:11px;color:var(--text-3)">→</span>`;
+              chain += `<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)">L2: <strong style="color:${l2Color}">${l2Status}</strong></span>`;
+            }
+            chain += `</div>`;
+
+            return `
+          <div class="approval-card" style="border-left:3px solid ${statusColor}">
+            <div class="appr-top">
+              <div>
+                <div class="appr-name">${r.employee_name}</div>
+                <div class="appr-meta">${formatDate(r.work_date)} · You were ${roleLabel}</div>
+              </div>
+              <span class="state-pill" style="background:${statusBg};color:${statusColor};border:1px solid ${statusColor}33">${r.final_status}</span>
+            </div>
+            <div class="appr-body">
+              <div class="appr-reason">"${r.reason}"</div>
+              <div class="appr-stats">
+                <div class="appr-stat">
+                  <div class="appr-stat-val">${r.actual_worked_display}</div>
+                  <div class="appr-stat-lbl">Worked</div>
+                </div>
+                <div class="appr-stat">
+                  <div class="appr-stat-val">+${r.requested_display}</div>
+                  <div class="appr-stat-lbl">Requested</div>
+                </div>
+                <div class="appr-stat">
+                  <div class="appr-stat-val">${minutesToDisplay(r.actual_worked_minutes + r.requested_minutes)}</div>
+                  <div class="appr-stat-lbl">Total</div>
+                </div>
+              </div>
+              ${myComment ? `<div style="margin-top:8px;padding:8px 10px;background:var(--surface-2);border:1px solid var(--border-light);border-radius:8px;font-size:12px;color:var(--text-2)">💬 "${myComment}"</div>` : ""}
+              ${chain}
+            </div>
+          </div>`;
+          })
+          .join("");
       }
 
       function updateStats(apiData) {
@@ -1618,6 +1809,9 @@
             const today = new Date().toISOString().split("T")[0];
             const isToday = day.date === today;
 
+            // Days before the employee's joining date cannot be regularized
+            const isBeforeJoining = joiningDate && day.date < joiningDate;
+
             // Determine state
             let state = "ok",
               pillClass = "pill-ok",
@@ -1627,7 +1821,11 @@
               fixBtnClass = "fix-btn";
             let statusText = null;
 
-            if (reg) {
+            if (isBeforeJoining) {
+              state = "ok";
+              pillClass = "pill-ok";
+              pillText = "Before Joining";
+            } else if (reg) {
               if (reg.status === "pending") {
                 state = "pend";
                 pillClass = "pill-pend";

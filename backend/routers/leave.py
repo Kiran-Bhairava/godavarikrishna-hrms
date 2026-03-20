@@ -683,6 +683,99 @@ async def get_pending_approvals(
     )
 
 
+@router.get("/team-history")
+async def get_team_leave_history(
+    month: Optional[str] = Query(None),
+    user: dict = Depends(get_current_user),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """
+    GET /api/leave/team-history?month=2026-03
+
+    Returns leave requests this manager has already actioned
+    (final_status = approved or rejected). Works for both L1 and L2 roles.
+    """
+    emp = await db.fetchrow(
+        "SELECT id FROM employees WHERE user_id = $1 AND is_active = TRUE",
+        user["id"],
+    )
+    if not emp:
+        return {"month": month, "total": 0, "requests": []}
+
+    manager_id = emp["id"]
+
+    if not month:
+        now = datetime.now()
+        month = f"{now.year}-{now.month:02d}"
+    year, month_num = int(month.split("-")[0]), int(month.split("-")[1])
+
+    rows = await db.fetch(
+        """
+        SELECT
+            lr.id               AS request_id,
+            lr.employee_id,
+            lr.date_from,
+            lr.date_to,
+            lr.num_days,
+            lr.leave_type,
+            lr.reason,
+            lr.submitted_at,
+            lr.final_status,
+            lr.l1_status,
+            lr.l1_comment,
+            lr.l1_approved_at,
+            lr.l2_status,
+            lr.l2_comment,
+            lr.l2_approved_at,
+            u.full_name         AS employee_name,
+            CASE
+                WHEN lr.l1_manager_id = $1 THEN 'l1'
+                ELSE 'l2'
+            END                 AS my_role,
+            CASE
+                WHEN lr.l1_manager_id = $1 THEN lr.l1_status
+                ELSE lr.l2_status
+            END                 AS my_action
+        FROM leave_requests lr
+        JOIN employees e ON e.id = lr.employee_id
+        JOIN users u     ON u.id = e.user_id
+        WHERE lr.final_status IN ('approved', 'rejected')
+          AND (lr.l1_manager_id = $1 OR lr.l2_manager_id = $1)
+          AND EXTRACT(YEAR  FROM lr.date_from) = $2
+          AND EXTRACT(MONTH FROM lr.date_from) = $3
+        ORDER BY lr.date_from DESC
+        """,
+        manager_id, year, month_num,
+    )
+
+    return {
+        "month": month,
+        "total": len(rows),
+        "requests": [
+            {
+                "request_id":   r["request_id"],
+                "employee_name": r["employee_name"],
+                "date_from":    r["date_from"].isoformat(),
+                "date_to":      r["date_to"].isoformat(),
+                "num_days":     r["num_days"],
+                "leave_type":   r["leave_type"],
+                "reason":       r["reason"],
+                "submitted_at": r["submitted_at"].isoformat() if r["submitted_at"] else None,
+                "final_status": r["final_status"],
+                "my_role":      r["my_role"],
+                "my_action":    r["my_action"],
+                "l1_status":    r["l1_status"],
+                "l1_comment":   r["l1_comment"],
+                "l1_approved_at": r["l1_approved_at"].isoformat() if r["l1_approved_at"] else None,
+                "l2_status":    r["l2_status"],
+                "l2_comment":   r["l2_comment"],
+                "l2_approved_at": r["l2_approved_at"].isoformat() if r["l2_approved_at"] else None,
+            }
+            for r in rows
+        ],
+    }
+
+
 @router.post("/requests/{request_id}/l1-approve")
 async def l1_approve(
     request_id: int,

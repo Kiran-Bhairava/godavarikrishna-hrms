@@ -1290,6 +1290,37 @@
         flex: 2;
       }
 
+      /* SUB-TOGGLE (pending / history inside approvals tab) */
+      .sub-toggle {
+        display: flex;
+        gap: 6px;
+      }
+      .sub-btn {
+        flex: 1;
+        padding: 9px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface-2);
+        color: var(--text-2);
+        font-family: "DM Sans", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .sub-btn.active {
+        background: var(--primary-light);
+        color: var(--primary);
+        border-color: rgba(0, 137, 208, 0.25);
+      }
+      .sub-btn:active {
+        transform: scale(0.97);
+      }
+
       /* BOTTOM NAV */
       .bottom-nav {
         position: fixed;
@@ -1904,9 +1935,33 @@
 
       <!-- ═══════ APPROVALS ═══════ -->
       <div class="view" id="approvalsView">
+        <!-- Sub-toggle: Pending / History -->
+        <div class="sub-toggle" style="margin-bottom: 12px">
+          <button
+            class="sub-btn active"
+            id="lvSubPendingBtn"
+            onclick="switchLeaveTeamView('pending')"
+          >
+            Pending
+          </button>
+          <button
+            class="sub-btn"
+            id="lvSubHistoryBtn"
+            onclick="switchLeaveTeamView('history')"
+          >
+            History
+          </button>
+        </div>
+
         <div
           id="approvalsList"
           style="display: flex; flex-direction: column; gap: 12px"
+        >
+          <div class="spinner-wrap"><div class="spinner"></div></div>
+        </div>
+        <div
+          id="leaveHistoryList"
+          style="display: none; flex-direction: column; gap: 12px"
         >
           <div class="spinner-wrap"><div class="spinner"></div></div>
         </div>
@@ -2063,6 +2118,21 @@
         </svg>
         <span class="nav-label">Attendance</span>
       </button>
+      <a href="/me" class="nav-btn">
+        <svg
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+        </svg>
+        <span class="nav-label">Me</span>
+      </a>
     </div>
 
     <div class="toast" id="toast"></div>
@@ -2086,6 +2156,10 @@
       let actionRole = null,
         actionType = null,
         actionReqId = null;
+
+      // Team history (for L1 / L2 managers)
+      let leaveTeamSubView = "pending";
+      let leaveTeamHistory = [];
 
       // Apply calendar
       let calYear = new Date().getFullYear();
@@ -2211,7 +2285,10 @@
         );
         document.getElementById("applyBar").style.display =
           tab === "apply" ? "block" : "none";
-        if (tab === "approvals") loadApprovals();
+        if (tab === "approvals") {
+          if (leaveTeamSubView === "pending") loadApprovals();
+          else loadLeaveHistory();
+        }
         if (tab === "activity") loadActivity();
         if (tab === "apply") updateApplyBar();
       }
@@ -2930,8 +3007,104 @@
       }
 
       // ══════════════════════════════════════════
-      // ACTION SHEET (Approval)
+      // TEAM HISTORY (L1 / L2 actioned requests)
       // ══════════════════════════════════════════
+      function switchLeaveTeamView(view) {
+        leaveTeamSubView = view;
+        document
+          .getElementById("lvSubPendingBtn")
+          .classList.toggle("active", view === "pending");
+        document
+          .getElementById("lvSubHistoryBtn")
+          .classList.toggle("active", view === "history");
+        document.getElementById("approvalsList").style.display =
+          view === "pending" ? "flex" : "none";
+        document.getElementById("leaveHistoryList").style.display =
+          view === "history" ? "flex" : "none";
+        if (view === "pending") loadApprovals();
+        else loadLeaveHistory();
+      }
+
+      async function loadLeaveHistory() {
+        const el = document.getElementById("leaveHistoryList");
+        el.innerHTML = `<div class="spinner-wrap"><div class="spinner"></div></div>`;
+        // Use activity month so month-nav stays consistent
+        const monthStr = `${actYear}-${String(actMonth + 1).padStart(2, "0")}`;
+        try {
+          const data = await apiFetch(`/leave/team-history?month=${monthStr}`);
+          leaveTeamHistory = data.requests || [];
+          renderLeaveHistory();
+        } catch (e) {
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Failed to load</div><div class="empty-text">${e.message}</div></div>`;
+        }
+      }
+
+      function renderLeaveHistory() {
+        const el = document.getElementById("leaveHistoryList");
+        if (!leaveTeamHistory.length) {
+          el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No history yet</div><div class="empty-text">No actioned leave requests this month</div></div>`;
+          return;
+        }
+
+        el.innerHTML = leaveTeamHistory
+          .map((r) => {
+            const approved = r.final_status === "approved";
+            const statusColor = approved ? "var(--success)" : "var(--danger)";
+            const statusBg = approved ? "#ecfdf5" : "#fef2f2";
+            const myComment = r.my_role === "l1" ? r.l1_comment : r.l2_comment;
+            const roleLabel = r.my_role === "l2" ? "L2" : "L1";
+
+            const dateFrom = new Date(r.date_from).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+            });
+            const dateTo = new Date(r.date_to).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+            });
+            const dateStr =
+              r.date_from === r.date_to ? dateFrom : `${dateFrom} – ${dateTo}`;
+
+            const l1Color =
+              r.l1_status === "approved"
+                ? "var(--success)"
+                : r.l1_status === "rejected"
+                  ? "var(--danger)"
+                  : "var(--text-3)";
+            const l2Status = r.l2_status || "—";
+            const l2Color =
+              r.l2_status === "approved"
+                ? "var(--success)"
+                : r.l2_status === "rejected"
+                  ? "var(--danger)"
+                  : "var(--text-3)";
+
+            return `
+          <div class="appr-card" style="border-left:3px solid ${statusColor}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+              <div class="appr-emp">${r.employee_name}</div>
+              <span class="type-badge ${r.leave_type}" style="padding:2px 8px;font-size:10px;background:${statusBg};color:${statusColor}">${r.final_status}</span>
+            </div>
+            <div class="appr-meta">
+              ${dateStr} &nbsp;•&nbsp; ${r.num_days} day${r.num_days !== 1 ? "s" : ""} &nbsp;•&nbsp;
+              <span class="type-badge ${r.leave_type}" style="padding:2px 8px;font-size:10px">${cap(r.leave_type)}</span>
+              &nbsp;•&nbsp; You were <strong>${roleLabel}</strong>
+            </div>
+            <div class="appr-reason">"${r.reason}"</div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#f8fafc;border:1px solid var(--border);color:var(--text-2)">
+                L1: <strong style="color:${l1Color}">${r.l1_status}</strong>
+              </span>
+              <span style="font-size:11px;color:var(--text-3)">→</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#f8fafc;border:1px solid var(--border);color:var(--text-2)">
+                L2: <strong style="color:${l2Color}">${l2Status}</strong>
+              </span>
+            </div>
+            ${myComment ? `<div style="margin-top:8px;padding:8px 10px;background:#f8fafc;border:1px solid var(--border-light);border-radius:8px;font-size:12px;color:var(--text-2)">💬 "${myComment}"</div>` : ""}
+          </div>`;
+          })
+          .join("");
+      }
       function openActionSheet(requestId, role, type) {
         selectedApproval = pendingApprovals.find(
           (r) => r.request_id === requestId,

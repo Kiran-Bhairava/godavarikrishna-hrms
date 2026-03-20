@@ -424,6 +424,7 @@ class CalendarDayView(BaseModel):
 class AttendanceCalendarResponse(BaseModel):
     month: str  # "2024-12"
     days: list[CalendarDayView]
+    joining_date: Optional[date] = None  # Employee's date_of_joining — used by frontend to gate fix button
 
 
 class LeaveRequestCreate(BaseModel):
