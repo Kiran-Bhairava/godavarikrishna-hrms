@@ -15,12 +15,10 @@ class Settings(BaseSettings):
     db_pool_min: int = 5
     db_pool_max: int = 20
 
-    # ── Email / SMTP ───────────────────────────────────────────
-    smtp_host: str = "smtp.gmail.com"
-    smtp_port: int = 587
-    smtp_user: str = ""           # e.g. hr@yourdomain.com
-    smtp_password: str = ""       # Gmail app password or SMTP password
-    smtp_from_name: str = "SDPL HR"
+    # ── Email / Resend ─────────────────────────────────────────
+    resend_api_key: str = ""       # e.g. re_xxxxxxxxxxxx
+    from_email: str = ""           # e.g. hr@yourdomain.com (must be verified in Resend)
+    from_name: str = "SDPL HR"
     app_url: str = ""             # e.g. https://hrms.yourdomain.com
 
     class Config:

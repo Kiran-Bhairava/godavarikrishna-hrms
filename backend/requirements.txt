@@ -1,4 +1,5 @@
 fastapi
+resend
 uvicorn[standard]
 asyncpg
 python-jose[cryptography]

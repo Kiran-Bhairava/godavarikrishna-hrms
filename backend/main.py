@@ -959,7 +959,10 @@ async def get_my_profile(
             l2e.emp_id      AS l2_emp_id,
             l2e.job_title   AS l2_job_title,
             l2e.designation AS l2_designation,
-            l2e.department  AS l2_department
+            l2e.department  AS l2_department,
+
+            -- Self
+            e.id            AS my_emp_row_id
 
         FROM users u
         JOIN employees e ON e.user_id = u.id
@@ -982,11 +985,8 @@ async def get_my_profile(
     def fmt_time(t):
         return t.strftime("%I:%M %p") if t else None
 
-    # If this employee is a manager (L1 or L2 for others), fetch their direct reports
-    emp_id_row = await db.fetchrow(
-        "SELECT id FROM employees WHERE user_id = $1", user["id"]
-    )
-    my_emp_id = emp_id_row["id"] if emp_id_row else None
+    # e.id is already in the main query result as my_emp_row_id
+    my_emp_id = row["my_emp_row_id"] if row else None
 
     my_team = []
     if my_emp_id:
@@ -1583,14 +1583,21 @@ async def daily_report(
     rows = await db.fetch(q, *params)
     employees = [_ser(dict(r)) for r in rows]
     total = len(employees)
+    # Count in one pass — avoids iterating the list 4 times
+    present = absent = on_leave = late = 0
+    for e in employees:
+        if e["payroll_status"] == "present": present += 1
+        elif e["payroll_status"] == "absent": absent += 1
+        if e["status"] == "leave": on_leave += 1
+        if e.get("is_late"): late += 1
     return {
         "date": target.isoformat(),
         "stats": {
-            "total":   total,
-            "present": sum(1 for e in employees if e["payroll_status"] == "present"),
-            "absent":  sum(1 for e in employees if e["payroll_status"] == "absent"),
-            "on_leave": sum(1 for e in employees if e["status"] == "leave"),
-            "late":    sum(1 for e in employees if e.get("is_late")),
+            "total":    total,
+            "present":  present,
+            "absent":   absent,
+            "on_leave": on_leave,
+            "late":     late,
         },
         "employees": employees,
     }
@@ -1843,7 +1850,9 @@ async def list_employees(
     department:        Annotated[Optional[str], Query()] = None,
     branch_id:         Annotated[Optional[int], Query()] = None,
     onboarding_status: Annotated[Optional[str], Query()] = None,
-    is_active: Annotated[Optional[bool], Query()] = None,
+    is_active:         Annotated[Optional[bool], Query()] = None,
+    page:              Annotated[int, Query(ge=1)] = 1,
+    page_size:         Annotated[int, Query(ge=1, le=200)] = 10,
     _hr: dict = Depends(require_hr),
     db: asyncpg.Connection = Depends(get_db),
 ):
@@ -1867,6 +1876,18 @@ async def list_employees(
     if is_active is not None:
         conditions.append(f"e.is_active = {add(is_active)}")
 
+    offset = (page - 1) * page_size
+
+    # Count query reuses same WHERE — no extra round-trip for filters
+    total = await db.fetchval(
+        f"""SELECT COUNT(*)
+            FROM users u
+            JOIN employees e ON e.user_id = u.id
+            WHERE {' AND '.join(conditions)}""",
+        *params,
+    )
+
+    params.extend([page_size, offset])
     rows = await db.fetch(
         f"""SELECT
               u.id AS user_id, e.id, e.emp_id,
@@ -1888,7 +1909,8 @@ async def list_employees(
             LEFT JOIN employees l2e ON l2e.id = e.l2_manager_id
             LEFT JOIN users     l2u ON l2u.id = l2e.user_id
             WHERE {' AND '.join(conditions)}
-            ORDER BY e.created_at DESC""",
+            ORDER BY e.created_at DESC
+            LIMIT ${len(params)-1} OFFSET ${len(params)}""",
         *params,
     )
 
@@ -1901,7 +1923,7 @@ async def list_employees(
         if d.get("created_at"):      d["created_at"] = d["created_at"].isoformat()
         result.append(d)
 
-    return {"total": len(result), "employees": result}
+    return {"total": total, "page": page, "page_size": page_size, "employees": result}
 
 
 @app.get("/api/hr/employees/{emp_id}")

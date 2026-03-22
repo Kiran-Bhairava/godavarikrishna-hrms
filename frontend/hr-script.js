@@ -350,7 +350,7 @@ const API = "/api";
           let url = `/hr/daily-report?date_str=${date}`;
           if (branchId) url += `&branch_id=${branchId}`;
           const data = await apiFetch(url);
-          const { total, present, absent, late } = data.stats;
+          const { total, present, absent, late, on_leave = 0 } = data.stats;
           document.getElementById("kpiTotal").textContent = total;
           document.getElementById("kpiPresent").textContent = present;
           document.getElementById("kpiAbsent").textContent = absent;
@@ -432,20 +432,25 @@ const API = "/api";
         await loadOnboardingTable();
       }
 
-      async function loadOnboardingTable(statusFilter = "", search = "") {
+      const OB_PAGE_SIZE = 10;
+      let obTotal = 0;
+
+      async function loadOnboardingTable(statusFilter = "", search = "", page = 1) {
         const tbody = document.getElementById("obTable");
         tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Loading…</td></tr>`;
         try {
-          let url = "/hr/employees?";
+          let url = `/hr/employees?page=${page}&page_size=${OB_PAGE_SIZE}&`;
           if (statusFilter && statusFilter !== "all")
             url += `onboarding_status=${statusFilter}&`;
           if (search) url += `search=${encodeURIComponent(search)}&`;
           const data = await apiFetch(url);
           obAllRows = data.employees || [];
-          obPage = 1;
-          document.getElementById("obShowing").textContent = obAllRows.length;
-          document.getElementById("obTotalCount").textContent =
-            data.total || obAllRows.length;
+          obPage = page;
+          obTotal = data.total || 0;
+          const offset = (page - 1) * OB_PAGE_SIZE;
+          document.getElementById("obShowing").textContent =
+            obAllRows.length ? `${offset + 1}–${offset + obAllRows.length}` : "0";
+          document.getElementById("obTotalCount").textContent = obTotal;
           renderOnboardingTable();
         } catch (e) {
           tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:var(--danger)">Error: ${e.message}</td></tr>`;
@@ -458,28 +463,24 @@ const API = "/api";
           .querySelectorAll(".ob-tab")
           .forEach((t) => t.classList.remove("active"));
         el.classList.add("active");
-        loadOnboardingTable(f);
+        loadOnboardingTable(f, "", 1);
       }
 
       function filterOnboarding(q) {
-        loadOnboardingTable(obFilter === "all" ? "" : obFilter, q);
+        loadOnboardingTable(obFilter === "all" ? "" : obFilter, q, 1);
       }
 
       function renderOnboardingTable() {
         const tbody = document.getElementById("obTable");
-        const all = obAllRows;
-        if (!all.length) {
+        const rows = obAllRows;
+        if (!rows.length) {
           tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No employees match the filter.</td></tr>`;
-          document.getElementById("obShowing").textContent = 0;
+          document.getElementById("obShowing").textContent = "0";
           document.getElementById("obPagination").innerHTML = "";
           return;
         }
-        const _ot = all.length;
-        const _os = (obPage-1)*PG;
-        const rows = all.slice(_os, _os+PG);
-        document.getElementById("obShowing").textContent = `${_os+1}–${_os+rows.length}`;
-        document.getElementById("obTotalCount").textContent = _ot;
-        paginate("obPagination", _ot, obPage, function(p){obPage=p;renderOnboardingTable();});
+        // Server already sent the right page — just render + paginate
+        paginateOb("obPagination", obTotal, obPage);
 
         const sMap = {
           "in-progress":
@@ -576,15 +577,12 @@ const API = "/api";
       }
 
       async function updateObStatus(empId, status, selectEl) {
+        const prev = selectEl.value;
         try {
-          await apiFetch(`/hr/employees/${empId}/onboarding-status`, "PATCH", {
-            status,
-          });
+          await apiFetch(`/hr/employees/${empId}/onboarding-status`, "PATCH", { status });
           toast(`Status updated to "${status}"`, "success");
-          // Refresh stats badge + row in place
-          const row = obAllRows.find((r) => r.id === empId);
-          if (row) row.onboarding_status = status;
-          renderOnboardingTable();
+          // Re-fetch current page so counts + rows are accurate
+          loadOnboardingTable(obFilter === "all" ? "" : obFilter, "", obPage);
           // Refresh KPI counts silently
           apiFetch("/hr/onboarding-stats")
             .then((stats) => {
@@ -596,10 +594,7 @@ const API = "/api";
             .catch(() => {});
         } catch (e) {
           toast(e.message, "error");
-          // Revert select
-          selectEl.value =
-            obAllRows.find((r) => r.id === empId)?.onboarding_status ||
-            "awaiting";
+          selectEl.value = prev; // revert on failure
         }
       }
 
@@ -1253,6 +1248,38 @@ const API = "/api";
 
 
       // ── Reusable client-side paginator ────────────────────────────
+      // Server-side pagination for onboarding table — avoids serializing closures into onclick
+      function paginateOb(containerId, total, cur) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        const pages = Math.ceil(total / OB_PAGE_SIZE);
+        if (pages <= 1) { el.innerHTML = ""; return; }
+
+        let html = `<button class="pg-btn" ${cur===1?"disabled":""} onclick="obGoPage(${cur-1})">‹</button>`;
+
+        let nums = [];
+        if (pages <= 7) {
+          nums = Array.from({length: pages}, (_, i) => i+1);
+        } else {
+          nums = [1];
+          if (cur > 3) nums.push("…");
+          for (let i = Math.max(2,cur-1); i <= Math.min(pages-1,cur+1); i++) nums.push(i);
+          if (cur < pages-2) nums.push("…");
+          nums.push(pages);
+        }
+        nums.forEach(p => {
+          if (p === "…") html += `<span class="pg-ellipsis">…</span>`;
+          else html += `<button class="pg-btn${p===cur?" pg-active":""}" onclick="obGoPage(${p})">${p}</button>`;
+        });
+
+        html += `<button class="pg-btn" ${cur===pages?"disabled":""} onclick="obGoPage(${cur+1})">›</button>`;
+        el.innerHTML = html;
+      }
+
+      function obGoPage(p) {
+        loadOnboardingTable(obFilter === "all" ? "" : obFilter, "", p);
+      }
+
       function paginate(containerId, total, cur, onChange) {
         const el = document.getElementById(containerId);
         if (!el) return;

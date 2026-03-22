@@ -99,12 +99,15 @@ async def _get_working_days(
     employee_id: int,
     date_from: date,
     date_to: date,
+    weekly_off: str | None = None,
 ) -> list[date]:
     """
     Return working days in range (inclusive), excluding holidays + weekly off.
 
     Uses _parse_weekly_off (handles all 7 days) — same logic as payroll so
     leave day counts always match what payroll counts as present days.
+
+    Pass weekly_off when the caller already has it (avoids extra DB round-trip).
     """
     holidays_raw = await db.fetch(
         """
@@ -115,11 +118,13 @@ async def _get_working_days(
     )
     holidays = {r["holiday_date"] for r in holidays_raw}
 
-    weekly_off_str = await db.fetchval(
-        "SELECT weekly_off FROM employees WHERE id = $1",
-        employee_id,
-    )
-    off_days = _parse_weekly_off(weekly_off_str)
+    # Only fetch weekly_off from DB if caller didn't provide it
+    if weekly_off is None:
+        weekly_off = await db.fetchval(
+            "SELECT weekly_off FROM employees WHERE id = $1",
+            employee_id,
+        )
+    off_days = _parse_weekly_off(weekly_off)
 
     working = []
     cur = date_from
@@ -172,17 +177,31 @@ async def _get_or_init_balance(
     If the employee has crossed the 6-month threshold since the row was
     first created, cl_sl_eligible and the CL/SL totals are upgraded in place.
     This handles the case where the row was seeded before probation ended.
+
+    Optimized: fetches DOJ + balance in one JOIN query instead of two.
     """
-    doj      = await db.fetchval(
-        "SELECT date_of_joining FROM employees WHERE id = $1", employee_id
+    # Single query — get DOJ from employees + existing balance row (if any)
+    combined = await db.fetchrow(
+        """
+        SELECT e.date_of_joining,
+               lb.cl_total, lb.cl_used, lb.cl_remaining,
+               lb.sl_total, lb.sl_used, lb.sl_remaining,
+               lb.cl_sl_eligible, lb.updated_at
+        FROM employees e
+        LEFT JOIN leave_balances lb
+               ON lb.employee_id = e.id AND lb.year = $2
+        WHERE e.id = $1
+        """,
+        employee_id, year,
     )
+    doj      = combined["date_of_joining"] if combined else None
     eligible = _is_cl_sl_eligible(doj)
     cl_sl    = _cl_sl_allocation(doj, year) if eligible else 0
 
-    row = await db.fetchrow(
-        "SELECT * FROM leave_balances WHERE employee_id = $1 AND year = $2",
-        employee_id, year,
-    )
+    # Build a row-like dict from the join result (None means no balance row yet)
+    row = None
+    if combined and combined["cl_total"] is not None:
+        row = combined  # balance row exists
 
     if not row:
         # First time — create the row
@@ -250,21 +269,22 @@ async def _sync_daily_summary(
             "casual": "Casual leave approved",
             "sick":   "Sick leave approved",
         }.get(leave_type, "Unpaid leave approved")
-        for d in working_days:
-            await db.execute(
-                """
-                INSERT INTO daily_summary
-                    (user_id, work_date, total_minutes, status,
-                     payroll_status, payroll_minutes, payroll_notes, leave_request_id)
-                VALUES ($1, $2, 0, 'leave', $3, 0, $4, $5)
-                ON CONFLICT (user_id, work_date) DO UPDATE
-                    SET status           = 'leave',
-                        payroll_status   = $3,
-                        payroll_notes    = $4,
-                        leave_request_id = $5
-                """,
-                user_id, d, p_status, p_notes, leave_request_id,
-            )
+        # Bulk upsert all days in one query — no per-day loop
+        await db.execute(
+            """
+            INSERT INTO daily_summary
+                (user_id, work_date, total_minutes, status,
+                 payroll_status, payroll_minutes, payroll_notes, leave_request_id)
+            SELECT $1, d, 0, 'leave', $3, 0, $4, $5
+            FROM unnest($2::date[]) AS d
+            ON CONFLICT (user_id, work_date) DO UPDATE
+                SET status           = 'leave',
+                    payroll_status   = $3,
+                    payroll_notes    = $4,
+                    leave_request_id = $5
+            """,
+            user_id, working_days, p_status, p_notes, leave_request_id,
+        )
     else:
         # Revert only rows owned by this leave request.
         # Priority on revert: regularization > raw attendance > absent.
@@ -366,7 +386,7 @@ async def apply_leave(
     if not emp["l2_manager_id"]:
         raise HTTPException(400, "No L2 manager assigned. Contact HR.")
 
-    working_days = await _get_working_days(db, emp["id"], req.date_from, req.date_to)
+    working_days = await _get_working_days(db, emp["id"], req.date_from, req.date_to, emp.get("weekly_off"))
     if not working_days:
         raise HTTPException(400, "No working days in selected range (holidays/weekly-off only).")
 
@@ -388,16 +408,13 @@ async def apply_leave(
 
     # Balance check — casual and sick only (unpaid has no balance gate)
     if req.leave_type in ("casual", "sick"):
-        doj = await db.fetchval(
-            "SELECT date_of_joining FROM employees WHERE id = $1", emp["id"]
-        )
-        if not _is_cl_sl_eligible(doj):
+        bal   = await _get_or_init_balance(db, emp["id"], req.date_from.year)
+        if not bal["cl_sl_eligible"]:
             raise HTTPException(
                 400,
                 "Casual/Sick leave not yet available. "
                 "Eligible after completing 6 months from date of joining.",
             )
-        bal   = await _get_or_init_balance(db, emp["id"], req.date_from.year)
         col   = "cl_remaining" if req.leave_type == "casual" else "sl_remaining"
         label = "Casual" if req.leave_type == "casual" else "Sick"
         if bal[col] < num_days:
@@ -589,7 +606,7 @@ async def cancel_leave(
         )
         if req["final_status"] == "approved":
             working_days = await _get_working_days(
-                db, emp["id"], req["date_from"], req["date_to"]
+                db, emp["id"], req["date_from"], req["date_to"], emp.get("weekly_off")
             )
             await _sync_daily_summary(
                 db,

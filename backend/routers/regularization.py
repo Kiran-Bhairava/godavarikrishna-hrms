@@ -685,6 +685,7 @@ async def get_regularization_detail(
         SELECT
             r.*,
             e.shift_start, e.shift_end,
+            e.id            AS emp_row_id,
             u.full_name     AS employee_name,
             l1_u.full_name  AS l1_manager_name,
             l2_u.full_name  AS l2_manager_name,

@@ -1,30 +1,24 @@
-"""Simple email utility using smtplib — no extra dependencies."""
-import smtplib
+"""Simple email utility using Resend SDK."""
+import resend
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from config import settings
 
 logger = logging.getLogger("hrms.email")
 
 
 def _send_email(to: str, subject: str, html_body: str) -> bool:
-    """Send an HTML email. Returns True on success, False on failure (never raises)."""
-    if not settings.smtp_user or not settings.smtp_password:
+    """Send an HTML email via Resend. Returns True on success, False on failure (never raises)."""
+    if not settings.resend_api_key or not settings.from_email:
         logger.warning("Email not configured — skipping send to %s", to)
         return False
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"{settings.smtp_from_name} <{settings.smtp_user}>"
-        msg["To"]      = to
-        msg.attach(MIMEText(html_body, "html"))
-
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
-            server.starttls()
-            server.login(settings.smtp_user, settings.smtp_password)
-            server.sendmail(settings.smtp_user, to, msg.as_string())
-
+        resend.api_key = settings.resend_api_key
+        resend.Emails.send({
+            "from": f"{settings.from_name} <{settings.from_email}>",
+            "to": [to],
+            "subject": subject,
+            "html": html_body,
+        })
         logger.info("Email sent to %s | subject: %s", to, subject)
         return True
     except Exception as e:
