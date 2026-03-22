@@ -757,6 +757,53 @@
         opacity: 0.85;
       }
 
+      /* ── LOCATION BANNER ── */
+      .loc-banner {
+        align-items: center;
+        gap: 12px;
+        background: #fff7ed;
+        border: 1.5px solid #f59e0b;
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        animation: fadeSlide 0.3s ease;
+      }
+      .loc-banner-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+      }
+      .loc-banner-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .loc-banner-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #92400e;
+      }
+      .loc-banner-sub {
+        font-size: 11px;
+        color: #b45309;
+        margin-top: 2px;
+      }
+      .loc-banner-btn {
+        background: #f59e0b;
+        color: #fff;
+        border: none;
+        padding: 8px 14px;
+        border-radius: 9px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+      .loc-banner-btn:active {
+        opacity: 0.85;
+        transform: scale(0.97);
+      }
+
       /* ── MODAL ── */
       .modal-overlay {
         position: fixed;
@@ -1212,6 +1259,20 @@
         <div class="error-title" id="errorTitle">Error</div>
         <div class="error-message" id="errorMessage">Something went wrong</div>
         <div class="error-action" id="errorAction"></div>
+      </div>
+
+      <!-- LOCATION PERMISSION BANNER -->
+      <div class="loc-banner" id="locBanner" style="display: none">
+        <div class="loc-banner-icon">📍</div>
+        <div class="loc-banner-body">
+          <div class="loc-banner-title" id="locBannerTitle">
+            Location is off
+          </div>
+          <div class="loc-banner-sub" id="locBannerSub">
+            Enable location to punch in/out
+          </div>
+        </div>
+        <button class="loc-banner-btn" onclick="retryLocation()">Enable</button>
       </div>
 
       <!-- MAIN CARD -->
@@ -1833,6 +1894,9 @@
         userLng = lng;
         userAccuracy = accuracy;
 
+        // Hide location error banner on successful fix
+        document.getElementById("locBanner").style.display = "none";
+
         document.getElementById("coordsDisplay").textContent =
           `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         document.getElementById("accuracyDisplay").textContent =
@@ -1848,6 +1912,14 @@
           document.getElementById("statusDot").className = "status-dot";
           updatePunchUI();
         }
+      }
+
+      function retryLocation() {
+        document.getElementById("locBanner").style.display = "none";
+        document.getElementById("statusText").textContent =
+          "Acquiring location…";
+        document.getElementById("statusDot").className = "status-dot loading";
+        detectLocation();
       }
 
       function detectLocation() {
@@ -1880,12 +1952,32 @@
           },
           (err) => {
             let msg = "GPS error";
-            if (err.code === 1) msg = "Location permission denied";
-            else if (err.code === 2) msg = "Position unavailable";
-            else if (err.code === 3) msg = "Location timeout";
+            let bannerTitle = "Location error";
+            let bannerSub = "Unable to get your location. Tap Enable to retry.";
+
+            if (err.code === 1) {
+              msg = "Location permission denied";
+              bannerTitle = "Location permission needed";
+              bannerSub =
+                "Allow location in your phone settings, then tap Enable.";
+            } else if (err.code === 2) {
+              msg = "Location (GPS) is off";
+              bannerTitle = "Turn on Location (GPS)";
+              bannerSub = "Enable GPS in your phone settings, then tap Enable.";
+            } else if (err.code === 3) {
+              msg = "Location timeout";
+              bannerTitle = "Location timed out";
+              bannerSub = "Move to an open area and tap Enable to retry.";
+            }
 
             document.getElementById("statusText").textContent = msg;
             document.getElementById("statusDot").className = "status-dot error";
+
+            // Show actionable banner
+            const banner = document.getElementById("locBanner");
+            document.getElementById("locBannerTitle").textContent = bannerTitle;
+            document.getElementById("locBannerSub").textContent = bannerSub;
+            banner.style.display = "flex";
 
             if (!hasOfficeLocation) {
               isInsideRange = true;

@@ -98,9 +98,10 @@
         flex: 1;
         overflow-y: auto;
         overflow-x: hidden;
+        /* Extra 24px buffer so last card fully clears nav bar on gesture-nav phones */
         padding: calc(12px + env(safe-area-inset-top))
           max(12px, env(safe-area-inset-right))
-          calc(var(--nav-h) + 16px + env(safe-area-inset-bottom))
+          calc(var(--nav-h) + 40px + env(safe-area-inset-bottom))
           max(12px, env(safe-area-inset-left));
         scrollbar-width: none;
       }

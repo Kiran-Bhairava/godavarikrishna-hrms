@@ -370,7 +370,9 @@
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
-        padding-bottom: 8px;
+        /* Extra clearance so last card clears the fixed bottom nav on all devices
+           (accounts for gesture bars, home indicators, and safe-area insets) */
+        padding-bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px));
       }
       .days-list::-webkit-scrollbar,
       .approval-list::-webkit-scrollbar {
