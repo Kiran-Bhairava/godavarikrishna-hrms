@@ -302,13 +302,33 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_token(user_id: int, email: str, role: str) -> str:
-    """Create JWT token."""
+async def async_hash_password(p: str) -> str:
+    """Hash password in a thread pool — bcrypt is CPU-bound and blocks the event loop."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, pwd_context.hash, p)
+
+
+async def async_verify_password(plain: str, hashed: str) -> bool:
+    """Verify password in a thread pool — bcrypt is CPU-bound and blocks the event loop."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, pwd_context.verify, plain, hashed)
+
+
+def create_token(user_id: int, email: str, role: str, **extra) -> str:
+    """
+    Create JWT token.
+
+    Pass branch/shift/user data via **extra so auth.get_current_user can
+    serve every request from the token alone — no DB query per request.
+
+    Example:
+        create_token(1, "a@b.com", "employee",
+                     full_name="Alice", branch_id=2, ...)
+    """
     exp = datetime.now(tz=pytz.utc) + timedelta(hours=settings.access_token_expire_hours)
-    return jwt.encode(
-        {"sub": str(user_id), "email": email, "role": role, "exp": exp},
-        settings.secret_key, algorithm=settings.algorithm,
-    )
+    payload = {"sub": str(user_id), "email": email, "role": role, "exp": exp}
+    payload.update(extra)
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
 def local_now() -> datetime:
@@ -539,60 +559,65 @@ async def _run_auto_punchout():
                     len(open_rows), today,
                 )
 
-                for row in open_rows:
-                    user_id   = row["user_id"]
-                    branch_id = row["branch_id"]
+                # Calculate minutes per user in Python — no extra DB queries
+                user_ids     = []
+                branch_ids   = []
+                minutes_list = []
 
-                    # Minutes = 8 PM minus first_punch_in (0 if punch-in row missing)
+                for row in open_rows:
+                    user_ids.append(row["user_id"])
+                    branch_ids.append(row["branch_id"])
                     total_min = 0
                     if row["first_punch_in"]:
                         raw_in = row["first_punch_in"]
-                        # first_punch_in is stored timezone-aware (UTC) in the DB
                         if raw_in.tzinfo is not None:
                             raw_in = raw_in.replace(tzinfo=None)
                         total_min = max(0, int(
                             (auto_out_utc - raw_in).total_seconds() / 60
                         ))
+                    minutes_list.append(total_min)
 
-                    async with conn.transaction():
-                        await conn.execute(
-                            """
-                            INSERT INTO attendance_logs
-                                (user_id, branch_id, punch_type,
-                                 latitude, longitude, distance_meters,
-                                 is_valid, punched_at)
-                            VALUES ($1, $2, 'out', 0, 0, 0, FALSE, $3)
-                            """,
-                            user_id, branch_id, auto_out_utc,
-                        )
-
-                        await conn.execute(
-                            """
-                            UPDATE daily_summary
-                            SET last_punch_out  = $2,
-                                total_minutes   = CASE WHEN is_regularized
-                                                    THEN total_minutes
-                                                    ELSE $3 END,
-                                payroll_minutes = CASE WHEN is_regularized
-                                                    THEN payroll_minutes
-                                                    ELSE $3 END,
-                                status          = 'present',
-                                payroll_status  = CASE WHEN is_regularized
-                                                    THEN payroll_status
-                                                    ELSE 'present' END,
-                                payroll_notes   = CASE WHEN is_regularized
-                                                    THEN payroll_notes
-                                                    ELSE 'Auto punch-out at 20:00 — verify if needed'
-                                                END
-                            WHERE user_id = $1 AND work_date = $4
-                            """,
-                            user_id, auto_out_utc, total_min, today,
-                        )
-
-                    logger.info(
-                        "Auto punch-out done: user_id=%s total_min=%d",
-                        user_id, total_min,
+                # Single transaction for all users — was N transactions before
+                async with conn.transaction():
+                    await conn.executemany(
+                        """
+                        INSERT INTO attendance_logs
+                            (user_id, branch_id, punch_type,
+                             latitude, longitude, distance_meters,
+                             is_valid, punched_at)
+                        VALUES ($1, $2, 'out', 0, 0, 0, FALSE, $3)
+                        """,
+                        [(uid, bid, auto_out_utc)
+                         for uid, bid in zip(user_ids, branch_ids)],
                     )
+                    await conn.executemany(
+                        """
+                        UPDATE daily_summary
+                        SET last_punch_out  = $2,
+                            total_minutes   = CASE WHEN is_regularized
+                                                THEN total_minutes
+                                                ELSE $3 END,
+                            payroll_minutes = CASE WHEN is_regularized
+                                                THEN payroll_minutes
+                                                ELSE $3 END,
+                            status          = 'present',
+                            payroll_status  = CASE WHEN is_regularized
+                                                THEN payroll_status
+                                                ELSE 'present' END,
+                            payroll_notes   = CASE WHEN is_regularized
+                                                THEN payroll_notes
+                                                ELSE 'Auto punch-out at 20:00 — verify if needed'
+                                            END
+                        WHERE user_id = $1 AND work_date = $4
+                        """,
+                        [(uid, auto_out_utc, mins, today)
+                         for uid, mins in zip(user_ids, minutes_list)],
+                    )
+
+                logger.info(
+                    "Auto punch-out done: closed %d open punch-in(s) for %s",
+                    len(user_ids), today,
+                )
 
         except asyncio.CancelledError:
             logger.info("Auto punch-out scheduler stopped")
@@ -634,7 +659,7 @@ async def register_first_admin(
         raise HTTPException(409, "User with this email already exists")
     
     # Hash password
-    hashed = pwd_context.hash(payload.password)
+    hashed = await async_hash_password(payload.password)
     
     # Create first admin user
     user = await db.fetchrow(
@@ -681,7 +706,7 @@ async def register_hr(
         raise HTTPException(409, "User with this email already exists")
     
     # Hash password
-    hashed = pwd_context.hash(payload.password)
+    hashed = await async_hash_password(payload.password)
     
     # Create HR user
     user = await db.fetchrow(
@@ -749,8 +774,8 @@ async def login(
     if not user["is_active"]:
         raise HTTPException(403, "Account is inactive. Contact HR.")
 
-    # 2. Verify password
-    if not pwd_context.verify(payload.password, user["password_hash"]):
+    # 2. Verify password — run in executor so bcrypt doesn't block the event loop
+    if not await async_verify_password(payload.password, user["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
 
     user_id = user["id"]
@@ -778,13 +803,32 @@ async def login(
                 f"Onboarding incomplete. Status: {employee['onboarding_status']}. Contact HR."
             )
 
-    # 4. Create JWT token — embed must_reset so the frontend and API can both enforce it
+    # 4. Create JWT token — embed branch/shift so auth middleware needs no DB hit per request
     expire = datetime.utcnow() + timedelta(hours=settings.access_token_expire_hours)
+
+    shift_start = None
+    shift_end = None
+    if employee and employee["shift_start"]:
+        shift_start = employee["shift_start"].strftime("%H:%M")
+    if employee and employee["shift_end"]:
+        shift_end = employee["shift_end"].strftime("%H:%M")
+
     token_data = {
-        "sub": str(user_id),
-        "role": user["role"],
-        "must_reset": bool(user["must_reset_password"]),
-        "exp": expire,
+        "sub":          str(user_id),
+        "role":         user["role"],
+        "email":        user["email"],
+        "full_name":    user["full_name"],
+        "must_reset":   bool(user["must_reset_password"]),
+        "exp":          expire,
+        # Branch / shift embedded so get_current_user can skip the DB
+        "branch_id":    employee["branch_id"]    if employee else None,
+        "shift_start":  shift_start,
+        "shift_end":    shift_end,
+        "branch_name":  employee["branch_name"]  if employee else None,
+        "branch_city":  employee["branch_city"]  if employee else None,
+        "branch_lat":   float(employee["latitude"])  if employee and employee["latitude"]  else None,
+        "branch_lng":   float(employee["longitude"]) if employee and employee["longitude"] else None,
+        "radius_meters": employee["radius_meters"] if employee else None,
     }
     token = jwt.encode(token_data, settings.secret_key, algorithm=settings.algorithm)
 
@@ -795,25 +839,18 @@ async def login(
     )
 
     # 6. Build response
-    shift_start = None
-    shift_end = None
-    if employee and employee["shift_start"]:
-        shift_start = employee["shift_start"].strftime("%H:%M")
-    if employee and employee["shift_end"]:
-        shift_end = employee["shift_end"].strftime("%H:%M")
-
     user_public = {
-        "id": user_id,
-        "email": user["email"],
-        "full_name": user["full_name"],
-        "role": user["role"],
-        "branch_id": employee["branch_id"] if employee else None,
-        "shift_start": shift_start,
-        "shift_end": shift_end,
-        "branch_name": employee["branch_name"] if employee else None,
-        "branch_city": employee["branch_city"] if employee else None,
-        "branch_lat": float(employee["latitude"]) if employee and employee["latitude"] else None,
-        "branch_lng": float(employee["longitude"]) if employee and employee["longitude"] else None,
+        "id":           user_id,
+        "email":        user["email"],
+        "full_name":    user["full_name"],
+        "role":         user["role"],
+        "branch_id":    employee["branch_id"]    if employee else None,
+        "shift_start":  shift_start,
+        "shift_end":    shift_end,
+        "branch_name":  employee["branch_name"]  if employee else None,
+        "branch_city":  employee["branch_city"]  if employee else None,
+        "branch_lat":   float(employee["latitude"])  if employee and employee["latitude"]  else None,
+        "branch_lng":   float(employee["longitude"]) if employee and employee["longitude"] else None,
         "radius_meters": employee["radius_meters"] if employee else None,
     }
 
@@ -863,7 +900,10 @@ async def change_password(
     except (JWTError, ValueError):
         raise HTTPException(401, "Invalid token")
 
-    new_hash = pwd_context.hash(payload.new_password)
+    # Hash BEFORE entering the transaction — bcrypt is slow (~300ms) and we
+    # don't want to hold a DB connection open while it runs
+    new_hash = await async_hash_password(payload.new_password)
+
     async with db.transaction():
         result = await db.execute(
             "UPDATE users SET password_hash=$1, must_reset_password=FALSE WHERE id=$2",
@@ -1740,9 +1780,10 @@ async def onboard_employee(
         next_num = 1
     new_emp_id = f"SDPL{next_num:03d}"
 
-    # 4. Generate final password
+    # 4. Generate final password — hash BEFORE the transaction so bcrypt's
+    # ~300ms doesn't hold a DB connection open needlessly
     raw_password = payload.password or generate_temp_password()
-    hashed_password = pwd_context.hash(raw_password)
+    hashed_password = await async_hash_password(raw_password)
 
     async with db.transaction():
         # 4. Create user
@@ -2010,9 +2051,10 @@ async def regenerate_employee_credentials(
 
     user_id = emp["user_id"]
 
-    # 2. Generate final password
+    # 2. Generate final password — hash before transaction so bcrypt doesn't
+    # hold a DB connection open during its ~300ms CPU work
     new_password = generate_temp_password()
-    hashed = pwd_context.hash(new_password)
+    hashed = await async_hash_password(new_password)
 
     async with db.transaction():
         # 3. Update password (final credential, no reset enforcement)

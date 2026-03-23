@@ -15,10 +15,17 @@ async def get_current_user(
     db: asyncpg.Connection = Depends(get_db),
 ) -> dict:
     """
-    Extract and validate JWT token, return current user with profile data.
-    
-    Depends on: HTTPBearer security, database connection
-    Returns: User dict with profile, branch, shift info
+    Validate JWT and return current user dict.
+
+    Branch / shift data is embedded in the token at login time — no DB hit
+    needed on every request. The DB is only queried if the token is missing
+    branch data (e.g. old tokens issued before this change) so existing
+    sessions keep working without forcing a re-login.
+
+    is_active is NOT re-checked on every request. If HR deactivates a user,
+    their token stays valid until expiry (max 8h). That's acceptable for an
+    internal HRMS — the tradeoff eliminates a DB round-trip on every call.
+    If you need instant deactivation, revert to the DB check here.
     """
     token = credentials.credentials
     try:
@@ -27,16 +34,32 @@ async def get_current_user(
     except (JWTError, ValueError):
         raise HTTPException(401, "Invalid token")
 
-    # Server-side enforcement: block all requests if the token carries must_reset=True.
-    # The only way to clear this is to call /api/auth/change-password.
-    # That endpoint does NOT use get_current_user as a dependency — it reads the token
-    # directly — so this guard does not block the reset itself.
     if payload.get("must_reset"):
         raise HTTPException(
             403,
             "Password reset required. Please change your password before continuing.",
         )
 
+    # Fast path: all data embedded in token — zero DB queries
+    if payload.get("branch_id") is not None or payload.get("role") == "admin":
+        return {
+            "id":           user_id,
+            "email":        payload.get("email", ""),
+            "full_name":    payload.get("full_name", ""),
+            "role":         payload.get("role", "employee"),
+            "branch_id":    payload.get("branch_id"),
+            "shift_start":  payload.get("shift_start"),
+            "shift_end":    payload.get("shift_end"),
+            "branch_name":  payload.get("branch_name"),
+            "branch_city":  payload.get("branch_city"),
+            "branch_lat":   payload.get("branch_lat"),
+            "branch_lng":   payload.get("branch_lng"),
+            "radius_meters": payload.get("radius_meters"),
+        }
+
+    # Slow path: old token without branch data — fetch from DB once
+    # This only runs for tokens issued before this deployment; disappears
+    # after all users re-login (within access_token_expire_hours).
     user = await db.fetchrow(
         """
         SELECT u.id, u.email, u.full_name, u.role, u.is_active,
@@ -57,17 +80,17 @@ async def get_current_user(
         raise HTTPException(401, "User not found or inactive")
 
     return {
-        "id": user["id"],
-        "email": user["email"],
-        "full_name": user["full_name"],
-        "role": user["role"],
-        "branch_id": user["branch_id"],
-        "shift_start": user["shift_start"],
-        "shift_end": user["shift_end"],
-        "branch_name": user["branch_name"],
-        "branch_city": user["branch_city"],
-        "branch_lat": float(user["latitude"]) if user["latitude"] else None,
-        "branch_lng": float(user["longitude"]) if user["longitude"] else None,
+        "id":           user["id"],
+        "email":        user["email"],
+        "full_name":    user["full_name"],
+        "role":         user["role"],
+        "branch_id":    user["branch_id"],
+        "shift_start":  user["shift_start"],
+        "shift_end":    user["shift_end"],
+        "branch_name":  user["branch_name"],
+        "branch_city":  user["branch_city"],
+        "branch_lat":   float(user["latitude"]) if user["latitude"] else None,
+        "branch_lng":   float(user["longitude"]) if user["longitude"] else None,
         "radius_meters": user["radius_meters"],
     }
 

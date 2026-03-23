@@ -15,6 +15,11 @@ async def init_db():
         settings.database_url,
         min_size=settings.db_pool_min,
         max_size=settings.db_pool_max,
+        # Hard limit per query — prevents slow Neon queries from hanging forever
+        command_timeout=30,
+        # Release idle connections after 5 min — keeps Neon free tier connection
+        # count low during off-hours
+        max_inactive_connection_lifetime=300,
     )
     print("✓ Database pool initialized")
 
@@ -30,5 +35,11 @@ async def get_db() -> AsyncGenerator[asyncpg.Connection, None]:
     """Dependency to get database connection for endpoints."""
     if db_pool is None:
         raise HTTPException(503, "Database not available")
-    async with db_pool.acquire() as conn:
-        yield conn
+    try:
+        # Fail fast if all 20 connections are busy — don't let requests pile up
+        async with db_pool.acquire(timeout=10) as conn:
+            yield conn
+    except asyncpg.exceptions.TooManyConnectionsError:
+        raise HTTPException(503, "Database busy, please retry")
+    except TimeoutError:
+        raise HTTPException(503, "Database connection timeout, please retry")
